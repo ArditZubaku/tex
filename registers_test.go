@@ -14,15 +14,35 @@ func inReadMode(t *testing.T, content string, row, col int) *Buffer {
 	lastCh, pendingCount, cmdCount = 0, 0, 1
 	undoStack, redoStack, pendingChange = nil, nil, nil
 	clipboard = register{}
+	searchPat, searchInput, searchBack, inputBack = pattern{}, nil, false, false
+	hlSearch, searchMsg = false, ""
 
 	return b
 }
 
+// press feeds keys the way the editor's own loop would: the prompt takes them
+// while a search is being typed, Read mode takes them otherwise.
 func press(t *testing.T, keys string) {
 	t.Helper()
 
 	for _, ch := range keys {
-		handleReadModeChar(termbox.Event{Ch: ch})
+		event := termbox.Event{Ch: ch}
+		switch ch {
+		case '\n':
+			event = termbox.Event{Key: termbox.KeyEnter}
+		case ' ':
+			event = termbox.Event{Key: termbox.KeySpace}
+		case '\b':
+			event = termbox.Event{Key: termbox.KeyBackspace}
+		case 27:
+			event = termbox.Event{Key: termbox.KeyEsc}
+		}
+
+		if mode == SearchMode {
+			handleSearchKey(event)
+			continue
+		}
+		handleReadModeChar(event)
 	}
 }
 
