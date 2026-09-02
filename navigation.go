@@ -9,8 +9,11 @@ import (
 
 func processKeyPress() {
 	keyEvent := getKey()
+	searchMsg = "" // whatever the last command reported has had its redraw
 
 	switch {
+	case mode == SearchMode:
+		handleSearchKey(keyEvent)
 	case keyEvent.Key == termbox.KeyEsc:
 		esc()
 	case keyEvent.Ch != 0:
@@ -69,6 +72,10 @@ var readModeActions = map[rune]func(){
 	'p': pasteAfter,
 	'P': pasteBefore,
 	'u': undo,
+	'/': startSearchForward,
+	'?': startSearchBackward,
+	'n': nextMatch,
+	'N': prevMatch,
 }
 
 var chordActions = map[[2]rune]func(){
@@ -191,7 +198,7 @@ func esc() {
 		currentCol--
 	}
 	mode = ReadMode
-	lastCh, pendingCount = 0, 0
+	lastCh, pendingCount, hlSearch = 0, 0, false
 	endChange()
 	clampCol()
 	setCursorShape(CursorDefault)
