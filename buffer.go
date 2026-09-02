@@ -291,6 +291,14 @@ func (b *Buffer) Line(i int) []rune {
 	return line
 }
 
+// editedLine reports the overlay's copy of line i, the one that shadows the
+// file, so a caller can tell a line it has to read as runes from one it can
+// still read as raw bytes.
+func (b *Buffer) editedLine(i int) ([]rune, bool) {
+	line, ok := b.overlay[i]
+	return line, ok
+}
+
 // RuneLen avoids decoding: for unedited lines it counts runes over the raw bytes.
 func (b *Buffer) RuneLen(i int) int {
 	if i < 0 || i >= b.count {
