@@ -54,4 +54,5 @@ type Mode int
 const (
 	ReadMode Mode = iota
 	EditMode
+	SearchMode
 )
