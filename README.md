@@ -21,11 +21,12 @@ go build -o txi .
 - **Undo and redo** — `u` and `Ctrl-R`, with an insert session (from `i` to `Esc`) undone in one step the way VIM does it. Nothing snapshots the buffer: a change remembers only the lines the command actually touched, so the undo history costs the text that was edited rather than the size of the file. The last 500 changes are kept.
 - **Counts** — a command can be prefixed with a repeat count, as in `3j`, `3x`, `2dd` or `yy3p`. Commands where the count says *how much text* rather than *how many times* (`x`, `dd`, `yy`, `p`, `P`) act on that much text in a single step, so one `u` takes the whole thing back.
 - **Word-class-aware word motions** — `w`/`b`/`e` classify runs of characters into whitespace / word (`[A-Za-z0-9_]`) / punctuation, so e.g. `"foo` is treated as two words (`"` then `foo`), matching VIM's default word boundaries.
+- **Search** — `/` opens a prompt on the status line, `?` opens it searching backwards, and `Enter` jumps the cursor to the first rune of the match, wrapping around the end of the buffer like VIM does. `n` and `N` repeat it with or against its direction (`3n` for the third match), `Enter` on an empty prompt reuses the last pattern, and every match on screen is lit until `Esc` clears the highlight. Patterns are literal text — spaces included, so `/quick brown` is one pattern — and case-sensitive. The search never decodes the file: it matches `bytes.Index` over the raw bytes of each line as they come through the same 64KB read window everything else uses, decoding only the text in front of a hit to turn its byte offset into a column, so scanning a 12MB / 200k-line file end to end costs **~8ms** and no more memory than scrolling through it does.
 - **Relative line numbers** — a gutter on the left showing each line's distance from the cursor, with the cursor's own line carrying its absolute number instead, like VIM's `number`/`relativenumber` pair. It widens with the buffer's line count (four columns until the count reaches four digits) and the text and horizontal scrolling start after it.
 - **Cursor line highlight** — the line the cursor is on is drawn as a dark gray band across the full width of the terminal, gutter included, like VIM's `cursorline`, with its line number in yellow.
 - **Syntax highlighting** — nine token classes, coloured in families so the screen reads as a handful of colours rather than a dozen: magenta for the words the language reserves (keywords, and a lighter shade for literals like `true` and `nil`), yellow for the names of things (types, and escape sequences inside strings), cyan for what can be called (a name with a `(` after it, and a lighter shade for built-ins like `len` or `print`), green for strings, red for numbers and blue for comments. The language is picked by the file's name: Go, the C family (C/C++, C#, Java, JavaScript/TypeScript, Rust, Kotlin, Swift, PHP…), and everything whose comments start with `#`, from Python and the shells to YAML and `Makefile`. A file that matches no rule is drawn plain. Each line is lexed as it is drawn, so highlighting costs a screenful of text and nothing about it scales with the size of the file; block comments are the one construct that spans lines, and one that started above the window is found by lexing at most 64 lines back.
 - **Viewport scrolling** — the visible window follows the cursor both vertically and horizontally as the buffer grows past the terminal size. `zz` recentres it on the cursor's line without moving the cursor, and `40zz` centres on line 40, jumping there first; near the end of the buffer the window is left hanging past the last line rather than pinned to it, the way VIM does it.
-- **Status bar** — current mode, file name, line count, modified/saved state, whether the register and the undo/redo stacks hold anything, the count being typed, and cursor row/column.
+- **Status bar** — current mode, file name, line count, modified/saved state, whether the register and the undo/redo stacks hold anything, the count being typed, and cursor row/column. The search prompt takes the line over while a pattern is being typed, and a search that found nothing reports there.
 - **Constant-memory file loading** — the file is never held in memory. Opening it builds an index of where each line starts (8 bytes per line) and nothing else; lines are read through one fixed 64KB window and decoded to runes only when they're on screen or under the cursor. Opening a 23MB file of 202,000 lines and jumping to the end costs **8.8MB of RSS**, and that figure doesn't move however far you scroll — 5.2MB of it is the Go runtime floor a one-line file also pays, so the file itself accounts for 2.6MB. See [Memory model](#memory-model).
 
 ## VIM motions implemented
@@ -45,6 +46,10 @@ go build -o txi .
 | `yw` `ye` `yb` | Normal | yank over the matching word motion (stops at the ends of the line) |
 | `p` | Normal | put the register after the cursor, or on the line below if it holds whole lines |
 | `P` | Normal | put the register before the cursor, or on the line above |
+| `/` | Normal | open the search prompt; `Enter` jumps to the next match, `Esc` cancels |
+| `?` | Normal | the same, searching backwards |
+| `n` | Normal | jump to the next match in the search's direction |
+| `N` | Normal | jump to the next match against it |
 | `u` | Normal | undo the last change |
 | `Ctrl-R` | Normal | redo the last undone change |
 | `1`–`9` | Normal | start a count for the next command, e.g. `3p` |
@@ -111,7 +116,7 @@ shrinks back. Only the index scales with file size, at 8 bytes per line.
 - `:` command mode (`:w`, `:q`, `:wq`, ...) — saving is `Ctrl-S`, and `q` quits directly, with no unsaved-changes check
 - Saving under a different name (`:w other.txt`), and any error reporting beyond a log line if the save fails
 - Visual mode
-- Search (`/`, `?`, `n`, `N`)
+- Regular expressions in a search pattern — `/` matches literal text, so `\v`, `*`, character classes and `:s` are not there; nor are `ignorecase`/`smartcase`, `*` and `#` (search for the word under the cursor), or a search used as an operator's motion (`d/foo`)
 - The rest of the operators and text objects (`c`, `cw`, `dj`, `di(`, ...) — only `x`, `dw`, `de`, `db`, `dd` and the `y` operators exist so far, and they stop at the line boundary instead of running onto the next line
 - Named registers (`"a`) — there is only the unnamed one
 - Counts in front of an operator's motion (`d3w`) — a count goes before the whole command (`3dw`)
