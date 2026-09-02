@@ -48,7 +48,11 @@ func runEditor() {
 		scrollTextBuffer()
 		displayTextBuffer()
 		displayStatusBar()
-		termbox.SetCursor(currentCol-offsetCol+gutterWidth(buf.LineCount()), currentRow-offsetRow)
+		if mode == SearchMode {
+			termbox.SetCursor(searchPromptCol(), ROWS)
+		} else {
+			termbox.SetCursor(currentCol-offsetCol+gutterWidth(buf.LineCount()), currentRow-offsetRow)
+		}
 
 		if err := termbox.Flush(); err != nil {
 			slog.Error("Could not show message", "error", err)
@@ -98,6 +102,7 @@ func displayTextBuffer() {
 
 		var colors []termbox.Attribute
 		colors, inBlock = lineColors(line, inBlock)
+		hits := lineHits(textBufRow)
 
 		// Render visible characters in current row
 		for col := 0; col < textCols; col++ {
@@ -111,19 +116,27 @@ func displayTextBuffer() {
 				ch = ' '
 			}
 
-			foreground := colorPlain
+			foreground, cellBackground := colorPlain, background
 			if colors != nil {
 				foreground = colors[textBufCol]
 			}
-			termbox.SetCell(gutter+col, row, ch, foreground, background)
+			if hits.covers(textBufCol) {
+				foreground, cellBackground = matchFg, matchBg
+			}
+			termbox.SetCell(gutter+col, row, ch, foreground, cellBackground)
 		}
 	}
 }
 
 func displayStatusBar() {
+	if txt, ok := searchStatus(); ok {
+		printMessage(0, ROWS, termbox.ColorBlack, termbox.ColorWhite, padTo(txt, COLS))
+		return
+	}
+
 	var modeStatus, copyStatus, undoStatus, redoStatus, countStatus, fileStatus, cursorStatus string
 
-	if mode > 0 {
+	if mode == EditMode {
 		modeStatus = " EDIT: "
 	} else {
 		modeStatus = " VIEW: "
@@ -158,10 +171,13 @@ func displayStatusBar() {
 
 	leftStatus := modeStatus + fileStatus + copyStatus + undoStatus + redoStatus
 	rightStatus := countStatus + cursorStatus
-	spaces := strings.Repeat(" ", max(COLS-len(leftStatus)-len(rightStatus), 0))
-	txt := leftStatus + spaces + rightStatus
+	txt := padTo(leftStatus, COLS-runewidth.StringWidth(rightStatus)) + rightStatus
 
 	printMessage(0, ROWS, termbox.ColorBlack, termbox.ColorWhite, txt)
+}
+
+func padTo(txt string, width int) string {
+	return txt + strings.Repeat(" ", max(width-runewidth.StringWidth(txt), 0))
 }
 
 func printMessage(col, row int, fg, bg termbox.Attribute, msg string) {
