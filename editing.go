@@ -1,10 +1,6 @@
 package main
 
-import (
-	"slices"
-
-	"github.com/nsf/termbox-go"
-)
+import "github.com/nsf/termbox-go"
 
 func insertRune(event termbox.Event) {
 	ch := event.Ch
@@ -148,11 +144,14 @@ func saveFile() {
 }
 
 func deleteLine() {
-	n := min(count(), buf.LineCount()-currentRow)
+	deleteLines(count())
+}
 
-	lines := make([][]rune, 0, n)
+func deleteLines(n int) {
+	n = min(n, buf.LineCount()-currentRow)
+	yankLines(currentRow, n)
+
 	for range n {
-		lines = append(lines, slices.Clone(buf.Line(currentRow)))
 		// the last line of a buffer is emptied rather than dropped
 		if buf.LineCount() == 1 {
 			touchLine(currentRow)
@@ -161,7 +160,6 @@ func deleteLine() {
 		}
 		buf.DeleteLine(currentRow)
 	}
-	clipboard = register{lines: lines, linewise: true}
 
 	if currentRow >= buf.LineCount() {
 		currentRow = buf.LineCount() - 1
