@@ -17,12 +17,13 @@ func inReadMode(t *testing.T, content string, row, col int) *Buffer {
 	searchPat, searchBack, hlSearch = pattern{}, false, false
 	promptChar, promptInput, statusMsg = 0, nil, ""
 	quitting, active = false, themes[0]
+	explorerHidden = false
 
 	return b
 }
 
-// press feeds keys the way the editor's own loop would: the prompt takes them
-// while a line is being typed there, Read mode takes them otherwise.
+// press feeds keys the way the editor's own loop would, dispatching on the mode
+// they arrive in as processKeyPress does.
 func press(t *testing.T, keys string) {
 	t.Helper()
 
@@ -39,11 +40,18 @@ func press(t *testing.T, keys string) {
 			event = termbox.Event{Key: termbox.KeyEsc}
 		}
 
-		if mode == PromptMode {
+		switch {
+		case mode == PromptMode:
 			handlePromptKey(event)
-			continue
+		case mode == ExplorerMode:
+			handleExplorerKey(event)
+		case event.Key == termbox.KeyEsc:
+			esc()
+		case event.Ch != 0:
+			handleReadModeChar(event)
+		default:
+			handleSpecialKey(event)
 		}
-		handleReadModeChar(event)
 	}
 }
 
