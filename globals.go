@@ -57,4 +57,5 @@ const (
 	EditMode
 	PromptMode
 	VisualMode
+	ExplorerMode
 )
