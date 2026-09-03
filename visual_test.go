@@ -179,6 +179,17 @@ func TestVisualLineChangeUndoesInOneStep(t *testing.T) {
 	wantLines(t, b, "a", "b", "c")
 }
 
+func TestSelectingAnEmptyLineYanksNothingToPutBack(t *testing.T) {
+	b := inReadMode(t, "\nfoo\n", 0, 0)
+
+	press(t, "vyjp")
+
+	wantLines(t, b, "", "foo")
+	if currentCol != 0 {
+		t.Errorf("currentCol = %d, want 0", currentCol)
+	}
+}
+
 func TestSelectionCovers(t *testing.T) {
 	charwise := selection{startRow: 0, startCol: 1, endRow: 1, endCol: 2, active: true}
 	oneLine := selection{startRow: 0, startCol: 1, endRow: 0, endCol: 2, active: true}

@@ -119,7 +119,7 @@ func pasteChars(after bool) {
 
 	if len(text) == 1 {
 		buf.SetLine(currentRow, slices.Insert(line, col, text[0]...))
-		currentCol = col + len(text[0]) - 1
+		currentCol = max(col+len(text[0])-1, 0)
 		modified = true
 		return
 	}
