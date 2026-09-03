@@ -56,4 +56,5 @@ const (
 	ReadMode Mode = iota
 	EditMode
 	PromptMode
+	VisualMode
 )
