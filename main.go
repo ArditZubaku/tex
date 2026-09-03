@@ -49,7 +49,7 @@ func runEditor() {
 			os.Exit(1) // TODO: Will think of something better in such a case
 		}
 
-		if mode == ExplorerMode {
+		if explorerOpen {
 			displayExplorer()
 		} else {
 			scrollTextBuffer()
@@ -161,7 +161,7 @@ func displayStatusBar() {
 		return
 	}
 
-	if mode == ExplorerMode {
+	if explorerOpen {
 		printMessage(0, ROWS, active.statusFg, active.statusBg, padTo(explorerStatus(), COLS))
 		return
 	}
