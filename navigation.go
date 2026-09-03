@@ -22,12 +22,13 @@ func processKeyPress() {
 	}
 }
 
-// maxCol is the rightmost column the cursor may occupy on a row. Read mode sits
-// *on* a rune, the way VIM's normal mode does, so it stops one short of the gap
-// past the last one that Edit mode needs in order to append.
+// maxCol is the rightmost column the cursor may occupy on a row. Outside Edit
+// mode the cursor sits *on* a rune, the way VIM's normal mode does, so it stops
+// one short of the gap past the last one that Edit mode needs in order to
+// append.
 func maxCol(row int) int {
 	lineLen := buf.RuneLen(row)
-	if mode == ReadMode && lineLen > 0 {
+	if mode != EditMode && lineLen > 0 {
 		return lineLen - 1
 	}
 	return lineLen
@@ -43,7 +44,7 @@ func handleCharKey(keyEvent termbox.Event) {
 	switch mode {
 	case EditMode:
 		insertRune(keyEvent)
-	case ReadMode:
+	case ReadMode, VisualMode:
 		handleReadModeChar(keyEvent)
 		clampCol()
 	}
@@ -76,6 +77,31 @@ var readModeActions = map[rune]func(){
 	'n': nextMatch,
 	'N': prevMatch,
 	':': startExPrompt,
+	'v': startVisualChar,
+	'V': startVisualLine,
+}
+
+// Visual mode reuses Read mode's motions — a motion there drags the far end of
+// the selection along with it — and puts operators that act on the selection
+// where Read mode's own are. A key that means nothing while selecting is left
+// out rather than doing what it does in Read mode.
+var visualActions = visualKeys()
+
+func visualKeys() map[rune]func() {
+	actions := map[rune]func(){
+		'v': toggleVisualChar,
+		'V': toggleVisualLine,
+		'o': swapVisualEnds,
+		'd': deleteSelection,
+		'x': deleteSelection,
+		'c': changeSelection,
+		'y': yankSelection,
+	}
+	for _, ch := range "hjklwbeG" {
+		actions[ch] = readModeActions[ch]
+	}
+
+	return actions
 }
 
 var chordActions = map[[2]rune]func(){
@@ -88,6 +114,11 @@ var chordActions = map[[2]rune]func(){
 	{'y', 'w'}: yankWord,
 	{'y', 'e'}: yankToWordEnd,
 	{'y', 'b'}: yankToPrevWord,
+	{'z', 'z'}: centerView,
+}
+
+var visualChords = map[[2]rune]func(){
+	{'g', 'g'}: goToTop,
 	{'z', 'z'}: centerView,
 }
 
@@ -111,24 +142,34 @@ func handleReadModeChar(keyEvent termbox.Event) {
 		return
 	}
 
+	keys, chords := readModeActions, chordActions
+	if mode == VisualMode {
+		keys, chords = visualActions, visualChords
+	}
+
 	if lastCh != 0 && time.Since(lastChTime) < chordTimeout {
 		chord := [2]rune{lastCh, ch}
-		if action, ok := chordActions[chord]; ok {
+		if action, ok := chords[chord]; ok {
 			lastCh = 0
 			runCommand(action, countAwareChords[chord])
 			return
 		}
 	}
 
+	// the direct keys come first, so that Visual mode's 'd' and 'y' are
+	// operators in their own right rather than the halves of a chord they are
+	// in Read mode
+	if action, ok := keys[ch]; ok {
+		lastCh = 0
+		runCommand(action, countAwareKeys[ch])
+		return
+	}
+
 	if chordPrefixes[ch] {
 		lastCh, lastChTime = ch, time.Now()
 		return
 	}
-
 	lastCh = 0
-	if action, ok := readModeActions[ch]; ok {
-		runCommand(action, countAwareKeys[ch])
-	}
 }
 
 func runCommand(action func(), countAware bool) {
