@@ -200,7 +200,7 @@ func openSelected() {
 	}
 
 	if editFile(path, false) {
-		mode = ReadMode
+		closeExplorer()
 	}
 }
 
