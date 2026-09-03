@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -34,6 +35,8 @@ func runExCommand(line string) {
 	switch name {
 	case "w", "write":
 		writeFile(arg)
+	case "e", "edit":
+		editFile(cmp.Or(arg, sourceFile), force)
 	case "q", "quit":
 		quit(force)
 	case "wq", "x", "xit":
@@ -80,6 +83,25 @@ func writeFile(path string) bool {
 
 	sourceFile, modified = path, false
 	statusMsg = fmt.Sprintf("%q %dL written", path, buf.LineCount())
+
+	return true
+}
+
+// editFile is ':e', and what the explorer does with a file it is given: the
+// buffer is swapped for another file, refusing the way ':q' does rather than
+// dropping changes that were never written.
+func editFile(path string, force bool) bool {
+	if modified && !force {
+		statusMsg = "E37: No write since last change (add ! to override)"
+		return false
+	}
+
+	buf.Close()
+	buf, sourceFile, syntax = openBuffer(path), path, detectSyntax(path)
+	currentRow, currentCol, offsetRow, offsetCol = 0, 0, 0, 0
+	modified = false
+	undoStack, redoStack, pendingChange = nil, nil, nil
+	statusMsg = fmt.Sprintf("%q %dL", path, buf.LineCount())
 
 	return true
 }
