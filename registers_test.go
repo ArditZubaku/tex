@@ -11,7 +11,7 @@ func inReadMode(t *testing.T, content string, row, col int) *Buffer {
 
 	b := atCursor(t, content, row, col)
 	mode = ReadMode
-	lastCh, pendingCount, cmdCount = 0, 0, 1
+	pendingKeys, pendingCount, cmdCount = nil, 0, 1
 	undoStack, redoStack, pendingChange = nil, nil, nil
 	clipboard = register{}
 	searchPat, searchBack, hlSearch = pattern{}, false, false

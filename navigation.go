@@ -106,34 +106,53 @@ func visualKeys() map[rune]func() {
 	return actions
 }
 
-var chordActions = map[[2]rune]func(){
-	{'g', 'g'}: goToTop,
-	{'d', 'd'}: deleteLine,
-	{'d', 'w'}: deleteWord,
-	{'d', 'e'}: deleteToWordEnd,
-	{'d', 'b'}: deleteToPrevWord,
-	{'y', 'y'}: yankLine,
-	{'y', 'w'}: yankWord,
-	{'y', 'e'}: yankToWordEnd,
-	{'y', 'b'}: yankToPrevWord,
-	{'z', 'z'}: centerView,
-	{' ', 'e'}: openExplorer,
+// A chord is the keys it takes to name one command, in the order they are
+// typed: VIM's own two-key operators, and the leader sequences on top of them.
+var chordActions = map[string]func(){
+	"gg": goToTop,
+	"dd": deleteLine,
+	"dw": deleteWord,
+	"de": deleteToWordEnd,
+	"db": deleteToPrevWord,
+	"yy": yankLine,
+	"yw": yankWord,
+	"ye": yankToWordEnd,
+	"yb": yankToPrevWord,
+	"zz": centerView,
+	" e": openExplorer,
 }
 
-var visualChords = map[[2]rune]func(){
-	{'g', 'g'}: goToTop,
-	{'z', 'z'}: centerView,
+var visualChords = map[string]func(){
+	"gg": goToTop,
+	"zz": centerView,
 }
 
-// chordPrefixes do nothing on their own; they wait for a second key.
-var chordPrefixes = map[rune]bool{'g': true, 'd': true, 'y': true, 'z': true, ' ': true}
+// A chord's own prefixes do nothing on their own; they wait for the keys that
+// finish it. Deriving them from the table is what lets a chord be as long as it
+// likes without a second list to keep in step.
+var (
+	chordPrefixes       = prefixesOf(chordActions)
+	visualChordPrefixes = prefixesOf(visualChords)
+)
+
+func prefixesOf(chords map[string]func()) map[string]bool {
+	prefixes := make(map[string]bool)
+	for chord := range chords {
+		keys := []rune(chord)
+		for i := 1; i < len(keys); i++ {
+			prefixes[string(keys[:i])] = true
+		}
+	}
+
+	return prefixes
+}
 
 // A count-aware command reads count() itself, because the count says how much
 // text it works on rather than how many times it runs; everything else is
 // simply run that many times.
 var (
 	countAwareKeys   = map[rune]bool{'x': true, 'p': true, 'P': true}
-	countAwareChords = map[[2]rune]bool{{'d', 'd'}: true, {'y', 'y'}: true, {'z', 'z'}: true}
+	countAwareChords = map[string]bool{"dd": true, "yy": true, "zz": true}
 )
 
 func handleReadModeChar(keyEvent termbox.Event) {
@@ -145,34 +164,40 @@ func handleReadModeChar(keyEvent termbox.Event) {
 		return
 	}
 
-	keys, chords := readModeActions, chordActions
+	keys, chords, prefixes := readModeActions, chordActions, chordPrefixes
 	if mode == VisualMode {
-		keys, chords = visualActions, visualChords
+		keys, chords, prefixes = visualActions, visualChords, visualChordPrefixes
 	}
 
-	if lastCh != 0 && time.Since(lastChTime) < chordTimeout {
-		chord := [2]rune{lastCh, ch}
+	if time.Since(pendingTime) >= chordTimeout {
+		pendingKeys = pendingKeys[:0]
+	}
+
+	if len(pendingKeys) > 0 {
+		chord := string(pendingKeys) + string(ch)
 		if action, ok := chords[chord]; ok {
-			lastCh = 0
+			pendingKeys = pendingKeys[:0]
 			runCommand(action, countAwareChords[chord])
 			return
 		}
+		if prefixes[chord] {
+			pendingKeys, pendingTime = append(pendingKeys, ch), time.Now()
+			return
+		}
 	}
+	pendingKeys = pendingKeys[:0]
 
 	// the direct keys come first, so that Visual mode's 'd' and 'y' are
 	// operators in their own right rather than the halves of a chord they are
 	// in Read mode
 	if action, ok := keys[ch]; ok {
-		lastCh = 0
 		runCommand(action, countAwareKeys[ch])
 		return
 	}
 
-	if chordPrefixes[ch] {
-		lastCh, lastChTime = ch, time.Now()
-		return
+	if prefixes[string(ch)] {
+		pendingKeys, pendingTime = append(pendingKeys, ch), time.Now()
 	}
-	lastCh = 0
 }
 
 func runCommand(action func(), countAware bool) {
@@ -214,7 +239,7 @@ func handleSpecialKey(keyEvent termbox.Event) {
 		return
 	}
 
-	lastCh, pendingCount = 0, 0 // any special key cancels a pending "g" or count
+	pendingKeys, pendingCount = pendingKeys[:0], 0 // any special key cancels a pending chord or count
 
 	switch keyEvent.Key {
 	case termbox.KeyTab:
@@ -249,7 +274,7 @@ func esc() {
 		currentCol--
 	}
 	mode = ReadMode
-	lastCh, pendingCount, hlSearch = 0, 0, false
+	pendingKeys, pendingCount, hlSearch = pendingKeys[:0], 0, false
 	endChange()
 	clampCol()
 	setCursorShape(CursorDefault)

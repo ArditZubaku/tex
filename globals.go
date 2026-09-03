@@ -30,13 +30,16 @@ func count() int {
 	return max(cmdCount, 1)
 }
 
-// chordTimeout bounds how long a leading key of a two-key chord (e.g. "gg")
-// stays pending before it's treated as a fresh, unrelated keypress.
+// chordTimeout bounds how long the keys typed so far towards a chord (e.g.
+// "gg", or "<leader>bd") stay pending before they're treated as fresh,
+// unrelated keypresses.
 const chordTimeout = 500 * time.Millisecond
 
+// pendingKeys is the chord being typed: every key of it that has not resolved
+// to a command yet, held until the next one either names one or cannot.
 var (
-	lastCh     rune
-	lastChTime time.Time
+	pendingKeys []rune
+	pendingTime time.Time
 )
 
 // CharClass mirrors VIM's word/punct/space split: a run of same-class

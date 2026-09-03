@@ -255,13 +255,13 @@ var explorerSpecialActions = map[termbox.Key]func(){
 
 func handleExplorerKey(event termbox.Event) {
 	if event.Key == termbox.KeySpace {
-		lastCh, lastChTime = ' ', time.Now()
+		pendingKeys, pendingTime = append(pendingKeys[:0], ' '), time.Now()
 		return
 	}
 
 	if event.Ch != 0 {
-		leader := lastCh == ' ' && time.Since(lastChTime) < chordTimeout
-		lastCh = 0
+		leader := len(pendingKeys) > 0 && time.Since(pendingTime) < chordTimeout
+		pendingKeys = pendingKeys[:0]
 
 		switch {
 		case leader && event.Ch == 'e':
@@ -275,7 +275,7 @@ func handleExplorerKey(event termbox.Event) {
 		return
 	}
 
-	lastCh = 0
+	pendingKeys = pendingKeys[:0]
 	if action, ok := explorerSpecialActions[event.Key]; ok {
 		action()
 	}
