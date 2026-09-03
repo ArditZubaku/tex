@@ -20,6 +20,10 @@ func runEditor() {
 		slog.Error("Could not init termbox", "error", err)
 		os.Exit(1)
 	}
+	// The 8-colour palette has no shade dark enough for the cursor line; every
+	// colour below is unchanged by this, since termbox numbers the first
+	// sixteen of the 256 the same way it numbers the eight.
+	termbox.SetOutputMode(termbox.Output256)
 
 	if len(os.Args) > 1 {
 		sourceFile = os.Args[1]
@@ -63,7 +67,10 @@ func runEditor() {
 	}
 }
 
-const cursorLineBg = termbox.ColorDarkGray
+// Grey 236 of the 256-colour palette, a few steps up from black: enough to
+// find the line by, where the palette's own dark grey is nearer mid-grey and
+// reads as a selection. termbox numbers colours from 1, so the index is offset.
+const cursorLineBg = termbox.Attribute(236 + 1)
 
 // Characters drawn over the band with SetChar keep the colours painted here.
 func highlightRow(row int) {
