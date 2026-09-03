@@ -7,25 +7,6 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-// Related token classes are given neighbouring hues — magenta for the words
-// the language reserves, yellow for the names of things, cyan for what can be
-// called, red for literal numbers — so the screen reads as a few colour
-// families rather than a dozen unrelated colours. Every one of them is a
-// bright shade, which keeps it legible over the cursor line's dark gray band
-// as well as over the terminal's own background.
-const (
-	colorKeyword  = termbox.ColorMagenta
-	colorConstant = termbox.ColorLightMagenta
-	colorType     = termbox.ColorYellow
-	colorEscape   = termbox.ColorLightYellow
-	colorFunction = termbox.ColorCyan
-	colorBuiltin  = termbox.ColorLightCyan
-	colorString   = termbox.ColorGreen
-	colorNumber   = termbox.ColorLightRed
-	colorComment  = termbox.ColorLightBlue
-	colorPlain    = termbox.ColorDefault
-)
-
 // Syntax is one language's lexical surface: enough to tell comments, strings,
 // numbers and reserved words apart, and nothing more. Every delimiter is
 // ASCII, so a rune of a line matches a byte of a delimiter one for one.
@@ -151,7 +132,7 @@ func lineColors(line []rune, inBlock bool) ([]termbox.Attribute, bool) {
 
 	out := colors[:len(line)]
 	for i := range out {
-		out[i] = colorPlain
+		out[i] = active.plain
 	}
 
 	return out, syntax.highlight(line, inBlock, out)
@@ -205,17 +186,17 @@ func (s *Syntax) highlight(line []rune, inBlock bool, out []termbox.Attribute) b
 		case inBlock:
 			start := i
 			i, inBlock = s.scanBlock(line, i)
-			paint(out, start, i, colorComment)
+			paint(out, start, i, active.comment)
 
 		case hasPrefixAt(line, i, s.lineComment):
-			paint(out, i, len(line), colorComment)
+			paint(out, i, len(line), active.comment)
 
 			return false
 
 		case hasPrefixAt(line, i, s.blockStart):
 			start := i
 			i, inBlock = s.scanBlock(line, i+len(s.blockStart))
-			paint(out, start, i, colorComment)
+			paint(out, start, i, active.comment)
 
 		case strings.ContainsRune(s.quotes, line[i]):
 			i = s.scanString(line, i, out)
@@ -225,7 +206,7 @@ func (s *Syntax) highlight(line []rune, inBlock bool, out []termbox.Attribute) b
 			for i < len(line) && (isWordChar(line[i]) || line[i] == '.') {
 				i++
 			}
-			paint(out, start, i, colorNumber)
+			paint(out, start, i, active.number)
 
 		case isWordChar(line[i]):
 			start := i
@@ -248,17 +229,17 @@ func (s *Syntax) highlight(line []rune, inBlock bool, out []termbox.Attribute) b
 func (s *Syntax) wordColor(word string, line []rune, after int) termbox.Attribute {
 	switch {
 	case s.keywords[word]:
-		return colorKeyword
+		return active.keyword
 	case s.constants[word]:
-		return colorConstant
+		return active.constant
 	case s.types[word]:
-		return colorType
+		return active.typeName
 	case s.builtins[word]:
-		return colorBuiltin
+		return active.builtin
 	case after < len(line) && line[after] == '(':
-		return colorFunction
+		return active.function
 	default:
-		return colorPlain
+		return active.plain
 	}
 }
 
@@ -281,20 +262,20 @@ func (s *Syntax) scanString(line []rune, i int, out []termbox.Attribute) int {
 
 	for i++; i < len(line); i++ {
 		if line[i] == '\\' && quote != '`' {
-			paint(out, start, i, colorString)
+			paint(out, start, i, active.stringLit)
 			start = min(i+2, len(line))
-			paint(out, i, start, colorEscape)
+			paint(out, i, start, active.escape)
 			i = start - 1
 
 			continue
 		}
 		if line[i] == quote {
-			paint(out, start, i+1, colorString)
+			paint(out, start, i+1, active.stringLit)
 
 			return i + 1
 		}
 	}
-	paint(out, start, len(line), colorString)
+	paint(out, start, len(line), active.stringLit)
 
 	return len(line)
 }

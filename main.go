@@ -44,7 +44,7 @@ func runEditor() {
 			COLS = 80
 		}
 
-		if err := termbox.Clear(termbox.ColorDefault, termbox.ColorDefault); err != nil {
+		if err := termbox.Clear(active.plain, active.background); err != nil {
 			slog.Error("Could not clear terminal", "error", err)
 			os.Exit(1) // TODO: Will think of something better in such a case
 		}
@@ -70,15 +70,10 @@ func runEditor() {
 	termbox.Close()
 }
 
-// Grey 236 of the 256-colour palette, a few steps up from black: enough to
-// find the line by, where the palette's own dark grey is nearer mid-grey and
-// reads as a selection. termbox numbers colours from 1, so the index is offset.
-const cursorLineBg = termbox.Attribute(236 + 1)
-
 // Characters drawn over the band with SetChar keep the colours painted here.
 func highlightRow(row int) {
 	for col := 0; col < COLS; col++ {
-		termbox.SetCell(col, row, ' ', termbox.ColorDefault, cursorLineBg)
+		termbox.SetCell(col, row, ' ', active.plain, active.cursorLineBg)
 	}
 }
 
@@ -93,16 +88,16 @@ func displayTextBuffer() {
 
 		// Past end of buffer: draw line indicator once per row
 		if textBufRow >= bufLen {
-			termbox.SetCell(0, row, '*', termbox.ColorBlue, termbox.ColorDefault)
+			termbox.SetCell(0, row, '*', active.endOfBuffer, active.background)
 			continue
 		}
 		if textBufRow < 0 {
 			continue
 		}
 
-		numberColor, background := termbox.ColorBlue, termbox.ColorDefault
+		numberColor, background := active.lineNumber, active.background
 		if textBufRow == currentRow {
-			numberColor, background = termbox.ColorYellow, cursorLineBg
+			numberColor, background = active.cursorLineNumber, active.cursorLineBg
 			highlightRow(row)
 		}
 		printMessage(0, row, numberColor, background, lineNumberLabel(textBufRow, currentRow, gutter))
@@ -126,12 +121,12 @@ func displayTextBuffer() {
 				ch = ' '
 			}
 
-			foreground, cellBackground := colorPlain, background
+			foreground, cellBackground := active.plain, background
 			if colors != nil {
 				foreground = colors[textBufCol]
 			}
 			if hits.covers(textBufCol) {
-				foreground, cellBackground = matchFg, matchBg
+				foreground, cellBackground = active.matchFg, active.matchBg
 			}
 			termbox.SetCell(gutter+col, row, ch, foreground, cellBackground)
 		}
@@ -140,7 +135,7 @@ func displayTextBuffer() {
 
 func displayStatusBar() {
 	if txt, ok := promptStatus(); ok {
-		printMessage(0, ROWS, termbox.ColorBlack, termbox.ColorWhite, padTo(txt, COLS))
+		printMessage(0, ROWS, active.statusFg, active.statusBg, padTo(txt, COLS))
 		return
 	}
 
@@ -183,7 +178,7 @@ func displayStatusBar() {
 	rightStatus := countStatus + cursorStatus
 	txt := padTo(leftStatus, COLS-runewidth.StringWidth(rightStatus)) + rightStatus
 
-	printMessage(0, ROWS, termbox.ColorBlack, termbox.ColorWhite, txt)
+	printMessage(0, ROWS, active.statusFg, active.statusBg, txt)
 }
 
 func padTo(txt string, width int) string {

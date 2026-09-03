@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"slices"
 	"unicode/utf8"
-
-	"github.com/nsf/termbox-go"
 )
 
 // pattern is one search string held in both shapes the buffer keeps lines in:
@@ -28,11 +26,6 @@ var (
 	searchBack bool    // the direction it was last run in
 	hlSearch   bool
 	hitCols    []int // scratch for the matches drawn on one line
-)
-
-const (
-	matchFg = termbox.ColorBlack
-	matchBg = termbox.ColorYellow
 )
 
 // matchesIn appends the rune column of every occurrence of p in line row, in

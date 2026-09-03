@@ -13,10 +13,12 @@ import (
 func mask(t *testing.T, s *Syntax, line string, inBlock bool) (string, bool) {
 	t.Helper()
 
+	active = defaultTheme
+
 	runes := []rune(line)
 	out := make([]termbox.Attribute, len(runes))
 	for i := range out {
-		out[i] = colorPlain
+		out[i] = active.plain
 	}
 
 	open := s.highlight(runes, inBlock, out)
@@ -24,23 +26,23 @@ func mask(t *testing.T, s *Syntax, line string, inBlock bool) (string, bool) {
 	var b strings.Builder
 	for _, color := range out {
 		switch color {
-		case colorKeyword:
+		case active.keyword:
 			b.WriteByte('k')
-		case colorConstant:
+		case active.constant:
 			b.WriteByte('l')
-		case colorType:
+		case active.typeName:
 			b.WriteByte('t')
-		case colorEscape:
+		case active.escape:
 			b.WriteByte('e')
-		case colorFunction:
+		case active.function:
 			b.WriteByte('f')
-		case colorBuiltin:
+		case active.builtin:
 			b.WriteByte('b')
-		case colorString:
+		case active.stringLit:
 			b.WriteByte('s')
-		case colorNumber:
+		case active.number:
 			b.WriteByte('n')
-		case colorComment:
+		case active.comment:
 			b.WriteByte('c')
 		default:
 			b.WriteByte('.')
