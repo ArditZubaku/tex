@@ -38,6 +38,10 @@ func press(t *testing.T, keys string) {
 			event = termbox.Event{Key: termbox.KeyBackspace}
 		case 27:
 			event = termbox.Event{Key: termbox.KeyEsc}
+		case 4:
+			event = termbox.Event{Key: termbox.KeyCtrlD}
+		case 21:
+			event = termbox.Event{Key: termbox.KeyCtrlU}
 		}
 
 		switch {

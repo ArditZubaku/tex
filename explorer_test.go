@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -208,6 +209,38 @@ func TestExplorerScrollsTheSelectionIntoView(t *testing.T) {
 	}
 	if want := explorerSel - (ROWS - explorerHeaderRows) + 1; explorerOffset != want {
 		t.Errorf("explorerOffset = %d, want %d", explorerOffset, want)
+	}
+}
+
+func TestCtrlDAndCtrlUMoveTheSelectionHalfAScreen(t *testing.T) {
+	names := make([]string, 0, 40)
+	for i := range 40 {
+		names = append(names, fmt.Sprintf("f%02d.txt", i))
+	}
+	inExplorer(t, names...)
+
+	press(t, " e")
+	press(t, "\x04")
+
+	if want := explorerPage(); explorerSel != want {
+		t.Errorf("explorerSel = %d, want %d", explorerSel, want)
+	}
+
+	press(t, "\x15")
+
+	if explorerSel != 0 {
+		t.Errorf("explorerSel = %d, want 0", explorerSel)
+	}
+}
+
+func TestCtrlDStopsAtTheLastEntry(t *testing.T) {
+	inExplorer(t, "a.txt", "b.txt")
+
+	press(t, " e")
+	press(t, "\x04\x04\x04\x04\x04")
+
+	if want := len(explorerEntries) - 1; explorerSel != want {
+		t.Errorf("explorerSel = %d, want %d", explorerSel, want)
 	}
 }
 
