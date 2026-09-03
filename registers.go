@@ -3,8 +3,8 @@ package main
 import "slices"
 
 // clipboard is VIM's unnamed register: whatever was last yanked or deleted,
-// held either as whole lines (yy, dd) or as a run within one line (yw, x), the
-// only two shapes the operators can produce.
+// held either as whole lines (yy, dd, V) or as a run of runes (yw, x, v), which
+// spans more than one line only when a Visual selection did.
 type register struct {
 	lines    [][]rune
 	linewise bool
@@ -17,11 +17,15 @@ func (r register) empty() bool {
 }
 
 func yankLine() {
-	n := min(count(), buf.LineCount()-currentRow)
+	yankLines(currentRow, count())
+}
+
+func yankLines(row, n int) {
+	n = min(n, buf.LineCount()-row)
 
 	lines := make([][]rune, 0, n)
 	for i := range n {
-		lines = append(lines, slices.Clone(buf.Line(currentRow+i)))
+		lines = append(lines, slices.Clone(buf.Line(row+i)))
 	}
 	clipboard = register{lines: lines, linewise: true}
 }
@@ -102,21 +106,61 @@ func pasteLines(after bool) {
 }
 
 func pasteChars(after bool) {
-	text := clipboard.lines[0]
+	text := repeatChars(clipboard.lines, count())
 	line := slices.Clone(buf.Line(currentRow))
 
 	col := currentCol
 	if after && len(line) > 0 {
 		col++
 	}
-
-	pasted := make([]rune, 0, len(text)*count())
-	for range count() {
-		pasted = append(pasted, text...)
-	}
+	col = min(col, len(line))
 
 	touchLine(currentRow)
-	buf.SetLine(currentRow, slices.Insert(line, col, pasted...))
-	currentCol = col + len(pasted) - 1
+
+	if len(text) == 1 {
+		buf.SetLine(currentRow, slices.Insert(line, col, text[0]...))
+		currentCol = col + len(text[0]) - 1
+		modified = true
+		return
+	}
+
+	// A register holding a run that spanned lines splits the line it is put
+	// into: its first line joins what was before the cursor, its last one what
+	// came after.
+	tail := slices.Clone(line[col:])
+	buf.SetLine(currentRow, append(line[:col], text[0]...))
+
+	row := currentRow
+	for _, l := range text[1:] {
+		row++
+		touchInsertLine(row)
+		buf.InsertLine(row)
+		buf.SetLine(row, slices.Clone(l))
+	}
+	buf.SetLine(row, append(buf.Line(row), tail...))
+
+	currentCol = col
 	modified = true
+}
+
+// repeatChars is a counted put of a charwise register: the copies run into each
+// other, so putting a two-line register twice leaves three lines, not four.
+func repeatChars(lines [][]rune, n int) [][]rune {
+	if n <= 1 {
+		return lines
+	}
+
+	out := make([][]rune, 0, (len(lines)-1)*n+1)
+	for range n {
+		if len(out) == 0 {
+			out = append(out, slices.Clone(lines[0]))
+		} else {
+			out[len(out)-1] = append(out[len(out)-1], lines[0]...)
+		}
+		for _, l := range lines[1:] {
+			out = append(out, slices.Clone(l))
+		}
+	}
+
+	return out
 }
