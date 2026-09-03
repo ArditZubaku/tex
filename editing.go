@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log/slog"
 	"slices"
 
 	"github.com/nsf/termbox-go"
@@ -143,14 +142,9 @@ func backspace() {
 	modified = true
 }
 
-// saveFile is Ctrl-S, in either mode. It leaves the buffer marked modified if
-// the write failed, so the status bar keeps saying so.
+// saveFile is Ctrl-S, in either mode: ':w' without the prompt.
 func saveFile() {
-	if err := buf.Save(sourceFile); err != nil {
-		slog.Error("Failed to save file", "path", sourceFile, "error", err)
-		return
-	}
-	modified = false
+	writeFile("")
 }
 
 func deleteLine() {
