@@ -29,7 +29,7 @@ func runEditor() {
 		sourceFile = os.Args[1]
 		buf = openBuffer(sourceFile)
 	} else {
-		sourceFile = "out.txt"
+		sourceFile = defaultFileName
 		buf = newEmptyBuffer()
 	}
 
@@ -38,7 +38,7 @@ func runEditor() {
 	for !quitting {
 		// Fetch current screen dimensions
 		COLS, ROWS = termbox.Size()
-		ROWS -= 1
+		ROWS -= 1 + tabBarRows
 
 		if COLS < 80 {
 			COLS = 80
@@ -49,6 +49,7 @@ func runEditor() {
 			os.Exit(1) // TODO: Will think of something better in such a case
 		}
 
+		displayBufferLine()
 		if explorerOpen {
 			displayExplorer()
 		} else {
@@ -59,11 +60,11 @@ func runEditor() {
 
 		switch mode {
 		case PromptMode:
-			termbox.SetCursor(promptCol(), ROWS)
+			termbox.SetCursor(promptCol(), statusRow())
 		case ExplorerMode:
 			termbox.SetCursor(0, explorerCursorRow())
 		default:
-			termbox.SetCursor(currentCol-offsetCol+gutterWidth(buf.LineCount()), currentRow-offsetRow)
+			termbox.SetCursor(currentCol-offsetCol+gutterWidth(buf.LineCount()), screenRow(currentRow-offsetRow))
 		}
 
 		if err := termbox.Flush(); err != nil {
@@ -74,14 +75,14 @@ func runEditor() {
 		processKeyPress()
 	}
 
-	buf.Close()
+	closeBuffers()
 	termbox.Close()
 }
 
 // Characters drawn over the band with SetChar keep the colours painted here.
 func highlightRow(row int) {
 	for col := 0; col < COLS; col++ {
-		termbox.SetCell(col, row, ' ', active.plain, active.cursorLineBg)
+		termbox.SetCell(col, screenRow(row), ' ', active.plain, active.cursorLineBg)
 	}
 }
 
@@ -97,7 +98,7 @@ func displayTextBuffer() {
 
 		// Past end of buffer: draw line indicator once per row
 		if textBufRow >= bufLen {
-			termbox.SetCell(0, row, '*', active.endOfBuffer, active.background)
+			termbox.SetCell(0, screenRow(row), '*', active.endOfBuffer, active.background)
 			continue
 		}
 		if textBufRow < 0 {
@@ -109,7 +110,7 @@ func displayTextBuffer() {
 			numberColor, background = active.cursorLineNumber, active.cursorLineBg
 			highlightRow(row)
 		}
-		printMessage(0, row, numberColor, background, lineNumberLabel(textBufRow, currentRow, gutter))
+		printMessage(0, screenRow(row), numberColor, background, lineNumberLabel(textBufRow, currentRow, gutter))
 
 		line := buf.Line(textBufRow)
 		lineLen := len(line)
@@ -128,7 +129,7 @@ func displayTextBuffer() {
 
 			if textBufCol >= lineLen {
 				if inSelection {
-					termbox.SetCell(gutter+col, row, ' ', active.plain, active.visualBg)
+					termbox.SetCell(gutter+col, screenRow(row), ' ', active.plain, active.visualBg)
 				}
 				continue
 			}
@@ -150,19 +151,19 @@ func displayTextBuffer() {
 			if inSelection {
 				cellBackground = active.visualBg
 			}
-			termbox.SetCell(gutter+col, row, ch, foreground, cellBackground)
+			termbox.SetCell(gutter+col, screenRow(row), ch, foreground, cellBackground)
 		}
 	}
 }
 
 func displayStatusBar() {
 	if txt, ok := promptStatus(); ok {
-		printMessage(0, ROWS, active.statusFg, active.statusBg, padTo(txt, COLS))
+		printMessage(0, statusRow(), active.statusFg, active.statusBg, padTo(txt, COLS))
 		return
 	}
 
 	if explorerOpen {
-		printMessage(0, ROWS, active.statusFg, active.statusBg, padTo(explorerStatus(), COLS))
+		printMessage(0, statusRow(), active.statusFg, active.statusBg, padTo(explorerStatus(), COLS))
 		return
 	}
 
@@ -210,7 +211,7 @@ func displayStatusBar() {
 	rightStatus := countStatus + cursorStatus
 	txt := padTo(leftStatus, COLS-runewidth.StringWidth(rightStatus)) + rightStatus
 
-	printMessage(0, ROWS, active.statusFg, active.statusBg, txt)
+	printMessage(0, statusRow(), active.statusFg, active.statusBg, txt)
 }
 
 func padTo(txt string, width int) string {

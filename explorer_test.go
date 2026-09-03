@@ -214,8 +214,8 @@ func TestExplorerScrollsTheSelectionIntoView(t *testing.T) {
 	press(t, "G")
 	scrollExplorer()
 
-	if row := explorerCursorRow(); row < explorerHeaderRows || row >= ROWS {
-		t.Errorf("cursor row = %d, want within [%d,%d)", row, explorerHeaderRows, ROWS)
+	if row := explorerCursorRow(); row < screenRow(explorerHeaderRows) || row >= statusRow() {
+		t.Errorf("cursor row = %d, want within [%d,%d)", row, screenRow(explorerHeaderRows), statusRow())
 	}
 	if want := explorerSel - (ROWS - explorerHeaderRows) + 1; explorerOffset != want {
 		t.Errorf("explorerOffset = %d, want %d", explorerOffset, want)

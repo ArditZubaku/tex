@@ -283,7 +283,7 @@ func handleExplorerKey(event termbox.Event) {
 
 func displayExplorer() {
 	scrollExplorer()
-	printMessage(0, 0, active.cursorLineNumber, active.background, padTo(explorerDir, COLS))
+	printMessage(0, screenRow(0), active.cursorLineNumber, active.background, padTo(explorerDir, COLS))
 
 	for row := explorerHeaderRows; row < ROWS; row++ {
 		i := row - explorerHeaderRows + explorerOffset
@@ -301,7 +301,7 @@ func displayExplorer() {
 			highlightRow(row)
 		}
 
-		printMessage(0, row, foreground, background, padTo(" "+entryLabel(entry), COLS))
+		printMessage(0, screenRow(row), foreground, background, padTo(" "+entryLabel(entry), COLS))
 	}
 }
 
@@ -328,7 +328,7 @@ func scrollExplorer() {
 }
 
 func explorerCursorRow() int {
-	return explorerSel - explorerOffset + explorerHeaderRows
+	return screenRow(explorerSel - explorerOffset + explorerHeaderRows)
 }
 
 func explorerStatus() string {
