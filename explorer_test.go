@@ -207,3 +207,134 @@ func TestExplorerScrollsTheSelectionIntoView(t *testing.T) {
 		t.Errorf("explorerOffset = %d, want %d", explorerOffset, want)
 	}
 }
+
+func TestLeaderEClosesTheExplorerItOpened(t *testing.T) {
+	inExplorer(t, "a.txt")
+
+	press(t, " e")
+	press(t, " e")
+
+	if mode != ReadMode {
+		t.Errorf("mode = %v, want ReadMode", mode)
+	}
+	if explorerOpen {
+		t.Error("explorer still open after the second <leader>e")
+	}
+}
+
+func TestExplorerSearchNarrowsTheListingAsItIsTyped(t *testing.T) {
+	inExplorer(t, "main.go", "main_test.go", "README.md")
+
+	press(t, " e")
+	press(t, "/main")
+
+	wantEntries(t, "main.go", "main_test.go")
+	if mode != PromptMode {
+		t.Errorf("mode = %v, want PromptMode", mode)
+	}
+
+	press(t, "_")
+
+	wantEntries(t, "main_test.go")
+}
+
+func TestExplorerSearchIsCaseInsensitive(t *testing.T) {
+	inExplorer(t, "README.md", "main.go")
+
+	press(t, " e")
+	press(t, "/readme\n")
+
+	wantEntries(t, "README.md")
+}
+
+func TestEnterKeepsTheFilterAndReturnsToTheExplorer(t *testing.T) {
+	inExplorer(t, "main.go", "README.md")
+
+	press(t, " e")
+	press(t, "/main\n")
+
+	if mode != ExplorerMode {
+		t.Fatalf("mode = %v, want ExplorerMode", mode)
+	}
+	if explorerFilter != "main" {
+		t.Errorf("explorerFilter = %q, want main", explorerFilter)
+	}
+	wantEntries(t, "main.go")
+	if got := selectedName(); got != "main.go" {
+		t.Errorf("selected %q, want main.go", got)
+	}
+}
+
+func TestEscOnTheSearchPromptPutsTheWholeListingBack(t *testing.T) {
+	inExplorer(t, "main.go", "README.md")
+
+	press(t, " e")
+	press(t, "/main")
+	press(t, string(rune(27)))
+
+	if mode != ExplorerMode {
+		t.Fatalf("mode = %v, want ExplorerMode", mode)
+	}
+	wantEntries(t, "../", "README.md", "main.go")
+}
+
+func TestEscDropsTheFilterBeforeItClosesTheExplorer(t *testing.T) {
+	inExplorer(t, "main.go", "README.md")
+
+	press(t, " e")
+	press(t, "/main\n")
+	press(t, string(rune(27)))
+
+	if mode != ExplorerMode {
+		t.Fatalf("mode = %v, want ExplorerMode", mode)
+	}
+	wantEntries(t, "../", "README.md", "main.go")
+
+	press(t, string(rune(27)))
+
+	if mode != ReadMode {
+		t.Errorf("mode = %v, want ReadMode", mode)
+	}
+}
+
+func TestAFilteredFileStillOpens(t *testing.T) {
+	dir := inExplorer(t, "other.txt", "README.md")
+
+	press(t, " e")
+	press(t, "/other\n")
+	press(t, "\n")
+
+	if want := filepath.Join(dir, "other.txt"); sourceFile != want {
+		t.Fatalf("sourceFile = %q, want %q", sourceFile, want)
+	}
+	wantLines(t, buf, "in other.txt")
+}
+
+func TestSteppingIntoADirectoryDropsTheFilter(t *testing.T) {
+	dir := inExplorer(t, "sub")
+	if err := os.WriteFile(filepath.Join(dir, "sub", "deep.txt"), []byte("deep\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	press(t, " e")
+	press(t, "/sub\n")
+	press(t, "\n")
+
+	if explorerFilter != "" {
+		t.Errorf("explorerFilter = %q, want empty", explorerFilter)
+	}
+	wantEntries(t, "../", "deep.txt")
+}
+
+func TestTogglingDotfilesKeepsTheFilter(t *testing.T) {
+	inExplorer(t, ".main.swp", "main.go", "README.md")
+
+	press(t, " e")
+	press(t, "/main\n")
+	press(t, "H")
+
+	if explorerFilter != "main" {
+		t.Errorf("explorerFilter = %q, want main", explorerFilter)
+	}
+	wantEntries(t, ".main.swp", "main.go")
+}

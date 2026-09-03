@@ -17,7 +17,7 @@ func inReadMode(t *testing.T, content string, row, col int) *Buffer {
 	searchPat, searchBack, hlSearch = pattern{}, false, false
 	promptChar, promptInput, statusMsg = 0, nil, ""
 	quitting, active = false, themes[0]
-	explorerHidden = false
+	explorerOpen, explorerHidden, explorerFilter = false, false, ""
 
 	return b
 }
