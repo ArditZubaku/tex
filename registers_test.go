@@ -16,7 +16,7 @@ func inReadMode(t *testing.T, content string, row, col int) *Buffer {
 	clipboard = register{}
 	searchPat, searchBack, hlSearch = pattern{}, false, false
 	promptChar, promptInput, statusMsg = 0, nil, ""
-	quitting = false
+	quitting, active = false, themes[0]
 
 	return b
 }

@@ -21,8 +21,10 @@ func runExCommand(line string) {
 		return
 	}
 
+	// ':theme=2' and ':w file' are the same shape, an argument after the
+	// command, so one split covers both separators
 	name, arg := line, ""
-	if i := strings.IndexByte(line, ' '); i >= 0 {
+	if i := strings.IndexAny(line, " ="); i >= 0 {
 		name, arg = line[:i], strings.TrimSpace(line[i+1:])
 	}
 
@@ -40,6 +42,8 @@ func runExCommand(line string) {
 		}
 	case "noh", "nohl", "nohlsearch":
 		hlSearch = false
+	case "theme", "colorscheme", "colo":
+		setTheme(arg)
 	default:
 		statusMsg = "E492: Not an editor command: " + line
 	}
@@ -78,6 +82,43 @@ func writeFile(path string) bool {
 	statusMsg = fmt.Sprintf("%q %dL written", path, buf.LineCount())
 
 	return true
+}
+
+// setTheme is ':theme=2'. Without an argument it names the theme in use and
+// the ones it could be swapped for.
+func setTheme(arg string) {
+	if arg == "" {
+		statusMsg = "theme=" + strconv.Itoa(themeIndex()) + " (" + strings.Join(themeNames(), ", ") + ")"
+		return
+	}
+
+	n, err := strconv.Atoi(arg)
+	if err != nil || n < 1 || n > len(themes) {
+		statusMsg = "E474: Invalid argument: theme=" + arg
+		return
+	}
+
+	active = themes[n-1]
+	statusMsg = "theme=" + arg + " (" + active.name + ")"
+}
+
+func themeIndex() int {
+	for i, t := range themes {
+		if t.name == active.name {
+			return i + 1
+		}
+	}
+
+	return 0
+}
+
+func themeNames() []string {
+	names := make([]string, 0, len(themes))
+	for i, t := range themes {
+		names = append(names, strconv.Itoa(i+1)+"="+t.name)
+	}
+
+	return names
 }
 
 func quit(force bool) {
