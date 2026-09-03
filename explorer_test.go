@@ -164,18 +164,28 @@ func TestExplorerOpensAFileIntoTheBuffer(t *testing.T) {
 	}
 }
 
-func TestExplorerRefusesToLeaveUnsavedChangesBehind(t *testing.T) {
+func TestExplorerLeavesUnsavedChangesInTheirOwnBuffer(t *testing.T) {
 	inExplorer(t, "other.txt")
+	started := sourceFile
 	modified = true
 
 	press(t, " e")
 	press(t, "j\n")
 
-	if mode != ExplorerMode {
-		t.Errorf("mode = %v, want ExplorerMode", mode)
+	if mode != ReadMode {
+		t.Errorf("mode = %v, want ReadMode", mode)
 	}
-	if statusMsg == "" {
-		t.Error("nothing reported for the refused edit")
+	if len(buffers) != 2 {
+		t.Fatalf("%d buffers open, want 2", len(buffers))
+	}
+
+	press(t, "\t")
+
+	if sourceFile != started {
+		t.Errorf("sourceFile = %q, want %q", sourceFile, started)
+	}
+	if !modified {
+		t.Error("the unsaved changes were lost")
 	}
 }
 

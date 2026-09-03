@@ -24,6 +24,10 @@ var (
 
 const maxCount = 9999
 
+// defaultFileName is what an unnamed buffer writes to, the editor's own stand-in
+// for VIM's "[No Name]".
+const defaultFileName = "out.txt"
+
 // count is how much of itself the running command should do, defaulting to
 // once when no count was typed.
 func count() int {

@@ -56,6 +56,8 @@ func handleCharKey(keyEvent termbox.Event) {
 // chord are held pending instead, see chordActions.
 var readModeActions = map[rune]func(){
 	'G': goToBottom,
+	'H': prevBuffer,
+	'L': nextBuffer,
 	'I': goToStartOfLine,
 	'A': goToEndOfLine,
 	'a': editAfterWord,
@@ -107,19 +109,27 @@ func visualKeys() map[rune]func() {
 }
 
 // A chord is the keys it takes to name one command, in the order they are
-// typed: VIM's own two-key operators, and the leader sequences on top of them.
+// typed: VIM's own two-key operators, and the leader sequences LazyVim puts its
+// buffer commands under.
 var chordActions = map[string]func(){
-	"gg": goToTop,
-	"dd": deleteLine,
-	"dw": deleteWord,
-	"de": deleteToWordEnd,
-	"db": deleteToPrevWord,
-	"yy": yankLine,
-	"yw": yankWord,
-	"ye": yankToWordEnd,
-	"yb": yankToPrevWord,
-	"zz": centerView,
-	" e": openExplorer,
+	"gg":  goToTop,
+	"dd":  deleteLine,
+	"dw":  deleteWord,
+	"de":  deleteToWordEnd,
+	"db":  deleteToPrevWord,
+	"yy":  yankLine,
+	"yw":  yankWord,
+	"ye":  yankToWordEnd,
+	"yb":  yankToPrevWord,
+	"zz":  centerView,
+	" e":  openExplorer,
+	" bb": alternateBuffer,
+	" bd": closeCurrentBuffer,
+	" bn": nextBuffer,
+	" bp": prevBuffer,
+	" bo": closeOtherBuffers,
+	" bl": closeBuffersLeft,
+	" br": closeBuffersRight,
 }
 
 var visualChords = map[string]func(){
@@ -243,7 +253,11 @@ func handleSpecialKey(keyEvent termbox.Event) {
 
 	switch keyEvent.Key {
 	case termbox.KeyTab:
-		insertRuneNTimes(keyEvent, 4)
+		if mode == EditMode {
+			insertRuneNTimes(keyEvent, 4)
+			break
+		}
+		nextBuffer()
 	case termbox.KeySpace:
 		insertRuneNTimes(keyEvent, 1)
 	case termbox.KeyHome:

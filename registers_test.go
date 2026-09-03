@@ -18,6 +18,7 @@ func inReadMode(t *testing.T, content string, row, col int) *Buffer {
 	promptChar, promptInput, statusMsg = 0, nil, ""
 	quitting, active = false, themes[0]
 	explorerOpen, explorerHidden, explorerFilter = false, false, ""
+	buffers, currentBuffer, tabBarOffset = nil, 0, 0
 
 	return b
 }
@@ -42,6 +43,8 @@ func press(t *testing.T, keys string) {
 			event = termbox.Event{Key: termbox.KeyCtrlD}
 		case 21:
 			event = termbox.Event{Key: termbox.KeyCtrlU}
+		case '\t':
+			event = termbox.Event{Key: termbox.KeyTab}
 		}
 
 		switch {

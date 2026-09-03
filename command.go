@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const noWriteSinceChange = "E37: No write since last change (add ! to override)"
+
 // runExCommand runs one ':' command. Only the handful a VIM user reaches for
 // reflexively is here; anything else is reported rather than guessed at.
 func runExCommand(line string) {
@@ -37,6 +39,14 @@ func runExCommand(line string) {
 		writeFile(arg)
 	case "e", "edit":
 		editFile(cmp.Or(arg, sourceFile), force)
+	case "bn", "bnext":
+		nextBuffer()
+	case "bp", "bprev", "bprevious", "bN":
+		prevBuffer()
+	case "bd", "bdel", "bdelete":
+		closeBuffer(force)
+	case "ls", "buffers", "files":
+		listBuffers()
 	case "q", "quit":
 		quit(force)
 	case "wq", "x", "xit":
@@ -88,19 +98,28 @@ func writeFile(path string) bool {
 }
 
 // editFile is ':e', and what the explorer does with a file it is given: the
-// buffer is swapped for another file, refusing the way ':q' does rather than
-// dropping changes that were never written.
+// file joins the buffer list, which leaves the one being edited where it is.
+// Rereading the file the cursor is already in is the one case that drops
+// changes, so that is the one that refuses the way ':q' does.
 func editFile(path string, force bool) bool {
-	if modified && !force {
-		statusMsg = "E37: No write since last change (add ! to override)"
+	syncBuffer()
+	rereading := bufferIndex(path) == currentBuffer
+
+	if rereading && modified && !force {
+		statusMsg = noWriteSinceChange
 		return false
 	}
 
-	buf.Close()
-	buf, sourceFile, syntax = openBuffer(path), path, detectSyntax(path)
-	currentRow, currentCol, offsetRow, offsetCol = 0, 0, 0, 0
-	modified = false
-	undoStack, redoStack, pendingChange = nil, nil, nil
+	if rereading {
+		buf.Close()
+		buf, syntax = openBuffer(path), detectSyntax(path)
+		currentRow, currentCol, offsetRow, offsetCol = 0, 0, 0, 0
+		modified = false
+		undoStack, redoStack, pendingChange = nil, nil, nil
+		syncBuffer()
+	} else {
+		openInBuffer(path)
+	}
 	statusMsg = fmt.Sprintf("%q %dL", path, buf.LineCount())
 
 	return true
@@ -144,9 +163,16 @@ func themeNames() []string {
 }
 
 func quit(force bool) {
-	if modified && !force {
-		statusMsg = "E37: No write since last change (add ! to override)"
+	switch {
+	case force:
+	case modified:
+		statusMsg = noWriteSinceChange
 		return
+	default:
+		if entry := modifiedBuffer(); entry != nil {
+			statusMsg = unwritten(entry)
+			return
+		}
 	}
 	closeEditor()
 }
