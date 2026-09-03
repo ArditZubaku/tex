@@ -11,6 +11,7 @@ var (
 	syntax                 *Syntax
 	mode                   Mode
 	modified               bool
+	quitting               bool
 )
 
 // pendingCount is the count typed so far, cmdCount the one the running command
@@ -54,5 +55,5 @@ type Mode int
 const (
 	ReadMode Mode = iota
 	EditMode
-	SearchMode
+	PromptMode
 )

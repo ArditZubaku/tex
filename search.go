@@ -5,7 +5,6 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
 )
 
@@ -25,13 +24,10 @@ func (p pattern) empty() bool {
 }
 
 var (
-	searchPat   pattern // the pattern n and N repeat
-	searchBack  bool    // the direction it was last run in
-	searchInput []rune  // the pattern being typed at the prompt
-	inputBack   bool
-	searchMsg   string
-	hlSearch    bool
-	hitCols     []int // scratch for the matches drawn on one line
+	searchPat  pattern // the pattern n and N repeat
+	searchBack bool    // the direction it was last run in
+	hlSearch   bool
+	hitCols    []int // scratch for the matches drawn on one line
 )
 
 const (
@@ -120,52 +116,18 @@ func beyond(c, col int, back bool) bool {
 	return c > col
 }
 
-func startSearchForward()  { startSearch(false) }
-func startSearchBackward() { startSearch(true) }
-
-func startSearch(back bool) {
-	mode = SearchMode
-	searchInput, inputBack = searchInput[:0], back
-}
-
-func handleSearchKey(event termbox.Event) {
-	switch event.Key {
-	case termbox.KeyEsc:
-		endSearch()
-	case termbox.KeyEnter:
-		commitSearch()
-	case termbox.KeyBackspace, termbox.KeyBackspace2:
-		if len(searchInput) == 0 {
-			endSearch()
-			return
-		}
-		searchInput = searchInput[:len(searchInput)-1]
-	case termbox.KeyCtrlU:
-		searchInput = searchInput[:0]
-	case termbox.KeySpace:
-		searchInput = append(searchInput, ' ')
-	default:
-		if event.Ch != 0 {
-			searchInput = append(searchInput, event.Ch)
-		}
-	}
-}
+func startSearchForward()  { startPrompt('/') }
+func startSearchBackward() { startPrompt('?') }
 
 // commitSearch keeps the last pattern when nothing was typed, which is how VIM
 // repeats a search from the prompt; the delimiter still says which way to go.
-func commitSearch() {
-	if len(searchInput) > 0 {
-		searchPat = newPattern(slices.Clone(searchInput))
+func commitSearch(input []rune, back bool) {
+	if len(input) > 0 {
+		searchPat = newPattern(input)
 	}
-	searchBack = inputBack
+	searchBack = back
 
-	endSearch()
 	jumpToMatch(searchBack)
-}
-
-func endSearch() {
-	mode = ReadMode
-	searchInput = searchInput[:0]
 }
 
 func nextMatch() { jumpToMatch(searchBack) }
@@ -179,30 +141,11 @@ func jumpToMatch(back bool) {
 
 	row, col, ok := findMatch(searchPat, currentRow, currentCol, back)
 	if !ok {
-		searchMsg = "Pattern not found: " + string(searchPat.runes)
+		statusMsg = "Pattern not found: " + string(searchPat.runes)
 		return
 	}
 
 	currentRow, currentCol = row, col
-}
-
-// searchStatus takes over the status bar while a pattern is being typed, and
-// for the one redraw after a search that found nothing.
-func searchStatus() (string, bool) {
-	if mode == SearchMode {
-		delimiter := "/"
-		if inputBack {
-			delimiter = "?"
-		}
-
-		return delimiter + string(searchInput), true
-	}
-
-	return searchMsg, searchMsg != ""
-}
-
-func searchPromptCol() int {
-	return runewidth.StringWidth(string(searchInput)) + 1
 }
 
 // hitScan tells the renderer which columns of a line fall inside a match.

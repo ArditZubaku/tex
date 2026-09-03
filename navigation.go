@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"time"
 
 	"github.com/nsf/termbox-go"
@@ -9,11 +8,11 @@ import (
 
 func processKeyPress() {
 	keyEvent := getKey()
-	searchMsg = "" // whatever the last command reported has had its redraw
+	statusMsg = "" // whatever the last command reported has had its redraw
 
 	switch {
-	case mode == SearchMode:
-		handleSearchKey(keyEvent)
+	case mode == PromptMode:
+		handlePromptKey(keyEvent)
 	case keyEvent.Key == termbox.KeyEsc:
 		esc()
 	case keyEvent.Ch != 0:
@@ -76,6 +75,7 @@ var readModeActions = map[rune]func(){
 	'?': startSearchBackward,
 	'n': nextMatch,
 	'N': prevMatch,
+	':': startExPrompt,
 }
 
 var chordActions = map[[2]rune]func(){
@@ -303,10 +303,12 @@ func enterEditMode() {
 	setCursorShape(CursorBlinkingBar)
 }
 
+func startExPrompt() { startPrompt(':') }
+
+// closeEditor lets the editor's loop fall out and shut the terminal down on its
+// way, so quitting runs the same path whether it was 'q' or ':q' that asked.
 func closeEditor() {
-	buf.Close()
-	termbox.Close()
-	os.Exit(0)
+	quitting = true
 }
 
 func isSpace(ch rune) bool {

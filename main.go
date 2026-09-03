@@ -35,7 +35,7 @@ func runEditor() {
 
 	syntax = detectSyntax(sourceFile)
 
-	for {
+	for !quitting {
 		// Fetch current screen dimensions
 		COLS, ROWS = termbox.Size()
 		ROWS -= 1
@@ -52,8 +52,8 @@ func runEditor() {
 		scrollTextBuffer()
 		displayTextBuffer()
 		displayStatusBar()
-		if mode == SearchMode {
-			termbox.SetCursor(searchPromptCol(), ROWS)
+		if mode == PromptMode {
+			termbox.SetCursor(promptCol(), ROWS)
 		} else {
 			termbox.SetCursor(currentCol-offsetCol+gutterWidth(buf.LineCount()), currentRow-offsetRow)
 		}
@@ -65,6 +65,9 @@ func runEditor() {
 
 		processKeyPress()
 	}
+
+	buf.Close()
+	termbox.Close()
 }
 
 // Grey 236 of the 256-colour palette, a few steps up from black: enough to
@@ -136,7 +139,7 @@ func displayTextBuffer() {
 }
 
 func displayStatusBar() {
-	if txt, ok := searchStatus(); ok {
+	if txt, ok := promptStatus(); ok {
 		printMessage(0, ROWS, termbox.ColorBlack, termbox.ColorWhite, padTo(txt, COLS))
 		return
 	}
