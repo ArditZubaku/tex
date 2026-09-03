@@ -16,7 +16,7 @@ type theme struct {
 	comment                                    termbox.Attribute
 	cursorLineBg, lineNumber, cursorLineNumber termbox.Attribute
 	endOfBuffer, statusFg, statusBg            termbox.Attribute
-	matchFg, matchBg                           termbox.Attribute
+	matchFg, matchBg, visualBg                 termbox.Attribute
 }
 
 var themes = []theme{defaultTheme, gruvboxTheme, githubDarkTheme}
@@ -61,6 +61,9 @@ var defaultTheme = theme{
 	statusBg:         termbox.ColorWhite,
 	matchFg:          termbox.ColorBlack,
 	matchBg:          termbox.ColorYellow,
+	// a dark blue rather than another grey: a selection over the cursor line
+	// has to be told apart from the band under it
+	visualBg: color256(24),
 }
 
 // Gruvbox, at the 256-colour indices its own palette documents for terminals,
@@ -91,6 +94,7 @@ var gruvboxTheme = theme{
 	statusBg:         color256(239), // bg2 #504945
 	matchFg:          color256(235),
 	matchBg:          color256(214),
+	visualBg:         color256(239), // bg2 #504945, gruvbox's own Visual
 }
 
 // GitHub's dark default, at the nearest 256-colour index to each of the hex
@@ -122,4 +126,5 @@ var githubDarkTheme = theme{
 	statusBg:         color256(237), // border.default #30363d
 	matchFg:          color256(255),
 	matchBg:          color256(130), // findMatch #9e6a03
+	visualBg:         color256(24),  // selection #388bfd at the alpha GitHub draws it with
 }
