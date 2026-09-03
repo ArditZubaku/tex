@@ -151,6 +151,9 @@ func TestExplorerOpensAFileIntoTheBuffer(t *testing.T) {
 	if mode != ReadMode {
 		t.Fatalf("mode = %v, want ReadMode", mode)
 	}
+	if explorerOpen {
+		t.Error("explorer still on screen after opening a file")
+	}
 	if want := filepath.Join(dir, "other.txt"); sourceFile != want {
 		t.Fatalf("sourceFile = %q, want %q", sourceFile, want)
 	}
@@ -304,6 +307,9 @@ func TestAFilteredFileStillOpens(t *testing.T) {
 	press(t, "/other\n")
 	press(t, "\n")
 
+	if explorerOpen {
+		t.Error("explorer still on screen after opening a filtered file")
+	}
 	if want := filepath.Join(dir, "other.txt"); sourceFile != want {
 		t.Fatalf("sourceFile = %q, want %q", sourceFile, want)
 	}
