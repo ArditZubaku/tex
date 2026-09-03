@@ -19,7 +19,7 @@ type theme struct {
 	matchFg, matchBg                           termbox.Attribute
 }
 
-var themes = []theme{defaultTheme, gruvboxTheme}
+var themes = []theme{defaultTheme, gruvboxTheme, githubDarkTheme}
 
 var active = themes[0]
 
@@ -91,4 +91,35 @@ var gruvboxTheme = theme{
 	statusBg:         color256(239), // bg2 #504945
 	matchFg:          color256(235),
 	matchBg:          color256(214),
+}
+
+// GitHub's dark default, at the nearest 256-colour index to each of the hex
+// values its own theme publishes. It leans on fewer hues than the palettes
+// above — a name that can be called is purple whether the language defines it
+// or the file does, and a literal is blue whatever its type — which is GitHub's
+// choice rather than a gap here.
+var githubDarkTheme = theme{
+	name: "github-dark",
+
+	background: color256(233), // canvas.default #0d1117
+	plain:      color256(255), // fg.default     #e6edf3
+
+	keyword:   color256(210), // red    #ff7b72
+	constant:  color256(111), // blue   #79c0ff
+	typeName:  color256(114), // green  #7ee787
+	escape:    color256(111), // blue   #79c0ff
+	function:  color256(183), // purple #d2a8ff
+	builtin:   color256(183), // purple #d2a8ff, as GitHub draws the standard library too
+	stringLit: color256(153), // light blue #a5d6ff
+	number:    color256(111), // blue   #79c0ff
+	comment:   color256(246), // fg.muted #8b949e
+
+	cursorLineBg:     color256(234), // canvas.subtle #161b22
+	lineNumber:       color256(243), // fg.subtle     #6e7681
+	cursorLineNumber: color256(255),
+	endOfBuffer:      color256(243),
+	statusFg:         color256(255),
+	statusBg:         color256(237), // border.default #30363d
+	matchFg:          color256(255),
+	matchBg:          color256(130), // findMatch #9e6a03
 }

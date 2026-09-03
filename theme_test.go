@@ -19,6 +19,12 @@ func TestThemeCommandSwitchesPalette(t *testing.T) {
 		t.Errorf("statusMsg = %q", statusMsg)
 	}
 
+	press(t, ":theme=3\n")
+
+	if active.name != "github-dark" {
+		t.Errorf("theme = %q, want github-dark", active.name)
+	}
+
 	press(t, ":theme=1\n")
 
 	if active.name != "default" {
@@ -37,7 +43,7 @@ func TestThemeCommandTakesASpaceToo(t *testing.T) {
 }
 
 func TestThemeCommandRejectsWhatIsNotAThemeNumber(t *testing.T) {
-	for _, arg := range []string{"0", "3", "x", "-1"} {
+	for _, arg := range []string{"0", "4", "x", "-1"} {
 		inReadMode(t, "package main\n", 0, 0)
 
 		press(t, ":theme="+arg+"\n")
@@ -56,7 +62,7 @@ func TestBareThemeCommandNamesWhatIsInUse(t *testing.T) {
 
 	press(t, ":theme\n")
 
-	if want := "theme=1 (1=default, 2=gruvbox)"; statusMsg != want {
+	if want := "theme=1 (1=default, 2=gruvbox, 3=github-dark)"; statusMsg != want {
 		t.Errorf("statusMsg = %q, want %q", statusMsg, want)
 	}
 }
