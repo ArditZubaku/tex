@@ -1,6 +1,6 @@
 # txi
 
-A small terminal text editor written in Go, built on [termbox-go](https://github.com/nsf/termbox-go). It's modal like VIM (separate Normal/Read and Insert/Edit modes) and currently implements a subset of VIM's motions and editing keys.
+A small terminal text editor written in Go, built on [termbox-go](https://github.com/nsf/termbox-go). It's modal like VIM (separate Normal/Read, Insert/Edit and Visual modes) and currently implements a subset of VIM's motions and editing keys.
 
 ## Usage
 
@@ -12,12 +12,13 @@ go build -o txi .
 
 ## Features
 
-- **Modal editing** — a Read (Normal) mode for navigation and an Edit (Insert) mode for typing, with the terminal cursor changing shape (block vs. blinking bar) depending on mode. The cursor sits *on* a character in Normal mode, stopping at the last one on the line like VIM does; only Insert mode reaches the column past it, where appending happens.
+- **Modal editing** — a Read (Normal) mode for navigation, an Edit (Insert) mode for typing and a Visual mode for selecting, with the terminal cursor changing shape (block vs. blinking bar) depending on mode. The cursor sits *on* a character in Normal mode, stopping at the last one on the line like VIM does; only Insert mode reaches the column past it, where appending happens.
 - **VIM-style navigation** — `hjkl`, word motions (`w`/`b`/`e`), line jumps (`I`/`A`), buffer jumps (`gg`/`G`); see the full list below.
 - **Saving** — `:w` or `Ctrl-S`, in either mode. The buffer is streamed to a temporary file in the same directory and renamed over the target, so a failed write cannot truncate the original; untouched lines are copied as raw bytes, so a save costs no more memory than scrolling does. File permissions, CRLF line endings on untouched lines, and a missing trailing newline are all preserved.
 - **Deleting** — `x`, `dw`, `de`, `db` and `dd` in Normal mode, `Backspace` in Insert mode, all in place: a line delete compacts the line index rather than rebuilding it, and a character delete reuses the edited line's own backing array, so deleting never costs more memory than the text it removes.
 - **Line structure** — `o`/`O` open a line, `Enter` splits one at the cursor and `Backspace` at column 0 joins it back. Each shifts the line index in place rather than rebuilding it, and a split copies only the tail: the half before the cursor keeps the array it already had.
 - **Yank and put** — `yy`, `yw`, `ye` and `yb` copy into VIM's unnamed register, which the delete operators fill too, and `p`/`P` put it back after or before the cursor. A line yank puts whole lines below or above the cursor; a word yank puts the run of characters back into the line the cursor is on.
+- **Visual mode** — `v` selects runes and `V` whole lines, from where the mode was entered to wherever a motion has taken the cursor since; both ends are part of the selection, as VIM's `selection=inclusive` has them. `d` (or `x`) deletes it, `y` yanks it, `c` changes it, and `o` swaps the end that the next motion drags along. `v` and `V` switch between the two shapes and leave the mode when pressed on the shape it already has, and `Esc` drops the selection. The selection is drawn as a band in the theme's own colour over the text, keeping the syntax colours under it, and it takes in the line break of every line it carries on past. A run that spans lines fills the register as a run — `p` splits the line it is put into and joins the register's ends onto the halves — so a selection can be moved from one place to another whatever it covers.
 - **Undo and redo** — `u` and `Ctrl-R`, with an insert session (from `i` to `Esc`) undone in one step the way VIM does it. Nothing snapshots the buffer: a change remembers only the lines the command actually touched, so the undo history costs the text that was edited rather than the size of the file. The last 500 changes are kept.
 - **Counts** — a command can be prefixed with a repeat count, as in `3j`, `3x`, `2dd` or `yy3p`. Commands where the count says *how much text* rather than *how many times* (`x`, `dd`, `yy`, `p`, `P`) act on that much text in a single step, so one `u` takes the whole thing back.
 - **Word-class-aware word motions** — `w`/`b`/`e` classify runs of characters into whitespace / word (`[A-Za-z0-9_]`) / punctuation, so e.g. `"foo` is treated as two words (`"` then `foo`), matching VIM's default word boundaries.
@@ -48,6 +49,12 @@ go build -o txi .
 | `yw` `ye` `yb` | Normal | yank over the matching word motion (stops at the ends of the line) |
 | `p` | Normal | put the register after the cursor, or on the line below if it holds whole lines |
 | `P` | Normal | put the register before the cursor, or on the line above |
+| `v` | Normal | start a selection of runes; `Esc` drops it |
+| `V` | Normal | start a selection of whole lines |
+| `o` | Visual | swap the end of the selection the cursor is on |
+| `d` `x` | Visual | delete the selection |
+| `y` | Visual | yank the selection |
+| `c` | Visual | delete the selection and start typing where it was |
 | `/` | Normal | open the search prompt; `Enter` jumps to the next match, `Esc` cancels |
 | `?` | Normal | the same, searching backwards |
 | `n` | Normal | jump to the next match in the search's direction |
@@ -123,9 +130,9 @@ shrinks back. Only the index scales with file size, at 8 bytes per line.
 ### Goals not yet implemented
 
 - The rest of `:` command mode — ranges (`:1,5d`), `:s`, `:e`, `:r`, `:set` and the like; `:w`, `:q`, `:wq`, `:x`, `:q!`, `:noh`, `:theme` and a bare line address are all that is there
-- Visual mode
+- The rest of Visual mode — blockwise `Ctrl-V`, `gv`, the text objects (`vi(`, `vip`) and the operators beyond `d`/`x`/`y`/`c` (`>`, `~`, `J`, `p` over a selection)
 - Regular expressions in a search pattern — `/` matches literal text, so `\v`, `*`, character classes and `:s` are not there; nor are `ignorecase`/`smartcase`, `*` and `#` (search for the word under the cursor), or a search used as an operator's motion (`d/foo`)
-- The rest of the operators and text objects (`c`, `cw`, `dj`, `di(`, ...) — only `x`, `dw`, `de`, `db`, `dd` and the `y` operators exist so far, and they stop at the line boundary instead of running onto the next line
+- The rest of the operators and text objects (`cw`, `dj`, `di(`, ...) — only `x`, `dw`, `de`, `db`, `dd`, the `y` operators and what Visual mode selects for exist so far, and they stop at the line boundary instead of running onto the next line
 - Named registers (`"a`) — there is only the unnamed one
 - Counts in front of an operator's motion (`d3w`) — a count goes before the whole command (`3dw`)
 - Marks and macros
