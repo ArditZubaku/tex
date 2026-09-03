@@ -82,6 +82,7 @@ func displayTextBuffer() {
 	gutter := gutterWidth(bufLen)
 	textCols := COLS - gutter
 	inBlock := blockStateBefore(offsetRow)
+	selected := visualSelection()
 
 	for row := 0; row < ROWS; row++ {
 		textBufRow := row + offsetRow
@@ -112,7 +113,15 @@ func displayTextBuffer() {
 		// Render visible characters in current row
 		for col := 0; col < textCols; col++ {
 			textBufCol := col + offsetCol
-			if textBufCol < 0 || textBufCol >= lineLen {
+			if textBufCol < 0 {
+				continue
+			}
+			inSelection := selected.covers(textBufRow, textBufCol, lineLen)
+
+			if textBufCol >= lineLen {
+				if inSelection {
+					termbox.SetCell(gutter+col, row, ' ', active.plain, active.visualBg)
+				}
 				continue
 			}
 
@@ -128,6 +137,11 @@ func displayTextBuffer() {
 			if hits.covers(textBufCol) {
 				foreground, cellBackground = active.matchFg, active.matchBg
 			}
+			// the selection keeps the text's own colours and takes the
+			// background, which is what makes it read as a band over them
+			if inSelection {
+				cellBackground = active.visualBg
+			}
 			termbox.SetCell(gutter+col, row, ch, foreground, cellBackground)
 		}
 	}
@@ -141,9 +155,14 @@ func displayStatusBar() {
 
 	var modeStatus, copyStatus, undoStatus, redoStatus, countStatus, fileStatus, cursorStatus string
 
-	if mode == EditMode {
+	switch {
+	case mode == EditMode:
 		modeStatus = " EDIT: "
-	} else {
+	case mode == VisualMode && visualLine:
+		modeStatus = " V-LINE: "
+	case mode == VisualMode:
+		modeStatus = " VISUAL: "
+	default:
 		modeStatus = " VIEW: "
 	}
 
