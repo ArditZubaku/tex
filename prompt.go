@@ -43,11 +43,22 @@ func handlePromptKey(event termbox.Event) {
 			promptInput = append(promptInput, event.Ch)
 		}
 	}
+
+	// the explorer's own '/' narrows its listing as the pattern is typed, so
+	// what is on screen is always what Enter would settle on
+	if explorerOpen && mode == PromptMode {
+		filterExplorer(string(promptInput))
+	}
 }
 
 func submitPrompt() {
 	input, delimiter := slices.Clone(promptInput), promptChar
 	endPrompt()
+
+	if explorerOpen {
+		filterExplorer(string(input))
+		return
+	}
 
 	if delimiter == ':' {
 		runExCommand(string(input))
@@ -56,8 +67,14 @@ func submitPrompt() {
 	commitSearch(input, delimiter == '?')
 }
 
+// endPrompt is what Esc reaches, so it leaves the explorer's listing as it was
+// before the '/' was pressed; submitPrompt puts the pattern back afterwards.
 func endPrompt() {
 	mode = ReadMode
+	if explorerOpen {
+		mode = ExplorerMode
+		filterExplorer("")
+	}
 	promptInput = promptInput[:0]
 }
 
