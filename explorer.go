@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/nsf/termbox-go"
 )
@@ -18,6 +19,7 @@ type explorerEntry struct {
 }
 
 var (
+	explorerOpen    bool
 	explorerDir     string
 	explorerEntries []explorerEntry
 	explorerSel     int
@@ -31,19 +33,26 @@ const parentDir = ".."
 // screen however far down the entries the selection has scrolled.
 const explorerHeaderRows = 1
 
+// openExplorer is '<leader>e', which toggles: the second press is what closes
+// the explorer again.
 func openExplorer() {
+	if explorerOpen {
+		closeExplorer()
+		return
+	}
+
 	dir, err := filepath.Abs(filepath.Dir(sourceFile))
 	if err != nil {
 		dir = "."
 	}
 
 	if enterDir(dir, filepath.Base(sourceFile)) {
-		mode = ExplorerMode
+		explorerOpen, mode = true, ExplorerMode
 	}
 }
 
 func closeExplorer() {
-	mode = ReadMode
+	explorerOpen, mode = false, ReadMode
 	clampCol()
 }
 
@@ -171,13 +180,28 @@ var explorerSpecialActions = map[termbox.Key]func(){
 }
 
 func handleExplorerKey(event termbox.Event) {
+	if event.Key == termbox.KeySpace {
+		lastCh, lastChTime = ' ', time.Now()
+		return
+	}
+
 	if event.Ch != 0 {
-		if action, ok := explorerActions[event.Ch]; ok {
-			action()
+		leader := lastCh == ' ' && time.Since(lastChTime) < chordTimeout
+		lastCh = 0
+
+		switch {
+		case leader && event.Ch == 'e':
+			openExplorer()
+		case leader:
+		default:
+			if action, ok := explorerActions[event.Ch]; ok {
+				action()
+			}
 		}
 		return
 	}
 
+	lastCh = 0
 	if action, ok := explorerSpecialActions[event.Key]; ok {
 		action()
 	}
