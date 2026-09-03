@@ -214,6 +214,15 @@ func explorerUp()       { explorerMove(-1) }
 func explorerGoTop()    { explorerSel = 0 }
 func explorerGoBottom() { explorerSel = max(len(explorerEntries)-1, 0) }
 
+// A half screen of the listing, which is what Ctrl-D and Ctrl-U move by, the
+// same fraction of the window they move the buffer by.
+func explorerPageDown() { explorerMove(explorerPage()) }
+func explorerPageUp()   { explorerMove(-explorerPage()) }
+
+func explorerPage() int {
+	return max((ROWS-explorerHeaderRows)/2, 1)
+}
+
 func explorerMove(delta int) {
 	explorerSel = max(min(explorerSel+delta, len(explorerEntries)-1), 0)
 }
@@ -238,6 +247,10 @@ var explorerSpecialActions = map[termbox.Key]func(){
 	termbox.KeyArrowUp:    explorerUp,
 	termbox.KeyArrowRight: openSelected,
 	termbox.KeyArrowLeft:  leaveDir,
+	termbox.KeyCtrlD:      explorerPageDown,
+	termbox.KeyCtrlU:      explorerPageUp,
+	termbox.KeyPgdn:       explorerPageDown,
+	termbox.KeyPgup:       explorerPageUp,
 }
 
 func handleExplorerKey(event termbox.Event) {
