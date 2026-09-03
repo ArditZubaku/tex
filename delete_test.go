@@ -216,9 +216,10 @@ func TestDeleteLinesAcrossBigFile(t *testing.T) {
 func atCursor(t *testing.T, content string, row, col int) *Buffer {
 	t.Helper()
 
-	b := openBuffer(writeTemp(t, content))
+	path := writeTemp(t, content)
+	b := openBuffer(path)
 	t.Cleanup(b.Close)
-	buf, currentRow, currentCol, modified = b, row, col, false
+	buf, sourceFile, currentRow, currentCol, modified = b, path, row, col, false
 
 	return b
 }

@@ -100,8 +100,8 @@ func TestSearchWithNoMatchLeavesTheCursorAndReports(t *testing.T) {
 	press(t, "/three\n")
 
 	wantCursor(t, 1, 1)
-	if searchMsg != "Pattern not found: three" {
-		t.Errorf("searchMsg = %q", searchMsg)
+	if statusMsg != "Pattern not found: three" {
+		t.Errorf("statusMsg = %q", statusMsg)
 	}
 }
 
@@ -210,15 +210,15 @@ func TestThePromptShowsWhatIsBeingTyped(t *testing.T) {
 
 	press(t, "/nee")
 
-	if txt, ok := searchStatus(); !ok || txt != "/nee" {
-		t.Errorf("searchStatus = %q,%v, want \"/nee\",true", txt, ok)
+	if txt, ok := promptStatus(); !ok || txt != "/nee" {
+		t.Errorf("promptStatus = %q,%v, want \"/nee\",true", txt, ok)
 	}
 
 	press(t, string(rune(27)))
 	press(t, "?nee")
 
-	if txt, _ := searchStatus(); txt != "?nee" {
-		t.Errorf("searchStatus = %q, want %q", txt, "?nee")
+	if txt, _ := promptStatus(); txt != "?nee" {
+		t.Errorf("promptStatus = %q, want %q", txt, "?nee")
 	}
 }
 
@@ -228,8 +228,8 @@ func TestNextMatchWithoutASearchDoesNothing(t *testing.T) {
 	press(t, "nN")
 
 	wantCursor(t, 0, 1)
-	if searchMsg != "" {
-		t.Errorf("searchMsg = %q, want empty", searchMsg)
+	if statusMsg != "" {
+		t.Errorf("statusMsg = %q, want empty", statusMsg)
 	}
 }
 
