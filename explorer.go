@@ -18,10 +18,15 @@ type explorerEntry struct {
 	isDir bool
 }
 
+// explorerAll is everything the directory holds; explorerEntries is what the
+// filter has left of it, which is what the selection indexes and the screen
+// shows.
 var (
 	explorerOpen    bool
 	explorerDir     string
+	explorerAll     []explorerEntry
 	explorerEntries []explorerEntry
+	explorerFilter  string
 	explorerSel     int
 	explorerOffset  int
 	explorerHidden  bool
@@ -46,7 +51,7 @@ func openExplorer() {
 		dir = "."
 	}
 
-	if enterDir(dir, filepath.Base(sourceFile)) {
+	if navigateTo(dir, filepath.Base(sourceFile)) {
 		explorerOpen, mode = true, ExplorerMode
 	}
 }
@@ -54,6 +59,14 @@ func openExplorer() {
 func closeExplorer() {
 	explorerOpen, mode = false, ReadMode
 	clampCol()
+}
+
+// navigateTo is enterDir for the moves that leave a directory behind, which
+// drop the filter with it; rereading the same directory keeps it.
+func navigateTo(dir, on string) bool {
+	explorerFilter = ""
+
+	return enterDir(dir, on)
 }
 
 // enterDir lists dir and puts the selection on the entry named by on, so that
@@ -65,19 +78,71 @@ func enterDir(dir, on string) bool {
 		return false
 	}
 
-	explorerDir, explorerEntries = dir, entries
-	explorerSel, explorerOffset = 0, 0
-	if i := slices.IndexFunc(entries, func(e explorerEntry) bool { return e.name == on }); i >= 0 {
-		explorerSel = i
-	}
+	explorerDir, explorerAll = dir, entries
+	selectEntry(on)
 
 	return true
 }
 
 func leaveDir() {
 	if parent := filepath.Dir(explorerDir); parent != explorerDir {
-		enterDir(parent, filepath.Base(explorerDir))
+		navigateTo(parent, filepath.Base(explorerDir))
 	}
+}
+
+// selectEntry re-runs the filter over the directory and puts the selection back
+// on the entry named, or on the first one when it has been filtered away.
+func selectEntry(name string) {
+	explorerEntries = matching(explorerAll, explorerFilter)
+	explorerSel, explorerOffset = 0, 0
+	if i := slices.IndexFunc(explorerEntries, func(e explorerEntry) bool { return e.name == name }); i >= 0 {
+		explorerSel = i
+	}
+}
+
+func matching(entries []explorerEntry, filter string) []explorerEntry {
+	if filter == "" {
+		return entries
+	}
+
+	needle := strings.ToLower(filter)
+	out := make([]explorerEntry, 0, len(entries))
+	for _, e := range entries {
+		if strings.Contains(strings.ToLower(e.name), needle) {
+			out = append(out, e)
+		}
+	}
+
+	return out
+}
+
+// startExplorerSearch is '/', which hands the status line to the same prompt
+// the buffer's search uses; what is typed there narrows the listing as it goes.
+func startExplorerSearch() { startPrompt('/') }
+
+func filterExplorer(filter string) {
+	on := selectedName()
+	explorerFilter = filter
+	selectEntry(on)
+}
+
+// clearFilter is Esc: it drops the filter it finds, and closes the explorer
+// when there is none left to drop.
+func clearFilter() {
+	if explorerFilter == "" {
+		closeExplorer()
+		return
+	}
+
+	filterExplorer("")
+}
+
+func selectedName() string {
+	if explorerSel < len(explorerEntries) {
+		return explorerEntries[explorerSel].name
+	}
+
+	return ""
 }
 
 func readDir(dir string) ([]explorerEntry, error) {
@@ -130,7 +195,7 @@ func openSelected() {
 	// with the one being opened is worth the single stat
 	path := filepath.Join(explorerDir, entry.name)
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
-		enterDir(path, "")
+		navigateTo(path, "")
 		return
 	}
 
@@ -141,12 +206,7 @@ func openSelected() {
 
 func toggleHidden() {
 	explorerHidden = !explorerHidden
-
-	on := ""
-	if explorerSel < len(explorerEntries) {
-		on = explorerEntries[explorerSel].name
-	}
-	enterDir(explorerDir, on)
+	enterDir(explorerDir, selectedName())
 }
 
 func explorerDown()     { explorerMove(1) }
@@ -167,12 +227,13 @@ var explorerActions = map[rune]func(){
 	'g': explorerGoTop,
 	'G': explorerGoBottom,
 	'H': toggleHidden,
+	'/': startExplorerSearch,
 	'q': closeExplorer,
 }
 
 var explorerSpecialActions = map[termbox.Key]func(){
 	termbox.KeyEnter:      openSelected,
-	termbox.KeyEsc:        closeExplorer,
+	termbox.KeyEsc:        clearFilter,
 	termbox.KeyArrowDown:  explorerDown,
 	termbox.KeyArrowUp:    explorerUp,
 	termbox.KeyArrowRight: openSelected,
@@ -258,5 +319,10 @@ func explorerCursorRow() int {
 }
 
 func explorerStatus() string {
-	return fmt.Sprintf(" EXPLORE: %s - %d entries", filepath.Base(explorerDir), len(explorerEntries))
+	if explorerFilter != "" {
+		return fmt.Sprintf(" EXPLORE: %s - %d/%d entries matching %q",
+			filepath.Base(explorerDir), len(explorerEntries), len(explorerAll), explorerFilter)
+	}
+
+	return fmt.Sprintf(" EXPLORE: %s - %d entries", filepath.Base(explorerDir), len(explorerAll))
 }
