@@ -13,6 +13,8 @@ func processKeyPress() {
 	switch {
 	case mode == PromptMode:
 		handlePromptKey(keyEvent)
+	case mode == ExplorerMode:
+		handleExplorerKey(keyEvent)
 	case keyEvent.Key == termbox.KeyEsc:
 		esc()
 	case keyEvent.Ch != 0:
@@ -115,6 +117,7 @@ var chordActions = map[[2]rune]func(){
 	{'y', 'e'}: yankToWordEnd,
 	{'y', 'b'}: yankToPrevWord,
 	{'z', 'z'}: centerView,
+	{' ', 'e'}: openExplorer,
 }
 
 var visualChords = map[[2]rune]func(){
@@ -123,7 +126,7 @@ var visualChords = map[[2]rune]func(){
 }
 
 // chordPrefixes do nothing on their own; they wait for a second key.
-var chordPrefixes = map[rune]bool{'g': true, 'd': true, 'y': true, 'z': true}
+var chordPrefixes = map[rune]bool{'g': true, 'd': true, 'y': true, 'z': true, ' ': true}
 
 // A count-aware command reads count() itself, because the count says how much
 // text it works on rather than how many times it runs; everything else is
@@ -204,6 +207,13 @@ var specialKeyActions = map[termbox.Key]func(){
 }
 
 func handleSpecialKey(keyEvent termbox.Event) {
+	// Space is the leader outside Edit mode, so it has to reach the chord table
+	// rather than cancel what is pending there like every other special key.
+	if keyEvent.Key == termbox.KeySpace && mode != EditMode {
+		handleReadModeChar(termbox.Event{Ch: ' '})
+		return
+	}
+
 	lastCh, pendingCount = 0, 0 // any special key cancels a pending "g" or count
 
 	switch keyEvent.Key {

@@ -49,12 +49,20 @@ func runEditor() {
 			os.Exit(1) // TODO: Will think of something better in such a case
 		}
 
-		scrollTextBuffer()
-		displayTextBuffer()
-		displayStatusBar()
-		if mode == PromptMode {
-			termbox.SetCursor(promptCol(), ROWS)
+		if mode == ExplorerMode {
+			displayExplorer()
 		} else {
+			scrollTextBuffer()
+			displayTextBuffer()
+		}
+		displayStatusBar()
+
+		switch mode {
+		case PromptMode:
+			termbox.SetCursor(promptCol(), ROWS)
+		case ExplorerMode:
+			termbox.SetCursor(0, explorerCursorRow())
+		default:
 			termbox.SetCursor(currentCol-offsetCol+gutterWidth(buf.LineCount()), currentRow-offsetRow)
 		}
 
@@ -111,7 +119,7 @@ func displayTextBuffer() {
 		hits := lineHits(textBufRow)
 
 		// Render visible characters in current row
-		for col := 0; col < textCols; col++ {
+		for col := range textCols {
 			textBufCol := col + offsetCol
 			if textBufCol < 0 {
 				continue
@@ -150,6 +158,11 @@ func displayTextBuffer() {
 func displayStatusBar() {
 	if txt, ok := promptStatus(); ok {
 		printMessage(0, ROWS, active.statusFg, active.statusBg, padTo(txt, COLS))
+		return
+	}
+
+	if mode == ExplorerMode {
+		printMessage(0, ROWS, active.statusFg, active.statusBg, padTo(explorerStatus(), COLS))
 		return
 	}
 
