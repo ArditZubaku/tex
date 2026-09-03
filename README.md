@@ -14,7 +14,7 @@ go build -o txi .
 
 - **Modal editing** — a Read (Normal) mode for navigation and an Edit (Insert) mode for typing, with the terminal cursor changing shape (block vs. blinking bar) depending on mode. The cursor sits *on* a character in Normal mode, stopping at the last one on the line like VIM does; only Insert mode reaches the column past it, where appending happens.
 - **VIM-style navigation** — `hjkl`, word motions (`w`/`b`/`e`), line jumps (`I`/`A`), buffer jumps (`gg`/`G`); see the full list below.
-- **Saving** — `Ctrl-S`, in either mode. The buffer is streamed to a temporary file in the same directory and renamed over the target, so a failed write cannot truncate the original; untouched lines are copied as raw bytes, so a save costs no more memory than scrolling does. File permissions, CRLF line endings on untouched lines, and a missing trailing newline are all preserved.
+- **Saving** — `:w` or `Ctrl-S`, in either mode. The buffer is streamed to a temporary file in the same directory and renamed over the target, so a failed write cannot truncate the original; untouched lines are copied as raw bytes, so a save costs no more memory than scrolling does. File permissions, CRLF line endings on untouched lines, and a missing trailing newline are all preserved.
 - **Deleting** — `x`, `dw`, `de`, `db` and `dd` in Normal mode, `Backspace` in Insert mode, all in place: a line delete compacts the line index rather than rebuilding it, and a character delete reuses the edited line's own backing array, so deleting never costs more memory than the text it removes.
 - **Line structure** — `o`/`O` open a line, `Enter` splits one at the cursor and `Backspace` at column 0 joins it back. Each shifts the line index in place rather than rebuilding it, and a split copies only the tail: the half before the cursor keeps the array it already had.
 - **Yank and put** — `yy`, `yw`, `ye` and `yb` copy into VIM's unnamed register, which the delete operators fill too, and `p`/`P` put it back after or before the cursor. A line yank puts whole lines below or above the cursor; a word yank puts the run of characters back into the line the cursor is on.
@@ -26,7 +26,8 @@ go build -o txi .
 - **Cursor line highlight** — the line the cursor is on is drawn as a faint grey band across the full width of the terminal, gutter included, like VIM's `cursorline`, with its line number in yellow. The band is grey 236 of the terminal's 256-colour palette — dark enough to sit under the text rather than compete with it — which is what the editor asks for 256-colour output for; every other colour is one of the first sixteen, and unchanged by that.
 - **Syntax highlighting** — nine token classes, coloured in families so the screen reads as a handful of colours rather than a dozen: magenta for the words the language reserves (keywords, and a lighter shade for literals like `true` and `nil`), yellow for the names of things (types, and escape sequences inside strings), cyan for what can be called (a name with a `(` after it, and a lighter shade for built-ins like `len` or `print`), green for strings, red for numbers and blue for comments. The language is picked by the file's name: Go, the C family (C/C++, C#, Java, JavaScript/TypeScript, Rust, Kotlin, Swift, PHP…), and everything whose comments start with `#`, from Python and the shells to YAML and `Makefile`. A file that matches no rule is drawn plain. Each line is lexed as it is drawn, so highlighting costs a screenful of text and nothing about it scales with the size of the file; block comments are the one construct that spans lines, and one that started above the window is found by lexing at most 64 lines back.
 - **Viewport scrolling** — the visible window follows the cursor both vertically and horizontally as the buffer grows past the terminal size. `zz` recentres it on the cursor's line without moving the cursor, and `40zz` centres on line 40, jumping there first; near the end of the buffer the window is left hanging past the last line rather than pinned to it, the way VIM does it.
-- **Status bar** — current mode, file name, line count, modified/saved state, whether the register and the undo/redo stacks hold anything, the count being typed, and cursor row/column. The search prompt takes the line over while a pattern is being typed, and a search that found nothing reports there.
+- **Ex commands** — `:` opens the same prompt the search does, for the commands a VIM user types without thinking: `:w` (and `:w other.txt`, which writes there and carries on editing that file, like `:saveas`), `:q`, `:wq`, `:x`, `:q!` to leave unsaved changes behind, `:nohlsearch` to drop the search highlight, and a bare line number — `:42`, `:$` — to jump there. `:q` on a modified buffer refuses and says so rather than losing the changes; the raw `q` key still quits outright, without that check. Anything unrecognised is reported (`E492`) instead of guessed at.
+- **Status bar** — current mode, file name, line count, modified/saved state, whether the register and the undo/redo stacks hold anything, the count being typed, and cursor row/column. The prompt takes the line over while a search or a `:` command is being typed, and what a command has to report — a write, a pattern that matched nothing, a refused quit — is shown there.
 - **Constant-memory file loading** — the file is never held in memory. Opening it builds an index of where each line starts (8 bytes per line) and nothing else; lines are read through one fixed 64KB window and decoded to runes only when they're on screen or under the cursor. Opening a 23MB file of 202,000 lines and jumping to the end costs **8.8MB of RSS**, and that figure doesn't move however far you scroll — 5.2MB of it is the Go runtime floor a one-line file also pays, so the file itself accounts for 2.6MB. See [Memory model](#memory-model).
 
 ## VIM motions implemented
@@ -50,6 +51,12 @@ go build -o txi .
 | `?` | Normal | the same, searching backwards |
 | `n` | Normal | jump to the next match in the search's direction |
 | `N` | Normal | jump to the next match against it |
+| `:w` | Normal | write the buffer (`:w name` writes there and keeps editing it) |
+| `:q` | Normal | quit, refusing if there are unsaved changes |
+| `:q!` | Normal | quit, dropping unsaved changes |
+| `:wq` `:x` | Normal | write, then quit |
+| `:42` `:$` | Normal | jump to that line / the last line |
+| `:noh` | Normal | clear the search highlight |
 | `u` | Normal | undo the last change |
 | `Ctrl-R` | Normal | redo the last undone change |
 | `1`–`9` | Normal | start a count for the next command, e.g. `3p` |
@@ -113,8 +120,7 @@ shrinks back. Only the index scales with file size, at 8 bytes per line.
 
 ### Goals not yet implemented
 
-- `:` command mode (`:w`, `:q`, `:wq`, ...) — saving is `Ctrl-S`, and `q` quits directly, with no unsaved-changes check
-- Saving under a different name (`:w other.txt`), and any error reporting beyond a log line if the save fails
+- The rest of `:` command mode — ranges (`:1,5d`), `:s`, `:e`, `:r`, `:set` and the like; `:w`, `:q`, `:wq`, `:x`, `:q!`, `:noh` and a bare line address are all that is there
 - Visual mode
 - Regular expressions in a search pattern — `/` matches literal text, so `\v`, `*`, character classes and `:s` are not there; nor are `ignorecase`/`smartcase`, `*` and `#` (search for the word under the cursor), or a search used as an operator's motion (`d/foo`)
 - The rest of the operators and text objects (`c`, `cw`, `dj`, `di(`, ...) — only `x`, `dw`, `de`, `db`, `dd` and the `y` operators exist so far, and they stop at the line boundary instead of running onto the next line
