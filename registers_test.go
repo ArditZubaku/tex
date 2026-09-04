@@ -48,18 +48,7 @@ func press(t *testing.T, keys string) {
 			event = termbox.Event{Key: termbox.KeyTab}
 		}
 
-		switch {
-		case mode == PromptMode:
-			handlePromptKey(event)
-		case mode == ExplorerMode:
-			handleExplorerKey(event)
-		case event.Key == termbox.KeyEsc:
-			esc()
-		case event.Ch != 0:
-			handleReadModeChar(event)
-		default:
-			handleSpecialKey(event)
-		}
+		dispatchKey(event)
 	}
 }
 
