@@ -5,7 +5,7 @@ A small terminal text editor written in Go, built on [termbox-go](https://github
 ## Usage
 
 ```sh
-go build -o txi .
+go build -o txi .       # picks up default.pgo automatically
 ./txi path/to/file      # opens (or creates) a file
 ./txi                   # starts a new, unnamed buffer (out.txt)
 ```
@@ -155,6 +155,36 @@ back to tmux.
 Arrow keys, `Home`, `End`, `PgUp`, and `PgDn` also work in either mode. Left and
 right stop at the ends of the line in Normal mode; in Insert mode they wrap onto
 the neighbouring line, so typing can run off one line onto the next.
+
+## Profile-guided optimisation
+
+A CPU profile lives in the repository as `default.pgo`, which `go build` finds and
+optimises against without being asked. It is generated from the benchmarks in
+`bench_test.go` — opening and indexing a large file, scrolling it a screen at a
+time with the highlighter running, searching it end to end, and walking it by
+word — merged over three runs, since one run's sample noise is enough to move
+which call sites read as hot. `make pgo` regenerates it and `make bench` runs the
+benchmarks on their own.
+
+Measured against the same benchmarks built with `-pgo=off`, on an M3 Pro:
+
+| | `-pgo=off` | with `default.pgo` |
+| --- | --- | --- |
+| Redraw one screen | 32.7µs | 30.9µs (-5.5%) |
+| Scroll the whole buffer | 47.8ms | 44.1ms (-7.7%) |
+| Highlight 4096 lines | 1.32ms | 1.24ms (-6.1%) |
+| Search 20k lines | 302µs | 284µs (-6.1%) |
+| Walk 20k lines by word | 2.04ms | 1.95ms (-4.0%) |
+| Open and index a 200k-line file | 2.21ms | unchanged |
+
+Opening a file is the one thing it cannot help: indexing is a `pread` loop around
+`bytes.IndexByte`, so almost all of its time is spent in a syscall and in one
+assembly routine, neither of which inlining reaches. What the rest gains is
+mostly the render path, where the profile makes the compiler inline through the
+per-rune work that a redraw does tens of thousands of times.
+
+The profile is a build input, not a correctness one — building with `-pgo=off`
+produces the same editor, only slower on those paths.
 
 ## Memory model
 
