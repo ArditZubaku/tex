@@ -48,11 +48,19 @@ func runExCommand(line string) {
 	case "ls", "buffers", "files":
 		listBuffers()
 	case "q", "quit":
-		quit(force)
+		quitWindow(force)
 	case "wq", "x", "xit":
 		if writeFile(arg) {
-			quit(true)
+			quitWindow(true)
 		}
+	case "sp", "split", "new":
+		splitInto(arg, false, force)
+	case "vs", "vsp", "vsplit", "vnew":
+		splitInto(arg, true, force)
+	case "clo", "close":
+		closeWindow()
+	case "on", "only":
+		onlyWindow()
 	case "noh", "nohl", "nohlsearch":
 		hlSearch = false
 	case "theme", "colorscheme", "colo":
@@ -160,6 +168,27 @@ func themeNames() []string {
 	}
 
 	return names
+}
+
+// splitInto is ':split' and ':vsplit', which take the name of a file to open in
+// the window they make, as VIM's own do.
+func splitInto(path string, vertical, force bool) {
+	if !splitWindow(vertical) {
+		return
+	}
+	if path != "" {
+		editFile(path, force)
+	}
+}
+
+// quitWindow is ':q': it closes the window it was typed in, and quits the
+// editor when that was the last one, the way VIM does.
+func quitWindow(force bool) {
+	if len(windowList()) > 1 {
+		closeWindow()
+		return
+	}
+	quit(force)
 }
 
 func quit(force bool) {
