@@ -122,6 +122,7 @@ var chordActions = chordKeys()
 func chordKeys() map[string]func() {
 	chords := map[string]func(){
 		"gg":  goToTop,
+		"gd":  goToDefinition,
 		"dd":  deleteLine,
 		"dw":  deleteWord,
 		"de":  deleteToWordEnd,
@@ -265,6 +266,7 @@ var specialKeyActions = map[termbox.Key]func(){
 	termbox.KeyPgup:       pageUp,
 	termbox.KeyPgdn:       pageDown,
 	termbox.KeyCtrlR:      redo,
+	termbox.KeyCtrlO:      jumpBack,
 }
 
 func handleSpecialKey(keyEvent termbox.Event) {
