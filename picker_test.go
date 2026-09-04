@@ -27,10 +27,10 @@ func inPicker(t *testing.T, names ...string) {
 	singleWindow(20, 80)
 }
 
-func matchedPaths() []string {
+func matchedLabels() []string {
 	paths := make([]string, 0, len(pickerMatches))
 	for _, match := range pickerMatches {
-		paths = append(paths, match.path)
+		paths = append(paths, pickerEntries[match.at].label)
 	}
 
 	return paths
@@ -39,7 +39,7 @@ func matchedPaths() []string {
 func wantMatches(t *testing.T, want ...string) {
 	t.Helper()
 
-	got := matchedPaths()
+	got := matchedLabels()
 	if len(got) != len(want) {
 		t.Fatalf("matches = %v, want %v", got, want)
 	}

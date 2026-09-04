@@ -14,21 +14,31 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-// The picker is LazyVim's '<leader><leader>': a popup over whatever is on
-// screen, listing the files under the project root and narrowing them to what
-// is typed, with Enter opening the one settled on as a buffer.
+// The picker is a popup over whatever is on screen: a list of places to go,
+// narrowed to what is typed, with Enter going to the one settled on. The files
+// under the project root are one such list ('<leader><leader>'), the references
+// to an identifier another ('gr').
 var (
 	pickerOpen    bool
-	pickerRoot    string
-	pickerFiles   []string
+	pickerTitle   string
+	pickerEntries []pickerEntry
 	pickerMatches []pickerMatch
 	pickerQuery   []rune
 	pickerSel     int
 	pickerOffset  int
 )
 
-type pickerMatch struct {
+// A row of the popup: what is drawn and matched, and where Enter goes. A
+// negative row means the file itself, wherever the cursor was last left in it.
+type pickerEntry struct {
+	label string
 	path  string
+	row   int
+	col   int
+}
+
+type pickerMatch struct {
+	at    int
 	score int
 }
 
@@ -50,15 +60,24 @@ func openPicker() {
 		return
 	}
 
+	entries := make([]pickerEntry, 0, len(files))
+	for _, rel := range files {
+		entries = append(entries, pickerEntry{label: rel, path: filepath.Join(root, rel), row: -1})
+	}
+
+	showPicker(filepath.Base(root), entries)
+}
+
+func showPicker(title string, entries []pickerEntry) {
 	pickerOpen, mode = true, PickerMode
-	pickerRoot, pickerFiles = root, files
+	pickerTitle, pickerEntries = title, entries
 	pickerQuery = pickerQuery[:0]
 	filterPicker()
 }
 
 func closePicker() {
 	pickerOpen, mode = false, ReadMode
-	pickerFiles, pickerMatches = nil, nil
+	pickerEntries, pickerMatches = nil, nil
 	clampCol()
 }
 
@@ -118,19 +137,23 @@ func listFiles(root string) ([]string, error) {
 
 func filterPicker() {
 	pickerMatches = pickerMatches[:0]
-	for _, path := range pickerFiles {
-		if score, ok := fuzzyScore(path, pickerQuery); ok {
-			pickerMatches = append(pickerMatches, pickerMatch{path: path, score: score})
+	for at, entry := range pickerEntries {
+		if score, ok := fuzzyScore(entry.label, pickerQuery); ok {
+			pickerMatches = append(pickerMatches, pickerMatch{at: at, score: score})
 		}
 	}
 
-	slices.SortStableFunc(pickerMatches, func(a, b pickerMatch) int {
-		if a.score != b.score {
-			return b.score - a.score
-		}
+	// a list already in the order it means something in — the references down a
+	// file — keeps it until something is typed
+	if len(pickerQuery) > 0 {
+		slices.SortStableFunc(pickerMatches, func(a, b pickerMatch) int {
+			if a.score != b.score {
+				return b.score - a.score
+			}
 
-		return cmp.Compare(a.path, b.path)
-	})
+			return cmp.Compare(pickerEntries[a.at].label, pickerEntries[b.at].label)
+		})
+	}
 	pickerSel, pickerOffset = 0, 0
 }
 
@@ -193,9 +216,17 @@ func openPicked() {
 		return
 	}
 
-	path := filepath.Join(pickerRoot, pickerMatches[pickerSel].path)
+	entry := pickerEntries[pickerMatches[pickerSel].at]
 	closePicker()
-	openInBuffer(path)
+	pushJump()
+	if !sameFile(entry.path, sourceFile) {
+		openInBuffer(entry.path)
+	}
+	if entry.row >= 0 {
+		currentRow, currentCol = min(entry.row, buf.LineCount()-1), entry.col
+		clampCol()
+		centerIfOffScreen()
+	}
 }
 
 var pickerKeys = map[termbox.Key]func(){
@@ -263,8 +294,9 @@ func displayPicker() {
 		if at == pickerSel {
 			foreground, background = active.tabActiveFg, active.tabActiveBg
 		}
+		entry := pickerEntries[pickerMatches[at].at]
 		printMessage(col+1, row+3+i, foreground, background,
-			padTo(" "+truncate(pickerMatches[at].path, cols-3), cols-2))
+			padTo(" "+truncate(entry.label, cols-3, entry.row < 0), cols-2))
 	}
 }
 
@@ -301,14 +333,11 @@ func scrollPicker(listRows int) {
 }
 
 func drawPickerFrame(row, col, rows, cols int) {
-	title := " Files "
-	if pickerRoot != "" {
-		title = " " + filepath.Base(pickerRoot) + " "
-	}
+	title := " " + cmp.Or(pickerTitle, "Files") + " "
 
 	top := []rune("┌" + strings.Repeat("─", cols-2) + "┐")
 	copy(top[2:], []rune(title))
-	count := fmt.Sprintf(" %d/%d ", len(pickerMatches), len(pickerFiles))
+	count := fmt.Sprintf(" %d/%d ", len(pickerMatches), len(pickerEntries))
 	copy(top[cols-2-len([]rune(count)):], []rune(count))
 
 	printMessage(col, row, active.separator, active.background, string(top))
@@ -327,11 +356,17 @@ func drawPickerFrame(row, col, rows, cols int) {
 	}
 }
 
-func truncate(txt string, width int) string {
+// A path is cut at the front, since the name at its end is what is being looked
+// for; a line of text is cut at its end, where a reference has already said
+// which file and which row it is on.
+func truncate(txt string, width int, fromFront bool) string {
 	runes := []rune(txt)
 	if len(runes) <= width {
 		return txt
 	}
+	if fromFront {
+		return "…" + string(runes[len(runes)-width+1:])
+	}
 
-	return "…" + string(runes[len(runes)-width+1:])
+	return string(runes[:width-1]) + "…"
 }
