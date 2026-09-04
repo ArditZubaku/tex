@@ -123,6 +123,7 @@ func chordKeys() map[string]func() {
 	chords := map[string]func(){
 		"gg":  goToTop,
 		"gd":  goToDefinition,
+		"gr":  openReferences,
 		"dd":  deleteLine,
 		"dw":  deleteWord,
 		"de":  deleteToWordEnd,
