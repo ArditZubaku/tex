@@ -16,9 +16,10 @@ import (
 var definitionForms = []string{
 	`(?:func|fn|def|function|proc|sub)\s+(?:\([^)]*\)\s*)?(%s)\b`,
 	`(?:type|class|struct|interface|enum|trait|record)\s+(%s)\b`,
+	`(?:func|fn|def|function|proc|sub)\b[^(]*\((?:[^)]*[^\w.])?(%s)\b[^)]*\)`,
 	`(?:var|let|const|val|static)\s+(%s)\b`,
-	`\b(%s)\s*(?::=|=[^=])`,
-	`\b(%s)\b`,
+	`(?:^|[^\w.])(%s)\s*(?::=|=[^=])`,
+	`(?:^|[^\w.])(%s)\b`,
 }
 
 // A definition is worth looking for in the files beside the one being edited,
@@ -47,6 +48,14 @@ func goToDefinition() {
 	forms, err := compileForms(word)
 	if err != nil {
 		statusMsg = "E486: Pattern not found: " + word
+		return
+	}
+
+	if found, ok := definitionAbove(forms); ok {
+		pushJump()
+		currentRow, currentCol = found.row, found.col
+		clampCol()
+		centerIfOffScreen()
 		return
 	}
 
@@ -129,6 +138,46 @@ func compileForms(word string) ([]*regexp.Regexp, error) {
 	}
 
 	return forms, nil
+}
+
+// definitionAbove is what VIM's 'gd' is for: the declaration nearest above the
+// cursor and inside the same top-level construct, which is the one the
+// identifier under the cursor is bound to — the parameter it was passed as, or
+// the local it was assigned from, rather than a field of the same name three
+// hundred lines away.
+func definitionAbove(forms []*regexp.Regexp) (definition, bool) {
+	for row := currentRow; row >= blockStart(currentRow); row-- {
+		line := lineBytes(row)
+		for rank := range len(forms) - 1 { // a mention on its own declares nothing
+			at := forms[rank].FindSubmatchIndex(line)
+			if at == nil {
+				continue
+			}
+
+			col := utf8.RuneCount(line[:at[2]])
+			if row == currentRow && col == currentCol {
+				break // the cursor is on it: whatever this is, it is not a jump
+			}
+
+			return definition{path: sourceFile, row: row, col: col, rank: rank}, true
+		}
+	}
+
+	return definition{}, false
+}
+
+// blockStart is where the top-level construct the row sits in begins: the
+// nearest line above it that starts in the first column, which is where every
+// language the editor highlights puts one.
+func blockStart(row int) int {
+	for at := row - 1; at > 0; at-- {
+		line := lineBytes(at)
+		if len(line) > 0 && line[0] != ' ' && line[0] != '\t' {
+			return at
+		}
+	}
+
+	return 0
 }
 
 // definitionInBuffer takes the strongest form any line matches, and the first
