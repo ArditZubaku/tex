@@ -39,10 +39,6 @@ const tabBarRows = 1
 
 const modifiedMark = '●'
 
-func screenRow(row int) int { return row + tabBarRows }
-
-func statusRow() int { return ROWS + tabBarRows }
-
 // currentEntry adopts the buffer the editor started with when the list is still
 // empty, so that the list always has the file being edited in it without main
 // having to seed it.
@@ -69,12 +65,19 @@ func loadBuffer(index int) {
 	altPath, currentBuffer = sourceFile, index
 	entry := buffers[index]
 
-	buf, sourceFile, syntax = entry.buf, entry.path, entry.syntax
+	applyEntry(entry)
 	currentRow, currentCol = entry.row, entry.col
 	offsetRow, offsetCol = entry.offsetRow, entry.offsetCol
+	currentWindow().entry = entry
+	clampCol()
+}
+
+// applyEntry makes a buffer the one being worked on, history and all; where the
+// cursor and the viewport are in it belongs to the window showing it.
+func applyEntry(entry *bufferEntry) {
+	buf, sourceFile, syntax = entry.buf, entry.path, entry.syntax
 	modified = entry.modified
 	undoStack, redoStack, pendingChange = entry.undoStack, entry.redoStack, nil
-	clampCol()
 }
 
 // switchBuffer wraps at both ends, the way LazyVim's buffer keys do.
@@ -86,7 +89,7 @@ func switchBuffer(index int) {
 	if mode == VisualMode {
 		exitVisual()
 	}
-	syncBuffer()
+	syncWindow()
 	loadBuffer(((index % len(buffers)) + len(buffers)) % len(buffers))
 }
 
@@ -108,7 +111,7 @@ func alternateBuffer() {
 // list is switched to rather than opened twice, and any other joins the list
 // beside the buffer being left, which keeps its cursor and its unsaved changes.
 func openInBuffer(path string) {
-	syncBuffer()
+	syncWindow()
 
 	if i := bufferIndex(path); i >= 0 {
 		loadBuffer(i)
@@ -134,7 +137,8 @@ func closeBuffer(force bool) {
 		return
 	}
 
-	syncBuffer()
+	syncWindow()
+	gone := buffers[currentBuffer]
 	buf.Close()
 	buffers = slices.Delete(buffers, currentBuffer, currentBuffer+1)
 	if len(buffers) == 0 {
@@ -148,7 +152,9 @@ func closeBuffer(force bool) {
 	if mode == VisualMode {
 		exitVisual()
 	}
-	loadBuffer(min(currentBuffer, len(buffers)-1))
+	index := min(currentBuffer, len(buffers)-1)
+	showBufferInstead(gone, buffers[index])
+	loadBuffer(index)
 }
 
 // closeOtherBuffers, closeBuffersLeft and closeBuffersRight are LazyVim's
@@ -184,7 +190,7 @@ func closeBuffersWhere(what string, drop func(int) bool) {
 		return
 	}
 
-	current := buffers[currentBuffer]
+	live := buffers[currentBuffer]
 	kept := make([]*bufferEntry, 0, len(buffers)-len(doomed))
 	for _, entry := range buffers {
 		if slices.Contains(doomed, entry) {
@@ -193,15 +199,28 @@ func closeBuffersWhere(what string, drop func(int) bool) {
 		}
 		kept = append(kept, entry)
 	}
-	buffers, currentBuffer = kept, slices.Index(kept, current)
+	buffers, currentBuffer = kept, slices.Index(kept, live)
+	for _, entry := range doomed {
+		showBufferInstead(entry, live)
+	}
 	statusMsg = fmt.Sprintf("%d buffers closed", len(doomed))
 	if len(doomed) == 1 {
 		statusMsg = "1 buffer closed"
 	}
 }
 
+// showBufferInstead is what keeps a window from being left showing a buffer
+// that has just been closed.
+func showBufferInstead(gone, replacement *bufferEntry) {
+	for _, w := range windowList() {
+		if w.entry == gone {
+			w.entry = replacement
+		}
+	}
+}
+
 func closeBuffers() {
-	syncBuffer()
+	syncWindow()
 	for _, entry := range buffers {
 		entry.buf.Close()
 	}
@@ -274,7 +293,7 @@ func displayBufferLine() {
 	cells, from, to := bufferLineCells()
 	scrollBufferLine(len(cells), from, to)
 
-	for col := range COLS {
+	for col := range screenCols {
 		ch, fg, bg := ' ', active.tabFg, active.tabBarBg
 		if i := col + tabBarOffset; i >= 0 && i < len(cells) {
 			ch, fg, bg = cells[i].ch, cells[i].fg, cells[i].bg
@@ -325,7 +344,7 @@ func appendTab(cells []tabCell, entry *bufferEntry, fg, bg termbox.Attribute) []
 }
 
 func scrollBufferLine(width, from, to int) {
-	if to-from >= COLS {
+	if to-from >= screenCols {
 		tabBarOffset = from
 		return
 	}
@@ -333,8 +352,8 @@ func scrollBufferLine(width, from, to int) {
 	if from < tabBarOffset {
 		tabBarOffset = from
 	}
-	if to > tabBarOffset+COLS {
-		tabBarOffset = to - COLS
+	if to > tabBarOffset+screenCols {
+		tabBarOffset = to - screenCols
 	}
-	tabBarOffset = max(min(tabBarOffset, width-COLS), 0)
+	tabBarOffset = max(min(tabBarOffset, width-screenCols), 0)
 }
