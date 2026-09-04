@@ -118,3 +118,27 @@ func TestCtrlOComesBackAcrossFiles(t *testing.T) {
 	}
 	wantAt(t, 0, 0)
 }
+
+func TestGdOnAnArgumentTakesTheParameterItWasPassedAs(t *testing.T) {
+	inDefinition(t, "func closeFile(file *os.File) {\n\tfile.Close()\n}\n\nfunc (b *B) Close() {\n\tb.file = nil\n}\n", 1, 1, nil)
+
+	press(t, "gd")
+
+	wantAt(t, 0, 15)
+}
+
+func TestGdSkipsAFieldOfSomethingElseOfTheSameName(t *testing.T) {
+	inDefinition(t, "var file = 1\n\nfunc f(b *B) {\n\tb.file = nil\n\tuse(file)\n}\n", 4, 6, nil)
+
+	press(t, "gd")
+
+	wantAt(t, 0, 4)
+}
+
+func TestGdTakesTheLocalNearestAboveTheCursor(t *testing.T) {
+	inDefinition(t, "var out = 1\n\nfunc f() {\n\tout := 2\n\tuse(out)\n}\n", 4, 6, nil)
+
+	press(t, "gd")
+
+	wantAt(t, 3, 1)
+}
