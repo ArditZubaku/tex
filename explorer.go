@@ -276,14 +276,29 @@ func handleExplorerKey(event termbox.Event) {
 	}
 
 	pendingKeys = pendingKeys[:0]
+	if action, ok := windowMoveKeys[event.Key]; ok {
+		leaveExplorerFor(action)
+		return
+	}
 	if action, ok := explorerSpecialActions[event.Key]; ok {
 		action()
 	}
 }
 
+// leaveExplorerFor is Ctrl-hjkl out of the tree: the window it lands in is
+// showing a buffer, so the explorer is left behind the way opening a file from
+// it leaves it. A move with no window that way changes nothing.
+func leaveExplorerFor(move func()) {
+	was := currentWindow()
+	move()
+	if current != was {
+		closeExplorer()
+	}
+}
+
 func displayExplorer() {
 	scrollExplorer()
-	printMessage(0, screenRow(0), active.cursorLineNumber, active.background, padTo(explorerDir, COLS))
+	printMessage(screenCol(0), screenRow(0), active.cursorLineNumber, active.background, padTo(explorerDir, COLS))
 
 	for row := explorerHeaderRows; row < ROWS; row++ {
 		i := row - explorerHeaderRows + explorerOffset
@@ -301,7 +316,7 @@ func displayExplorer() {
 			highlightRow(row)
 		}
 
-		printMessage(0, screenRow(row), foreground, background, padTo(" "+entryLabel(entry), COLS))
+		printMessage(screenCol(0), screenRow(row), foreground, background, padTo(" "+entryLabel(entry), COLS))
 	}
 }
 
