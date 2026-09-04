@@ -19,6 +19,7 @@ func inReadMode(t *testing.T, content string, row, col int) *Buffer {
 	quitting, active = false, themes[0]
 	explorerOpen, explorerHidden, explorerFilter = false, false, ""
 	buffers, currentBuffer, tabBarOffset = nil, 0, 0
+	root, current, winRow, winCol = nil, nil, tabBarRows, 0
 
 	return b
 }

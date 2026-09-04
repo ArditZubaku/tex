@@ -9,7 +9,8 @@ func inWindow(t *testing.T, lines, row int) {
 	t.Helper()
 
 	inReadMode(t, strings.Repeat("x\n", lines), row, 0)
-	ROWS, COLS, offsetRow, offsetCol = 20, 80, 0, 0
+	singleWindow(20, 80)
+	offsetRow, offsetCol = 0, 0
 }
 
 func TestCenterViewPutsTheCursorLineInTheMiddle(t *testing.T) {
@@ -70,7 +71,8 @@ func TestCountedCenterViewStopsAtTheLastLine(t *testing.T) {
 
 func TestCenterViewKeepsTheColumn(t *testing.T) {
 	inReadMode(t, "foo bar\nbaz\n", 0, 5)
-	ROWS, COLS, offsetRow = 20, 80, 0
+	singleWindow(20, 80)
+	offsetRow = 0
 
 	press(t, "zz")
 

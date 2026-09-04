@@ -20,7 +20,7 @@ func inBuffers(t *testing.T, names ...string) []string {
 	}
 
 	inReadMode(t, "first\n", 0, 0)
-	ROWS, COLS = 20, 80
+	singleWindow(20, 80)
 
 	return paths
 }
@@ -371,10 +371,10 @@ func TestBufferLineScrollsTheCurrentBufferIntoView(t *testing.T) {
 	cells, from, to := bufferLineCells()
 	scrollBufferLine(len(cells), from, to)
 
-	if len(cells) <= COLS {
+	if len(cells) <= screenCols {
 		t.Fatalf("buffer line is %d cells wide, want wider than the window", len(cells))
 	}
-	if from < tabBarOffset || to > tabBarOffset+COLS {
+	if from < tabBarOffset || to > tabBarOffset+screenCols {
 		t.Errorf("current tab at [%d,%d) is outside the window at %d", from, to, tabBarOffset)
 	}
 }

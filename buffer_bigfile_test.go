@@ -109,7 +109,7 @@ func TestNavigationOverBigFile(t *testing.T) {
 	buf = openBuffer(bigFile(t, 20000))
 	defer buf.Close()
 
-	ROWS, COLS = 30, 80
+	singleWindow(30, 80)
 	currentRow, currentCol = 0, 0
 
 	for range 100 {

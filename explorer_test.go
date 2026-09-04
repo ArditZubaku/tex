@@ -26,7 +26,7 @@ func inExplorer(t *testing.T, names ...string) string {
 
 	inReadMode(t, "one\n", 0, 0)
 	sourceFile = filepath.Join(dir, "start.txt")
-	ROWS, COLS = 20, 80
+	singleWindow(20, 80)
 
 	return dir
 }
