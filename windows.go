@@ -155,7 +155,7 @@ func splitRight() { splitWindow(true) }
 // 'splitright' set, which is how LazyVim has them.
 func splitWindow(vertical bool) bool {
 	w := currentWindow()
-	if (vertical && w.cols < 2*minWindowCols+1) || (!vertical && w.rows < 2*minWindowRows+1) {
+	if (vertical && w.cols <= 2*minWindowCols) || (!vertical && w.rows <= 2*minWindowRows) {
 		statusMsg = "E36: Not enough room"
 		return false
 	}
