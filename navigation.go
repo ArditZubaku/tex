@@ -10,6 +10,10 @@ func processKeyPress() {
 	keyEvent := getKey()
 	statusMsg = "" // whatever the last command reported has had its redraw
 
+	dispatchKey(keyEvent)
+}
+
+func dispatchKey(keyEvent termbox.Event) {
 	switch {
 	case mode == PromptMode:
 		handlePromptKey(keyEvent)
@@ -111,25 +115,34 @@ func visualKeys() map[rune]func() {
 // A chord is the keys it takes to name one command, in the order they are
 // typed: VIM's own two-key operators, and the leader sequences LazyVim puts its
 // buffer commands under.
-var chordActions = map[string]func(){
-	"gg":  goToTop,
-	"dd":  deleteLine,
-	"dw":  deleteWord,
-	"de":  deleteToWordEnd,
-	"db":  deleteToPrevWord,
-	"yy":  yankLine,
-	"yw":  yankWord,
-	"ye":  yankToWordEnd,
-	"yb":  yankToPrevWord,
-	"zz":  centerView,
-	" e":  openExplorer,
-	" bb": alternateBuffer,
-	" bd": closeCurrentBuffer,
-	" bn": nextBuffer,
-	" bp": prevBuffer,
-	" bo": closeOtherBuffers,
-	" bl": closeBuffersLeft,
-	" br": closeBuffersRight,
+var chordActions = chordKeys()
+
+func chordKeys() map[string]func() {
+	chords := map[string]func(){
+		"gg":  goToTop,
+		"dd":  deleteLine,
+		"dw":  deleteWord,
+		"de":  deleteToWordEnd,
+		"db":  deleteToPrevWord,
+		"yy":  yankLine,
+		"yw":  yankWord,
+		"ye":  yankToWordEnd,
+		"yb":  yankToPrevWord,
+		"zz":  centerView,
+		" e":  openExplorer,
+		" bb": alternateBuffer,
+		" bd": closeCurrentBuffer,
+		" bn": nextBuffer,
+		" bp": prevBuffer,
+		" bo": closeOtherBuffers,
+		" bl": closeBuffersLeft,
+		" br": closeBuffersRight,
+		" sh": splitRight,
+		" sv": splitBelow,
+		" wd": closeWindow,
+	}
+
+	return chords
 }
 
 var visualChords = map[string]func(){
@@ -225,6 +238,16 @@ func runCommand(action func(), countAware bool) {
 	endChange()
 }
 
+// Ctrl-hjkl move between windows, which is all it takes to leave one. Only
+// outside Edit mode: Ctrl-H is also the Backspace that terminals sending 0x08
+// rather than 0x7F give, and typing has first call on it.
+var windowMoveKeys = map[termbox.Key]func(){
+	termbox.KeyCtrlH: focusLeft,
+	termbox.KeyCtrlJ: focusDown,
+	termbox.KeyCtrlK: focusUp,
+	termbox.KeyCtrlL: focusRight,
+}
+
 var specialKeyActions = map[termbox.Key]func(){
 	termbox.KeyCtrlS:      saveFile,
 	termbox.KeyEnter:      enter,
@@ -250,6 +273,11 @@ func handleSpecialKey(keyEvent termbox.Event) {
 	}
 
 	pendingKeys, pendingCount = pendingKeys[:0], 0 // any special key cancels a pending chord or count
+
+	if action, ok := windowMoveKeys[keyEvent.Key]; ok && mode != EditMode {
+		action()
+		return
+	}
 
 	switch keyEvent.Key {
 	case termbox.KeyTab:
