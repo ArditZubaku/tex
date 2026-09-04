@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -179,14 +180,16 @@ func displayStatusBar() {
 		modeStatus = " VIEW: "
 	}
 
-	// truncate the file name
-	fileNameLen := min(len(sourceFile), 8)
+	// the name alone: a file opened by the picker or by 'gd' carries the whole
+	// path it was found at, which says nothing the buffer line does not
+	name := filepath.Base(sourceFile)
+	fileNameLen := min(len(name), 16)
 
 	status := "saved"
 	if modified {
 		status = "modified"
 	}
-	fileStatus = fmt.Sprintf("%s - %d lines %s", sourceFile[:fileNameLen], buf.LineCount(), status)
+	fileStatus = fmt.Sprintf("%s - %d lines %s", name[:fileNameLen], buf.LineCount(), status)
 
 	cursorStatus = fmt.Sprintf("Row %s, Col %s ", strconv.Itoa(currentRow+1), strconv.Itoa(currentCol+1))
 
