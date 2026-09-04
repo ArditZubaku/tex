@@ -160,9 +160,11 @@ func closeBuffer(force bool) {
 // closeOtherBuffers, closeBuffersLeft and closeBuffersRight are LazyVim's
 // '<leader>bo', '<leader>bl' and '<leader>br'.
 func closeOtherBuffers() { closeBuffersWhere("other buffers", func(int) bool { return true }) }
+
 func closeBuffersLeft() {
 	closeBuffersWhere("buffers to the left", func(i int) bool { return i < currentBuffer })
 }
+
 func closeBuffersRight() {
 	closeBuffersWhere("buffers to the right", func(i int) bool { return i > currentBuffer })
 }
