@@ -23,7 +23,7 @@ type Syntax struct {
 
 func words(list string) map[string]bool {
 	set := make(map[string]bool)
-	for _, w := range strings.Fields(list) {
+	for w := range strings.FieldsSeq(list) {
 		set[w] = true
 	}
 
