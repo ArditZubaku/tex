@@ -78,7 +78,7 @@ func TestThemesPaintingTheirOwnBackgroundAreComplete(t *testing.T) {
 		value := reflect.ValueOf(palette)
 		for i := range value.NumField() {
 			field := value.Type().Field(i)
-			if field.Type != reflect.TypeOf(termbox.Attribute(0)) {
+			if field.Type != reflect.TypeFor[termbox.Attribute]() {
 				continue
 			}
 			if value.Field(i).Uint() == uint64(termbox.ColorDefault) {
