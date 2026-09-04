@@ -65,4 +65,5 @@ const (
 	PromptMode
 	VisualMode
 	ExplorerMode
+	PickerMode
 )
