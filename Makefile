@@ -12,3 +12,9 @@ lint:
 		-v ~/.cache/golangci-lint:/root/.cache \
 		-w /app \
 		golangci/golangci-lint:latest-alpine golangci-lint run -v
+
+format:
+	docker run --rm \
+		-v $$(pwd):/app \
+		-w /app \
+		mvdan/gofumpt:latest -w .
