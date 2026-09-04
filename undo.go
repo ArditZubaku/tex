@@ -131,8 +131,7 @@ func redo() {
 func applyChange(c change) change {
 	reverse := change{row: currentRow, col: currentCol}
 
-	for i := len(c.actions) - 1; i >= 0; i-- {
-		action := c.actions[i]
+	for _, action := range slices.Backward(c.actions) {
 		switch action.kind {
 		case restoreLine:
 			reverse.actions = append(reverse.actions, undoAction{
