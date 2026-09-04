@@ -196,7 +196,7 @@ shrinks back. Only the index scales with file size, at 8 bytes per line.
 
 ### Goals not yet implemented
 
-- The rest of `:` command mode — ranges (`:1,5d`), `:s`, `:e`, `:r`, `:set` and the like; `:w`, `:q`, `:wq`, `:x`, `:q!`, `:noh`, `:theme` and a bare line address are all that is there
+- The rest of `:` command mode — ranges (`:1,5d`), `:s`, `:r`, `:set` and the like; the write and quit family (`:w`, `:q`, `:wq`, `:x`, `:q!`), `:e`, the buffer commands (`:bn`, `:bp`, `:bd`, `:ls`), the window commands (`:sp`, `:vs`, `:clo`, `:on`), `:noh`, `:theme` and a bare line address are all that is there
 - The rest of Visual mode — blockwise `Ctrl-V`, `gv`, the text objects (`vi(`, `vip`) and the operators beyond `d`/`x`/`y`/`c` (`>`, `~`, `J`, `p` over a selection)
 - Regular expressions in a search pattern — `/` matches literal text, so `\v`, `*`, character classes and `:s` are not there; nor are `ignorecase`/`smartcase`, `*` and `#` (search for the word under the cursor), or a search used as an operator's motion (`d/foo`)
 - The rest of the operators and text objects (`cw`, `dj`, `di(`, ...) — only `x`, `dw`, `de`, `db`, `dd`, the `y` operators and what Visual mode selects for exist so far, and they stop at the line boundary instead of running onto the next line
