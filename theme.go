@@ -20,6 +20,7 @@ type theme struct {
 
 	tabBarBg, tabFg, tabActiveFg termbox.Attribute
 	tabActiveBg, tabModified     termbox.Attribute
+	separator                    termbox.Attribute
 }
 
 var themes = []theme{defaultTheme, gruvboxTheme, githubDarkTheme}
@@ -75,6 +76,7 @@ var defaultTheme = theme{
 	tabActiveFg: termbox.ColorWhite,
 	tabActiveBg: color256(236),
 	tabModified: termbox.ColorYellow,
+	separator:   color256(240),
 }
 
 // Gruvbox, at the 256-colour indices its own palette documents for terminals,
@@ -112,6 +114,7 @@ var gruvboxTheme = theme{
 	tabActiveFg: color256(223), // fg1, over bg0 so the current tab reads as the text below it
 	tabActiveBg: color256(235), // bg0 #282828
 	tabModified: color256(214), // yellow #fabd2f
+	separator:   color256(239), // bg2 #504945, gruvbox's own VertSplit
 }
 
 // GitHub's dark default, at the nearest 256-colour index to each of the hex
@@ -150,4 +153,5 @@ var githubDarkTheme = theme{
 	tabActiveFg: color256(255),
 	tabActiveBg: color256(233), // canvas.default, as GitHub draws the open tab
 	tabModified: color256(178), // attention.fg  #d29922
+	separator:   color256(237), // border.default #30363d
 }
