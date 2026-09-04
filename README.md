@@ -10,6 +10,27 @@ go build -o txi .
 ./txi                   # starts a new, unnamed buffer (out.txt)
 ```
 
+### Ctrl-hjkl inside tmux
+
+Anything that binds `Ctrl-h`/`j`/`k`/`l` to pane switching — `vim-tmux-navigator`
+and the hand-rolled versions of it — takes those keys before txi ever sees them,
+because the check it forwards on matches vim and nvim by name. Teaching it about
+txi is one block in `~/.tmux.conf`, after `run '~/.tmux/plugins/tpm/tpm'` so that
+it wins over the plugin's own bindings:
+
+```tmux
+is_vim="ps -o state=,comm= -t '#{pane_tty}' | awk '\$1 !~ /^[TXZ]/ {print \$2}' | grep -iqE '(^|/)(view|l?n?vim?x?|txi)(-wrapped)?(diff)?\$'"
+bind -n C-h if-shell "$is_vim" "send-keys C-h" "select-pane -L"
+bind -n C-j if-shell "$is_vim" "send-keys C-j" "select-pane -D"
+bind -n C-k if-shell "$is_vim" "send-keys C-k" "select-pane -U"
+bind -n C-l if-shell "$is_vim" "send-keys C-l" "select-pane -R"
+```
+
+It asks the pane's tty what is running on it rather than reading
+`pane_current_command`, which says `make` when the editor was started through
+`make run`, and skips stopped processes so a suspended editor gives the keys
+back to tmux.
+
 ## Features
 
 - **Modal editing** — a Read (Normal) mode for navigation, an Edit (Insert) mode for typing and a Visual mode for selecting, with the terminal cursor changing shape (block vs. blinking bar) depending on mode. The cursor sits *on* a character in Normal mode, stopping at the last one on the line like VIM does; only Insert mode reaches the column past it, where appending happens.
@@ -33,7 +54,7 @@ go build -o txi .
 
 - **Buffers** — every file opened stays open, the way VIM's hidden buffers and LazyVim's buffer line do: `:e` and the explorer put the new file *beside* the one being edited rather than over it, and `Tab` walks the list, wrapping at the end. `H` and `L` are LazyVim's own step back and forward through it. A buffer keeps what belongs to it — its cursor, its viewport, its unsaved changes and its undo history — so switching away and back leaves the file exactly as it was, and editing a file already in the list switches to it rather than opening it twice. The list is drawn as a row of tabs across the top of the window, the buffer being edited picked out in the theme's own colours and an unsaved one carrying a dot; the row scrolls sideways to keep the current tab on screen when more buffers are open than fit. `:ls` names them all on the status line, marking the current one with `%`. LazyVim's `<leader>b` group is where the rest of it sits: `<leader>bn` and `<leader>bp` step through the list, `<leader>bb` goes back to the buffer last left (VIM's `:b#`), `<leader>bd` closes the current one, and `<leader>bo`, `<leader>bl` and `<leader>br` close the others — all of them, the ones to the left, or the ones to the right. Closing refuses to take unsaved changes with it, and a bulk close refuses the whole move rather than half of it, naming the buffer that stopped it (`E162`); `:bd!` is the one way to drop changes, since a chord has no `!` to add. Closing the last buffer open leaves an empty one behind.
 
-- **Window splits** — `<leader>sh` puts two windows side by side, `<leader>sv` stacks them one above the other, and `:vsplit`/`:split` do the same from the prompt (`:sp other.txt` opens that file in the window it makes). The new window goes to the right or below and takes the cursor with it, showing the same buffer at the same place — VIM with `splitright` and `splitbelow` set, which is how LazyVim has them. Windows divide the room equally: splitting a column again gives three windows a third each rather than a half and two quarters, because a split in the direction a row or column already runs joins it rather than nesting inside it. Each window keeps its own cursor, its own viewport and the buffer it shows, so the same file can be open twice at two different places, and the buffer list, the search pattern and the registers stay shared across all of them. `Ctrl-H`/`Ctrl-J`/`Ctrl-K`/`Ctrl-L` move to the window that way — the nearest one sharing any of the rows or columns the move crosses — and are all it takes to leave a window; inside Edit mode they are left to typing, where `Ctrl-H` is the Backspace some terminals send. `<leader>wd` closes the window (`:close`, or `:q`, which quits once it was the last one) and `:only` leaves the one being worked in. A window is drawn with its own gutter and its own scrolling inside its rectangle, with a `│` or `─` in the theme's colour along the join; a split with no room for two windows of a usable size is refused (`E36`) rather than drawn unreadably, and the last window cannot be closed (`E444`).
+- **Window splits** — `<leader>sh` puts two windows side by side, `<leader>sv` stacks them one above the other, and `:vsplit`/`:split` do the same from the prompt (`:sp other.txt` opens that file in the window it makes). The new window goes to the right or below and takes the cursor with it, showing the same buffer at the same place — VIM with `splitright` and `splitbelow` set, which is how LazyVim has them. Windows divide the room equally: splitting a column again gives three windows a third each rather than a half and two quarters, because a split in the direction a row or column already runs joins it rather than nesting inside it. Each window keeps its own cursor, its own viewport and the buffer it shows, so the same file can be open twice at two different places, and the buffer list, the search pattern and the registers stay shared across all of them. `Ctrl-H`/`Ctrl-J`/`Ctrl-K`/`Ctrl-L` move to the window that way — the nearest one sharing any of the rows or columns the move crosses — and are all it takes to leave a window; inside Edit mode they are left to typing, where `Ctrl-H` is the Backspace some terminals send (a multiplexer of its own may want [teaching about txi](#ctrl-hjkl-inside-tmux) first). `<leader>wd` closes the window (`:close`, or `:q`, which quits once it was the last one) and `:only` leaves the one being worked in. A window is drawn with its own gutter and its own scrolling inside its rectangle, with a `│` or `─` in the theme's colour along the join; a split with no room for two windows of a usable size is refused (`E36`) rather than drawn unreadably, and the last window cannot be closed (`E444`).
 
 - **Status bar** — one line at the foot of the screen for the window being worked in: its mode, file name, line count, modified/saved state, whether the register and the undo/redo stacks hold anything, the count being typed, and cursor row/column. The prompt takes the line over while a search or a `:` command is being typed, and what a command has to report — a write, a pattern that matched nothing, a refused quit — is shown there.
 - **Constant-memory file loading** — the file is never held in memory. Opening it builds an index of where each line starts (8 bytes per line) and nothing else; lines are read through one fixed 64KB window and decoded to runes only when they're on screen or under the cursor. Opening a 23MB file of 202,000 lines and jumping to the end costs **8.8MB of RSS**, and that figure doesn't move however far you scroll — 5.2MB of it is the Go runtime floor a one-line file also pays, so the file itself accounts for 2.6MB. See [Memory model](#memory-model).
