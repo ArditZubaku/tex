@@ -34,40 +34,50 @@ func runExCommand(line string) {
 	force := strings.HasSuffix(name, "!")
 	name = strings.TrimSuffix(name, "!")
 
-	switch name {
-	case "w", "write":
-		writeFile(arg)
-	case "e", "edit":
-		editFile(cmp.Or(arg, sourceFile), force)
-	case "bn", "bnext":
-		nextBuffer()
-	case "bp", "bprev", "bprevious", "bN":
-		prevBuffer()
-	case "bd", "bdel", "bdelete":
-		closeBuffer(force)
-	case "ls", "buffers", "files":
-		listBuffers()
-	case "q", "quit":
-		quitWindow(force)
-	case "wq", "x", "xit":
-		if writeFile(arg) {
-			quitWindow(true)
-		}
-	case "sp", "split", "new":
-		splitInto(arg, false, force)
-	case "vs", "vsp", "vsplit", "vnew":
-		splitInto(arg, true, force)
-	case "clo", "close":
-		closeWindow()
-	case "on", "only":
-		onlyWindow()
-	case "noh", "nohl", "nohlsearch":
-		hlSearch = false
-	case "theme", "colorscheme", "colo":
-		setTheme(arg)
-	default:
+	run, ok := exCommands[name]
+	if !ok {
 		statusMsg = "E492: Not an editor command: " + line
+		return
 	}
+
+	run(arg, force)
+}
+
+var exCommands = exCommandTable()
+
+// exCommandTable spreads each command over the spellings VIM takes for it, so
+// that ':bp' and ':bprevious' are one entry rather than one apiece. Every
+// command is handed the argument and the '!' so that the table is one shape.
+func exCommandTable() map[string]func(arg string, force bool) {
+	commands := map[string]func(arg string, force bool){
+		"w write": func(arg string, _ bool) { writeFile(arg) },
+		"e edit":  func(arg string, force bool) { editFile(cmp.Or(arg, sourceFile), force) },
+		"wq x xit": func(arg string, _ bool) {
+			if writeFile(arg) {
+				quitWindow(true)
+			}
+		},
+		"q quit":                 func(_ string, force bool) { quitWindow(force) },
+		"bn bnext":               func(string, bool) { nextBuffer() },
+		"bp bprev bprevious bN":  func(string, bool) { prevBuffer() },
+		"bd bdel bdelete":        func(_ string, force bool) { closeBuffer(force) },
+		"ls buffers files":       func(string, bool) { listBuffers() },
+		"sp split new":           func(arg string, force bool) { splitInto(arg, false, force) },
+		"vs vsp vsplit vnew":     func(arg string, force bool) { splitInto(arg, true, force) },
+		"clo close":              func(string, bool) { closeWindow() },
+		"on only":                func(string, bool) { onlyWindow() },
+		"noh nohl nohlsearch":    func(string, bool) { hlSearch = false },
+		"theme colorscheme colo": func(arg string, _ bool) { setTheme(arg) },
+	}
+
+	table := make(map[string]func(arg string, force bool), len(commands))
+	for names, run := range commands {
+		for name := range strings.FieldsSeq(names) {
+			table[name] = run
+		}
+	}
+
+	return table
 }
 
 // lineAddress covers ':42' and ':$', the two addresses that are a jump on their
