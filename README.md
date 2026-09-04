@@ -58,6 +58,8 @@ back to tmux.
 
 - **File picker** — `<leader><leader>` opens a popup over the middle of the screen listing every file under the project root — the repository the file being edited sits in, or its own directory when it is in none — with hidden directories left out, since `.git` alone holds more files than the tree being worked on. What is typed narrows the listing as a fuzzy match rather than a prefix, so `bfg` finds `buffers.go`, and what matched is ranked the way a picker is usually meant: the letters together, at the start of a word, and in the name rather than the directories leading to it. `Ctrl-N`/`Ctrl-P` (or the arrow keys) walk the listing, `Enter` opens the file settled on as a buffer, and `Esc` — or a backspace with nothing left to delete — closes the popup, leaving the buffer underneath untouched.
 
+- **Go to definition** — `gd` on an identifier jumps to where it is declared, read out of the text rather than from a language server: the line is looked for in the shapes a declaration takes across the languages the editor highlights — `func`/`fn`/`def`/`function`, `type`/`class`/`struct`/`interface`, `var`/`let`/`const`, then a `:=` or `=` binding — strongest form first, and the plain first mention of the word is what VIM's own `gd` settles for. A declaration the file itself holds wins; failing that the files beside it of the same kind are read (under the project root, hidden directories left out, nothing larger than a megabyte) and the one holding it is opened as a buffer. `Ctrl-O` goes back to where the jump left from, across files as well, and the row is centred when the jump lands off screen. Nothing found says so (`E388`), as does a cursor on no identifier at all (`E349`).
+
 - **Status bar** — one line at the foot of the screen for the window being worked in: its mode, file name, line count, modified/saved state, whether the register and the undo/redo stacks hold anything, the count being typed, and cursor row/column. The prompt takes the line over while a search or a `:` command is being typed, and what a command has to report — a write, a pattern that matched nothing, a refused quit — is shown there.
 - **Constant-memory file loading** — the file is never held in memory. Opening it builds an index of where each line starts (8 bytes per line) and nothing else; lines are read through one fixed 64KB window and decoded to runes only when they're on screen or under the cursor. Opening a 23MB file of 202,000 lines and jumping to the end costs **8.8MB of RSS**, and that figure doesn't move however far you scroll — 5.2MB of it is the Go runtime floor a one-line file also pays, so the file itself accounts for 2.6MB. See [Memory model](#memory-model).
 
@@ -110,6 +112,8 @@ back to tmux.
 | `<leader>wd` | Normal | close the window |
 | `:vs` `:sp` | Normal | split the window (`:vs name` opens that file in it) |
 | `:clo` `:on` | Normal | close the window / every other window |
+| `gd` | Normal | jump to where the identifier under the cursor is declared |
+| `Ctrl-O` | Normal | go back to where the last jump left from |
 | `<leader><leader>` | Normal | open the file picker on the project root |
 | any letter | Picker | narrow the listing to the files matching what is typed |
 | `Ctrl-N` `Ctrl-P` | Picker | move down / up the listing |
