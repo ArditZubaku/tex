@@ -52,11 +52,14 @@ func runEditor() {
 
 		displayBufferLine()
 		displayWindows()
+		displayPicker()
 		displayStatusBar()
 
 		switch mode {
 		case PromptMode:
 			termbox.SetCursor(promptCol(), statusRow())
+		case PickerMode:
+			termbox.SetCursor(pickerCursorCol(), pickerRow()+1)
 		case ExplorerMode:
 			termbox.SetCursor(screenCol(0), explorerCursorRow())
 		default:

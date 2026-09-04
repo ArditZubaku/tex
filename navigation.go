@@ -19,6 +19,8 @@ func dispatchKey(keyEvent termbox.Event) {
 		handlePromptKey(keyEvent)
 	case mode == ExplorerMode:
 		handleExplorerKey(keyEvent)
+	case mode == PickerMode:
+		handlePickerKey(keyEvent)
 	case keyEvent.Key == termbox.KeyEsc:
 		esc()
 	case keyEvent.Ch != 0:
@@ -140,6 +142,7 @@ func chordKeys() map[string]func() {
 		" sh": splitRight,
 		" sv": splitBelow,
 		" wd": closeWindow,
+		"  ":  openPicker,
 	}
 
 	return chords
