@@ -3,10 +3,10 @@
 FILE ?= main.go
 
 run:
-	@go build -o txi . && (trap 'go clean; exit' INT TERM EXIT; ./txi $(FILE)) # runs clean no matter how the program exits
+	@go build -o tex . && (trap 'go clean; exit' INT TERM EXIT; ./tex $(FILE)) # runs clean no matter how the program exits
 
 build:
-	@go build -o txi .
+	@go build -o tex .
 
 lint:
 	docker run --rm \
