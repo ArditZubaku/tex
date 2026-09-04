@@ -14,7 +14,7 @@ import (
 
 // bigFile needs many window refills, with line lengths varying either side
 // of the window size so refill boundaries land in awkward places.
-func bigFile(t *testing.T, lines int) string {
+func bigFile(t testing.TB, lines int) string {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "big.txt")
