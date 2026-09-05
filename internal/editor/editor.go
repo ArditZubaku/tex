@@ -7,6 +7,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
+	"github.com/ArditZubaku/tex/internal/editor/keys"
 	"github.com/ArditZubaku/tex/internal/editor/render"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
@@ -26,6 +27,8 @@ func Run(args []string) {
 	// colour below is unchanged by this, since termbox numbers the first
 	// sixteen of the 256 the same way it numbers the eight.
 	termbox.SetOutputMode(termbox.Output256)
+
+	ed := state.New()
 
 	if len(args) > 0 {
 		ed.SourceFile = args[0]
@@ -73,7 +76,7 @@ func Run(args []string) {
 			os.Exit(1) // TODO: Will think of something better in such a case
 		}
 
-		processKeyPress()
+		keys.Read(ed)
 	}
 
 	view.CloseAll(ed)

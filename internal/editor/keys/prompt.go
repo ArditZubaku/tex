@@ -1,4 +1,4 @@
-package editor
+package keys
 
 import (
 	"slices"
@@ -14,46 +14,46 @@ import (
 func startSearchForward(e *state.Editor)  { e.StartPrompt('/') }
 func startSearchBackward(e *state.Editor) { e.StartPrompt('?') }
 
-func handlePromptKey(event termbox.Event) {
-	switch ed.Prompt.Key(event) {
+func handlePromptKey(e *state.Editor, event termbox.Event) {
+	switch e.Prompt.Key(event) {
 	case prompt.Closed:
-		endPrompt()
+		endPrompt(e)
 		return
 	case prompt.Submitted:
-		submitPrompt()
+		submitPrompt(e)
 		return
 	}
 
 	// the explorer's own '/' narrows its listing as the pattern is typed, so
 	// what is on screen is always what Enter would settle on
-	if ed.ExplorerOpen {
-		explorer.Filter(ed, string(ed.Prompt.Input()))
+	if e.ExplorerOpen {
+		explorer.Filter(e, string(e.Prompt.Input()))
 	}
 }
 
-func submitPrompt() {
-	input, delimiter := slices.Clone(ed.Prompt.Input()), ed.Prompt.Delimiter()
-	endPrompt()
+func submitPrompt(e *state.Editor) {
+	input, delimiter := slices.Clone(e.Prompt.Input()), e.Prompt.Delimiter()
+	endPrompt(e)
 
-	if ed.ExplorerOpen {
-		explorer.Filter(ed, string(input))
+	if e.ExplorerOpen {
+		explorer.Filter(e, string(input))
 		return
 	}
 
 	if delimiter == ':' {
-		command.Run(ed, string(input))
+		command.Run(e, string(input))
 		return
 	}
-	find.CommitSearch(ed, input, delimiter == '?')
+	find.CommitSearch(e, input, delimiter == '?')
 }
 
 // endPrompt is what Esc reaches, so it leaves the explorer's listing as it was
 // before the '/' was pressed; submitPrompt puts the pattern back afterwards.
-func endPrompt() {
-	ed.Mode = state.ReadMode
-	if ed.ExplorerOpen {
-		ed.Mode = state.ExplorerMode
-		explorer.Filter(ed, "")
+func endPrompt(e *state.Editor) {
+	e.Mode = state.ReadMode
+	if e.ExplorerOpen {
+		e.Mode = state.ExplorerMode
+		explorer.Filter(e, "")
 	}
-	ed.Prompt.Clear()
+	e.Prompt.Clear()
 }

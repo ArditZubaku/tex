@@ -1,4 +1,7 @@
-package editor
+// Package keys is the dispatcher: it says which command each key names, in the
+// mode it arrives in, and holds a chord or a count until the keys that finish
+// it come.
+package keys
 
 import (
 	"time"
@@ -13,37 +16,37 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-func processKeyPress() {
+func Read(e *state.Editor) {
 	keyEvent := screen.Key()
-	ed.StatusMsg = "" // whatever the last command reported has had its redraw
+	e.StatusMsg = "" // whatever the last command reported has had its redraw
 
-	dispatchKey(keyEvent)
+	Dispatch(e, keyEvent)
 }
 
-func dispatchKey(keyEvent termbox.Event) {
+func Dispatch(e *state.Editor, keyEvent termbox.Event) {
 	switch {
-	case ed.Mode == state.PromptMode:
-		handlePromptKey(keyEvent)
-	case ed.Mode == state.ExplorerMode:
-		explorer.Key(ed, keyEvent)
-	case ed.Mode == state.PickerMode:
-		find.PickerKey(ed, keyEvent)
+	case e.Mode == state.PromptMode:
+		handlePromptKey(e, keyEvent)
+	case e.Mode == state.ExplorerMode:
+		explorer.Key(e, keyEvent)
+	case e.Mode == state.PickerMode:
+		find.PickerKey(e, keyEvent)
 	case keyEvent.Key == termbox.KeyEsc:
-		esc()
+		esc(e)
 	case keyEvent.Ch != 0:
-		handleCharKey(keyEvent)
+		handleCharKey(e, keyEvent)
 	default:
-		handleSpecialKey(keyEvent)
+		handleSpecialKey(e, keyEvent)
 	}
 }
 
-func handleCharKey(keyEvent termbox.Event) {
-	switch ed.Mode {
+func handleCharKey(e *state.Editor, keyEvent termbox.Event) {
+	switch e.Mode {
 	case state.EditMode:
-		edit.InsertRune(ed, keyEvent)
+		edit.InsertRune(e, keyEvent)
 	case state.ReadMode, state.VisualMode:
-		handleReadModeChar(keyEvent)
-		ed.ClampCol()
+		handleReadModeChar(e, keyEvent)
+		e.ClampCol()
 	}
 }
 
@@ -174,64 +177,64 @@ var (
 	countAwareChords = map[string]bool{"dd": true, "yy": true, "zz": true}
 )
 
-func handleReadModeChar(keyEvent termbox.Event) {
+func handleReadModeChar(e *state.Editor, keyEvent termbox.Event) {
 	ch := keyEvent.Ch
 
 	// a leading '0' is VIM's jump to column 0, not the start of a count
-	if (ch >= '1' && ch <= '9') || (ch == '0' && ed.PendingCount > 0) {
-		ed.PendingCount = min(ed.PendingCount*10+int(ch-'0'), state.MaxCount)
+	if (ch >= '1' && ch <= '9') || (ch == '0' && e.PendingCount > 0) {
+		e.PendingCount = min(e.PendingCount*10+int(ch-'0'), state.MaxCount)
 		return
 	}
 
 	keys, chords, prefixes := readModeActions, chordActions, chordPrefixes
-	if ed.Mode == state.VisualMode {
+	if e.Mode == state.VisualMode {
 		keys, chords, prefixes = visualActions, visualChords, visualChordPrefixes
 	}
 
-	if time.Since(ed.PendingTime) >= state.ChordTimeout {
-		ed.PendingKeys = ed.PendingKeys[:0]
+	if time.Since(e.PendingTime) >= state.ChordTimeout {
+		e.PendingKeys = e.PendingKeys[:0]
 	}
 
-	if len(ed.PendingKeys) > 0 {
-		chord := string(ed.PendingKeys) + string(ch)
+	if len(e.PendingKeys) > 0 {
+		chord := string(e.PendingKeys) + string(ch)
 		if action, ok := chords[chord]; ok {
-			ed.PendingKeys = ed.PendingKeys[:0]
-			runCommand(action, countAwareChords[chord])
+			e.PendingKeys = e.PendingKeys[:0]
+			runCommand(e, action, countAwareChords[chord])
 			return
 		}
 		if prefixes[chord] {
-			ed.PendingKeys, ed.PendingTime = append(ed.PendingKeys, ch), time.Now()
+			e.PendingKeys, e.PendingTime = append(e.PendingKeys, ch), time.Now()
 			return
 		}
 	}
-	ed.PendingKeys = ed.PendingKeys[:0]
+	e.PendingKeys = e.PendingKeys[:0]
 
 	// the direct keys come first, so that Visual mode's 'd' and 'y' are
 	// operators in their own right rather than the halves of a chord they are
 	// in Read mode
 	if action, ok := keys[ch]; ok {
-		runCommand(action, countAwareKeys[ch])
+		runCommand(e, action, countAwareKeys[ch])
 		return
 	}
 
 	if prefixes[string(ch)] {
-		ed.PendingKeys, ed.PendingTime = append(ed.PendingKeys, ch), time.Now()
+		e.PendingKeys, e.PendingTime = append(e.PendingKeys, ch), time.Now()
 	}
 }
 
-func runCommand(action func(*state.Editor), countAware bool) {
-	ed.CmdCount, ed.HadCount, ed.PendingCount = max(ed.PendingCount, 1), ed.PendingCount > 0, 0
-	defer func() { ed.CmdCount, ed.HadCount = 1, false }()
+func runCommand(e *state.Editor, action func(*state.Editor), countAware bool) {
+	e.CmdCount, e.HadCount, e.PendingCount = max(e.PendingCount, 1), e.PendingCount > 0, 0
+	defer func() { e.CmdCount, e.HadCount = 1, false }()
 
-	ed.BeginChange()
+	e.BeginChange()
 	if countAware {
-		action(ed)
+		action(e)
 	} else {
-		for range ed.CmdCount {
-			action(ed)
+		for range e.CmdCount {
+			action(e)
 		}
 	}
-	ed.EndChange()
+	e.EndChange()
 }
 
 var specialKeyActions = map[termbox.Key]func(*state.Editor){
@@ -251,61 +254,61 @@ var specialKeyActions = map[termbox.Key]func(*state.Editor){
 	termbox.KeyCtrlO:      find.JumpBack,
 }
 
-func handleSpecialKey(keyEvent termbox.Event) {
+func handleSpecialKey(e *state.Editor, keyEvent termbox.Event) {
 	// Space is the leader outside Edit mode, so it has to reach the chord table
 	// rather than cancel what is pending there like every other special key.
-	if keyEvent.Key == termbox.KeySpace && ed.Mode != state.EditMode {
-		handleReadModeChar(termbox.Event{Ch: ' '})
+	if keyEvent.Key == termbox.KeySpace && e.Mode != state.EditMode {
+		handleReadModeChar(e, termbox.Event{Ch: ' '})
 		return
 	}
 
-	ed.PendingKeys, ed.PendingCount = ed.PendingKeys[:0], 0 // any special key cancels a pending chord or count
+	e.PendingKeys, e.PendingCount = e.PendingKeys[:0], 0 // any special key cancels a pending chord or count
 
-	if action, ok := view.MoveKeys[keyEvent.Key]; ok && ed.Mode != state.EditMode {
-		action(ed)
+	if action, ok := view.MoveKeys[keyEvent.Key]; ok && e.Mode != state.EditMode {
+		action(e)
 		return
 	}
 
 	switch keyEvent.Key {
 	case termbox.KeyTab:
-		if ed.Mode == state.EditMode {
-			insertRuneNTimes(keyEvent, 4)
+		if e.Mode == state.EditMode {
+			insertRuneNTimes(e, keyEvent, 4)
 			break
 		}
-		view.NextBuffer(ed)
+		view.NextBuffer(e)
 	case termbox.KeySpace:
-		insertRuneNTimes(keyEvent, 1)
+		insertRuneNTimes(e, keyEvent, 1)
 	case termbox.KeyHome:
-		ed.Col = 0
+		e.Col = 0
 	case termbox.KeyEnd:
-		ed.Col = ed.MaxCol(ed.Row)
+		e.Col = e.MaxCol(e.Row)
 	default:
 		if action, ok := specialKeyActions[keyEvent.Key]; ok {
-			action(ed)
+			action(e)
 		}
 	}
 
-	ed.ClampCol()
+	e.ClampCol()
 }
 
-func insertRuneNTimes(keyEvent termbox.Event, n int) {
-	if ed.Mode != state.EditMode {
+func insertRuneNTimes(e *state.Editor, keyEvent termbox.Event, n int) {
+	if e.Mode != state.EditMode {
 		return
 	}
 	for range n {
-		edit.InsertRune(ed, keyEvent)
+		edit.InsertRune(e, keyEvent)
 	}
 }
 
-func esc() {
+func esc(e *state.Editor) {
 	// leaving Edit mode steps back off the gap the cursor was typing into
-	if ed.Mode == state.EditMode && ed.Col > 0 {
-		ed.Col--
+	if e.Mode == state.EditMode && e.Col > 0 {
+		e.Col--
 	}
-	ed.Mode = state.ReadMode
-	ed.PendingKeys, ed.PendingCount, ed.HlSearch = ed.PendingKeys[:0], 0, false
-	ed.EndChange()
-	ed.ClampCol()
+	e.Mode = state.ReadMode
+	e.PendingKeys, e.PendingCount, e.HlSearch = e.PendingKeys[:0], 0, false
+	e.EndChange()
+	e.ClampCol()
 	state.SetCursorShape(state.CursorDefault)
 }
 
