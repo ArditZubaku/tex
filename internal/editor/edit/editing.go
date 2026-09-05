@@ -16,10 +16,18 @@ func InsertRune(e *state.Editor, event termbox.Event) {
 		ch = ' '
 	}
 
+	if skipCloser(e, ch) {
+		return
+	}
+
 	e.TouchLine(e.Row)
 	e.Buf.InsertRune(e.Row, e.Col, ch)
 	e.Col++
 	e.Modified = true
+
+	if closer, ok := closerFor[ch]; ok {
+		e.Buf.InsertRune(e.Row, e.Col, closer)
+	}
 }
 
 func DeleteRune(e *state.Editor) {
@@ -130,7 +138,11 @@ func Backspace(e *state.Editor) {
 	case e.Col > 0:
 		e.TouchLine(e.Row)
 		e.Col--
-		e.Buf.DeleteRunes(e.Row, e.Col, e.Col+1)
+		to := e.Col + 1
+		if pairAt(e, e.Col) {
+			to++
+		}
+		e.Buf.DeleteRunes(e.Row, e.Col, to)
 	case e.Row > 0:
 		e.TouchLine(e.Row - 1)
 		e.TouchDeleteLine(e.Row)
