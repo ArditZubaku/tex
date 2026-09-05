@@ -3,10 +3,11 @@ package view
 import (
 	"slices"
 
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/layout"
-	"github.com/nsf/termbox-go"
 )
 
 // A Window is one view of a buffer: which buffer it shows, where its cursor and

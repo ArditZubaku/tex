@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/mattn/go-runewidth"
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
@@ -15,8 +18,6 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/gutter"
-	"github.com/mattn/go-runewidth"
-	"github.com/nsf/termbox-go"
 )
 
 func Text(e *state.Editor) {

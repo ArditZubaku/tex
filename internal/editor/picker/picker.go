@@ -10,12 +10,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mattn/go-runewidth"
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/fuzzy"
 	"github.com/ArditZubaku/tex/internal/layout"
 	"github.com/ArditZubaku/tex/internal/theme"
-	"github.com/mattn/go-runewidth"
-	"github.com/nsf/termbox-go"
 )
 
 // An Entry is a row of the popup: what is drawn and matched, and where Enter

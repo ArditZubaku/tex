@@ -4,8 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ArditZubaku/tex/internal/theme"
 	"github.com/nsf/termbox-go"
+
+	"github.com/ArditZubaku/tex/internal/theme"
 )
 
 // A mask spells out one character per rune of the line: k keyword, l literal

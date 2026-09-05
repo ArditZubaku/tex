@@ -3,9 +3,10 @@
 package edit
 
 import (
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/motion"
-	"github.com/nsf/termbox-go"
 )
 
 func InsertRune(e *state.Editor, event termbox.Event) {

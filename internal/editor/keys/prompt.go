@@ -3,12 +3,13 @@ package keys
 import (
 	"slices"
 
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/editor/command"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/prompt"
 	"github.com/ArditZubaku/tex/internal/editor/state"
-	"github.com/nsf/termbox-go"
 )
 
 func startSearchForward(e *state.Editor)  { e.StartPrompt('/') }

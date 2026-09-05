@@ -4,11 +4,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
-	"github.com/nsf/termbox-go"
 )
 
 func TestInsertDoesNotCorruptNeighbours(t *testing.T) {

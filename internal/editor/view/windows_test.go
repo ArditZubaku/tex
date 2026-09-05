@@ -4,10 +4,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
-	"github.com/nsf/termbox-go"
 )
 
 func wantWindowCount(t *testing.T, e *state.Editor, want int) {

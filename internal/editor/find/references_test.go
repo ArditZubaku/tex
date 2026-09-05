@@ -4,9 +4,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
-	"github.com/nsf/termbox-go"
 )
 
 func TestGrListsEveryMentionInTheFileAndTheOnesBesideIt(t *testing.T) {

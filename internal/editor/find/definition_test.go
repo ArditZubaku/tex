@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
-	"github.com/nsf/termbox-go"
 )
 
 func inDefinition(t *testing.T, e *state.Editor, content string, row, col int, others map[string]string) {

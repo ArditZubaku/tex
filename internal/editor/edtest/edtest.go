@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/filetree"
 	"github.com/ArditZubaku/tex/internal/editor/history"
@@ -22,7 +24,6 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/search"
 	"github.com/ArditZubaku/tex/internal/theme"
-	"github.com/nsf/termbox-go"
 )
 
 func WriteTemp(t *testing.T, content string) string {

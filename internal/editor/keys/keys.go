@@ -6,6 +6,8 @@ package keys
 import (
 	"time"
 
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/editor/command"
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
@@ -14,7 +16,6 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
-	"github.com/nsf/termbox-go"
 )
 
 func Read(e *state.Editor) {

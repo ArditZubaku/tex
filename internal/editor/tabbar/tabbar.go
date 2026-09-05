@@ -3,9 +3,10 @@
 package tabbar
 
 import (
-	"github.com/ArditZubaku/tex/internal/theme"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
+
+	"github.com/ArditZubaku/tex/internal/theme"
 )
 
 // ModifiedMark is the dot an unsaved buffer carries, on the buffer line and in

@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/chars"
 	"github.com/ArditZubaku/tex/internal/theme"
-	"github.com/nsf/termbox-go"
 )
 
 // Syntax is one language's lexical surface: enough to tell comments, strings,

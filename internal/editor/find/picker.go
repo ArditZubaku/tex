@@ -3,11 +3,12 @@ package find
 import (
 	"path/filepath"
 
+	"github.com/nsf/termbox-go"
+
 	"github.com/ArditZubaku/tex/internal/editor/picker"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/project"
-	"github.com/nsf/termbox-go"
 )
 
 func OpenFiles(e *state.Editor) {

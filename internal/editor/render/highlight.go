@@ -1,8 +1,9 @@
 package render
 
 import (
-	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
+
+	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
 // lineColors is the buffer's own line asked of the language in use, in the
