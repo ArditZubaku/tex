@@ -27,12 +27,15 @@ const ParentDir = ".."
 const HeaderRows = 1
 
 // all is everything the directory holds; entries is what the filter has left of
-// it, which is what the selection indexes and the screen shows.
+// it, which is what the selection indexes and the screen shows. yanked is the
+// file 'yy' picked up, held as a full path so that it outlives the listing it
+// was picked up from.
 type Tree struct {
 	dir     string
 	all     []Entry
 	entries []Entry
 	filter  string
+	yanked  string
 	sel     int
 	offset  int
 	hidden  bool
@@ -40,6 +43,9 @@ type Tree struct {
 
 func (e *Tree) Dir() string      { return e.dir }
 func (e *Tree) Filtered() string { return e.filter }
+
+func (e *Tree) Yank(path string) { e.yanked = path }
+func (e *Tree) Yanked() string   { return e.yanked }
 
 func (e *Tree) Path(name string) string { return filepath.Join(e.dir, name) }
 
