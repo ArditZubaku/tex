@@ -47,8 +47,8 @@ type Site struct {
 
 func Forms(word string) ([]*regexp.Regexp, error) {
 	compiled := make([]*regexp.Regexp, 0, len(forms))
-	for _, form := range forms {
-		one, err := regexp.Compile(fmt.Sprintf(form, regexp.QuoteMeta(word)))
+	for _, source := range forms {
+		one, err := regexp.Compile(fmt.Sprintf(source, regexp.QuoteMeta(word)))
 		if err != nil {
 			return nil, err
 		}
