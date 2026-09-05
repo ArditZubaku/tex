@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"unicode/utf8"
+
+	"github.com/ArditZubaku/tex/internal/project"
 )
 
 // '<leader>ss' is LazyVim's document symbols with no language server behind it:
@@ -80,7 +82,7 @@ func openWorkspaceSymbols() {
 	entries := bufferSymbols()
 	entries = append(entries, symbolsInFiles(maxSymbols-len(entries))...)
 	if len(entries) == 0 {
-		statusMsg = "no symbols under " + filepath.Base(projectRoot())
+		statusMsg = "no symbols under " + filepath.Base(project.Root(sourceFile))
 		return
 	}
 
@@ -90,7 +92,7 @@ func openWorkspaceSymbols() {
 		entries[at].label = fmt.Sprintf("%s  %s:%d", entry.label, filepath.Base(entry.path), entry.row+1)
 	}
 
-	showPicker("Symbols under "+filepath.Base(projectRoot()), entries)
+	showPicker("Symbols under "+filepath.Base(project.Root(sourceFile)), entries)
 }
 
 // A line source is the buffer or a file read whole, which is the only thing
@@ -105,8 +107,8 @@ func bufferSymbols() []pickerEntry {
 }
 
 func symbolsInFiles(limit int) []pickerEntry {
-	root := projectRoot()
-	files, err := listFiles(root)
+	root := project.Root(sourceFile)
+	files, err := project.List(root)
 	if err != nil {
 		return nil
 	}
@@ -115,7 +117,7 @@ func symbolsInFiles(limit int) []pickerEntry {
 	entries := make([]pickerEntry, 0, 64)
 	for _, rel := range files {
 		path := filepath.Join(root, rel)
-		if filepath.Ext(path) != ext || sameFile(path, sourceFile) {
+		if filepath.Ext(path) != ext || project.Same(path, sourceFile) {
 			continue
 		}
 

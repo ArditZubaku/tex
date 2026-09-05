@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ArditZubaku/tex/internal/project"
 )
 
 // 'gr' lists everywhere the identifier under the cursor is mentioned — the file
@@ -54,8 +56,8 @@ func referencesInBuffer(mentions *regexp.Regexp) []pickerEntry {
 }
 
 func referencesInFiles(mentions *regexp.Regexp) []pickerEntry {
-	root := projectRoot()
-	files, err := listFiles(root)
+	root := project.Root(sourceFile)
+	files, err := project.List(root)
 	if err != nil {
 		return nil
 	}
@@ -64,7 +66,7 @@ func referencesInFiles(mentions *regexp.Regexp) []pickerEntry {
 	entries := make([]pickerEntry, 0, 16)
 	for _, rel := range files {
 		path := filepath.Join(root, rel)
-		if filepath.Ext(path) != ext || sameFile(path, sourceFile) {
+		if filepath.Ext(path) != ext || project.Same(path, sourceFile) {
 			continue
 		}
 

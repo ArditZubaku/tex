@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ArditZubaku/tex/internal/chars"
+	"github.com/ArditZubaku/tex/internal/project"
 )
 
 // 'gd' is VIM's jump to a declaration, read from the text rather than from a
@@ -212,8 +213,8 @@ func definitionInBuffer(forms []*regexp.Regexp) (definition, bool) {
 // definitionInFiles looks through the files beside the one being edited, of the
 // same kind, and takes the strongest declaration any of them holds.
 func definitionInFiles(forms []*regexp.Regexp) (definition, bool) {
-	root := projectRoot()
-	files, err := listFiles(root)
+	root := project.Root(sourceFile)
+	files, err := project.List(root)
 	if err != nil {
 		return definition{}, false
 	}
@@ -222,7 +223,7 @@ func definitionInFiles(forms []*regexp.Regexp) (definition, bool) {
 	best := definition{rank: len(forms) - 1} // the plain occurrence is no reason to open a file
 	for _, rel := range files {
 		path := filepath.Join(root, rel)
-		if filepath.Ext(path) != ext || sameFile(path, sourceFile) {
+		if filepath.Ext(path) != ext || project.Same(path, sourceFile) {
 			continue
 		}
 
@@ -264,19 +265,6 @@ func definitionInFile(path string, forms []*regexp.Regexp, better int) (definiti
 	}
 
 	return found, found.path != ""
-}
-
-func sameFile(a, b string) bool {
-	left, err := filepath.Abs(a)
-	if err != nil {
-		return false
-	}
-	right, err := filepath.Abs(b)
-	if err != nil {
-		return false
-	}
-
-	return left == right
 }
 
 // lineBytes is the line as it is held: the raw bytes of one still on disk, and

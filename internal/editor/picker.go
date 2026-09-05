@@ -3,13 +3,12 @@ package editor
 import (
 	"cmp"
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/ArditZubaku/tex/internal/fuzzy"
+	"github.com/ArditZubaku/tex/internal/project"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
 )
@@ -42,10 +41,6 @@ type pickerMatch struct {
 	score int
 }
 
-// A walk of a large tree costs more than a picker is worth, so it stops once it
-// has more files than anybody scrolls through and lets the filter do the rest.
-const maxPickerFiles = 20000
-
 // The popup is drawn at these at most, and shrinks to whatever the screen has.
 const (
 	pickerCols = 80
@@ -53,8 +48,8 @@ const (
 )
 
 func openPicker() {
-	root := projectRoot()
-	files, err := listFiles(root)
+	root := project.Root(sourceFile)
+	files, err := project.List(root)
 	if err != nil {
 		statusMsg = "E484: Can't open file " + root
 		return
@@ -79,60 +74,6 @@ func closePicker() {
 	pickerOpen, mode = false, ReadMode
 	pickerEntries, pickerMatches = nil, nil
 	clampCol()
-}
-
-// projectRoot is the directory the files are listed from: the repository the
-// file being edited sits in, or its own directory when it is in none.
-func projectRoot() string {
-	dir, err := filepath.Abs(filepath.Dir(sourceFile))
-	if err != nil {
-		return "."
-	}
-
-	for at := dir; ; {
-		if info, err := os.Stat(filepath.Join(at, ".git")); err == nil && info.IsDir() {
-			return at
-		}
-		parent := filepath.Dir(at)
-		if parent == at {
-			return dir
-		}
-		at = parent
-	}
-}
-
-// listFiles walks the tree below root, leaving out what is hidden: a picker is
-// for the files being worked on, and '.git' alone holds more than all of them.
-func listFiles(root string) ([]string, error) {
-	files := make([]string, 0, 256)
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if name := entry.Name(); strings.HasPrefix(name, ".") && path != root {
-			if entry.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		if len(files) >= maxPickerFiles {
-			return fs.SkipAll
-		}
-
-		if rel, err := filepath.Rel(root, path); err == nil {
-			files = append(files, rel)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return files, nil
 }
 
 func filterPicker() {
@@ -172,7 +113,7 @@ func openPicked() {
 	entry := pickerEntries[pickerMatches[pickerSel].at]
 	closePicker()
 	pushJump()
-	if !sameFile(entry.path, sourceFile) {
+	if !project.Same(entry.path, sourceFile) {
 		openInBuffer(entry.path)
 	}
 	if entry.row >= 0 {
