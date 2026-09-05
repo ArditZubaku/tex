@@ -49,13 +49,13 @@ func OpenWorkspaceSymbols(e *state.Editor) {
 }
 
 func bufferSymbols(e *state.Editor) []picker.Entry {
-	return symbolEntries(e, e.SourceFile, decl.Symbols(bufLines(e), maxSymbols))
+	return symbolEntries(e.SourceFile, decl.Symbols(bufLines(e), maxSymbols))
 }
 
 func symbolsInFiles(e *state.Editor, limit int) []picker.Entry {
 	entries := make([]picker.Entry, 0, 64)
 	for path, content := range project.Siblings(e.SourceFile) {
-		entries = append(entries, symbolEntries(e, path, decl.Symbols(decl.Of(content), limit-len(entries)))...)
+		entries = append(entries, symbolEntries(path, decl.Symbols(decl.Of(content), limit-len(entries)))...)
 		if len(entries) >= limit {
 			break
 		}
@@ -64,7 +64,7 @@ func symbolsInFiles(e *state.Editor, limit int) []picker.Entry {
 	return entries
 }
 
-func symbolEntries(e *state.Editor, path string, symbols []decl.Symbol) []picker.Entry {
+func symbolEntries(path string, symbols []decl.Symbol) []picker.Entry {
 	entries := make([]picker.Entry, 0, len(symbols))
 	for _, one := range symbols {
 		entries = append(entries, picker.Entry{
