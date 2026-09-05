@@ -31,6 +31,17 @@ It asks the pane's tty what is running on it rather than reading
 `make run`, and skips stopped processes so a suspended editor gives the keys
 back to tmux.
 
+### Git hooks
+
+The hooks live in `.githooks/` and are tracked, but git only looks there once a
+clone has been told to:
+
+```sh
+make hooks      # git config core.hooksPath .githooks
+```
+
+`pre-push` runs `make lint` and refuses the push if it reports anything.
+
 ## Layout
 
 What the editor is built out of are packages of their own, so that the
