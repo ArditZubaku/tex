@@ -11,6 +11,7 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/history"
+	"github.com/ArditZubaku/tex/internal/editor/rename"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/syntax"
@@ -76,6 +77,7 @@ func exCommandTable() map[string]exCommand {
 		"vs vsp vsplit vnew":     func(e *state.Editor, arg string, force bool) { splitInto(e, arg, true, force) },
 		"clo close":              func(e *state.Editor, _ string, _ bool) { view.CloseWindow(e) },
 		"on only":                func(e *state.Editor, _ string, _ bool) { view.OnlyWindow(e) },
+		"rename ren":             func(e *state.Editor, arg string, _ bool) { rename.Run(e, arg) },
 		"noh nohl nohlsearch":    func(e *state.Editor, _ string, _ bool) { e.HlSearch = false },
 		"theme colorscheme colo": func(e *state.Editor, arg string, _ bool) { setTheme(e, arg) },
 	}
