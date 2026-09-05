@@ -142,7 +142,7 @@ func localSite(src decl.Lines, name string, row, col int) (decl.Site, bool) {
 func siteOn(src decl.Lines, forms []*regexp.Regexp, row, col int) (decl.Site, bool) {
 	line := src.At(row)
 	for rank := range len(forms) - 1 { // a mention on its own declares nothing
-		if at := forms[rank].FindSubmatchIndex(line); at != nil && utf8.RuneCount(line[:at[2]]) == col {
+		if at := forms[rank].FindSubmatchIndex(line); len(at) > 2 && utf8.RuneCount(line[:at[2]]) == col {
 			return decl.Site{Row: row, Col: col, Rank: rank}, true
 		}
 	}
