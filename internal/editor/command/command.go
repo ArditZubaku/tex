@@ -60,6 +60,7 @@ var exCommands = exCommandTable()
 func exCommandTable() map[string]exCommand {
 	commands := map[string]exCommand{
 		"w write": func(e *state.Editor, arg string, _ bool) { Write(e, arg) },
+		"wa wall": func(e *state.Editor, _ string, _ bool) { WriteAll(e) },
 		"e edit":  func(e *state.Editor, arg string, force bool) { Edit(e, cmp.Or(arg, e.SourceFile), force) },
 		"wq x xit": func(e *state.Editor, arg string, _ bool) {
 			if Write(e, arg) {
@@ -127,6 +128,34 @@ func Write(e *state.Editor, path string) bool {
 	e.StatusMsg = fmt.Sprintf("%q %dL written", path, e.Buf.LineCount())
 
 	return true
+}
+
+// WriteAll is ':wa': every buffer holding unsaved changes written back where it
+// came from, which is how a rename across files — or an edit made in several of
+// them — is committed in one command rather than one buffer at a time.
+func WriteAll(e *state.Editor) {
+	view.SyncBuffer(e)
+
+	written := 0
+	for _, entry := range view.Buffers() {
+		if !entry.Modified {
+			continue
+		}
+		if err := entry.Buf.Save(entry.Path); err != nil {
+			slog.Error("Failed to save file", "path", entry.Path, "error", err)
+			e.StatusMsg = "E212: Can't open file for writing: " + entry.Path
+			e.Modified = view.CurrentEntry(e).Modified
+			return
+		}
+		entry.Modified = false
+		written++
+	}
+
+	e.Modified = false
+	e.StatusMsg = fmt.Sprintf("%d files written", written)
+	if written == 1 {
+		e.StatusMsg = "1 file written"
+	}
 }
 
 // Edit is ':e', and what the explorer does with a file it is given: the
