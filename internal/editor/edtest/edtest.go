@@ -83,6 +83,7 @@ func InReadMode(t *testing.T, e *state.Editor, content string, row, col int) *bu
 	e.Clip = register.Register{}
 	e.SearchPat, e.SearchBack, e.HlSearch = search.Pattern{}, false, false
 	e.Prompt, e.StatusMsg = prompt.Line{}, ""
+	e.Note.Clear()
 	e.Quitting, e.Palette = false, theme.Default()
 	e.ExplorerOpen, e.Exp = false, filetree.Tree{}
 	view.Reset()

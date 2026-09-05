@@ -4,6 +4,7 @@ package command
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -11,9 +12,11 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/history"
+	"github.com/ArditZubaku/tex/internal/editor/notify"
 	"github.com/ArditZubaku/tex/internal/editor/rename"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
+	"github.com/ArditZubaku/tex/internal/format"
 	"github.com/ArditZubaku/tex/internal/syntax"
 	"github.com/ArditZubaku/tex/internal/theme"
 )
@@ -127,9 +130,53 @@ func Write(e *state.Editor, path string) bool {
 	}
 
 	e.SourceFile, e.Modified = path, false
-	e.StatusMsg = fmt.Sprintf("%q %dL written", path, e.Buf.LineCount())
+	e.Note.Clear()
+
+	note := reformat(e, path)
+	e.StatusMsg = fmt.Sprintf("%q %dL written%s", path, e.Buf.LineCount(), note)
 
 	return true
+}
+
+// reformat runs the file's formatter over what the write has just put on disk
+// and reads the result back, which is what puts the formatting under the cursor
+// rather than leaving it only in the file. The write itself has already landed,
+// so a formatter that refuses the file — while it is being typed into, almost
+// always a syntax error — is reported without taking the save down with it.
+func reformat(e *state.Editor, path string) string {
+	rows := e.Buf.LineCount()
+
+	result, err := format.Run(path)
+	if err != nil {
+		e.Note.Show(result.Name, reasonOf(err))
+		return ""
+	}
+	if !result.Changed {
+		return ""
+	}
+
+	e.Buf.Reload(path)
+	// Reindenting leaves every line where it was, so what undo remembers still
+	// names the line it was recorded against. Adding or removing one moves every
+	// row below it, and replaying that would put lines back in the wrong places.
+	if e.Buf.LineCount() != rows {
+		e.Hist = history.History{}
+	}
+	e.Row = min(e.Row, e.Buf.LineCount()-1)
+	e.ClampCol()
+
+	return ", " + result.Name
+}
+
+// reasonOf is the formatter's own complaint with the name taken off the front,
+// since the box it goes in is titled with the name already.
+func reasonOf(err error) string {
+	var refused *format.Error
+	if errors.As(err, &refused) {
+		return refused.Reason
+	}
+
+	return err.Error()
 }
 
 // WriteAll is ':wa': every buffer holding unsaved changes written back where it
@@ -137,6 +184,7 @@ func Write(e *state.Editor, path string) bool {
 // them — is committed in one command rather than one buffer at a time.
 func WriteAll(e *state.Editor) {
 	view.SyncBuffer(e)
+	e.Note.Clear()
 
 	written := 0
 	for _, entry := range view.Buffers() {
@@ -150,14 +198,39 @@ func WriteAll(e *state.Editor) {
 			return
 		}
 		entry.Modified = false
+		reformatEntry(entry, &e.Note)
 		written++
 	}
 
 	e.Modified = false
+	view.Restore(e)
 	e.StatusMsg = fmt.Sprintf("%d files written", written)
 	if written == 1 {
 		e.StatusMsg = "1 file written"
 	}
+}
+
+// reformatEntry is reformat for a file ':wa' wrote that is not the one under
+// the cursor: the same read-back, against the cursor and the history the buffer
+// list is holding on that file's behalf.
+func reformatEntry(entry *view.Entry, note *notify.Note) {
+	rows := entry.Buf.LineCount()
+
+	result, err := format.Run(entry.Path)
+	if err != nil {
+		note.Show(result.Name, reasonOf(err))
+		return
+	}
+	if !result.Changed {
+		return
+	}
+
+	entry.Buf.Reload(entry.Path)
+	if entry.Buf.LineCount() != rows {
+		entry.Hist = history.History{}
+	}
+	entry.Row = min(entry.Row, entry.Buf.LineCount()-1)
+	entry.Col = min(entry.Col, entry.Buf.RuneLen(entry.Row))
 }
 
 // Edit is ':e', and what the explorer does with a file it is given: the
