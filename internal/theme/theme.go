@@ -29,7 +29,7 @@ type Palette struct {
 var Themes = []Palette{defaultTheme, gruvboxTheme, githubDarkTheme}
 
 // Default is the palette the editor starts in.
-func Default() Palette { return Themes[0] }
+func Default() Palette { return Themes[2] }
 
 // color256 turns a palette index into the attribute termbox wants, which
 // numbers colours from 1 so that zero can mean "whatever the terminal uses".
