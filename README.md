@@ -31,6 +31,28 @@ It asks the pane's tty what is running on it rather than reading
 `make run`, and skips stopped processes so a suspended editor gives the keys
 back to tmux.
 
+## Layout
+
+The editor is one package; what it is built out of are packages of their own, so
+that the boundaries are the compiler's to keep rather than a convention:
+
+```
+main.go                 hands the arguments to the editor and nothing else
+internal/
+  chars/                VIM's word/punct/space split
+  theme/                the palettes, and every colour drawn in one
+  buffer/               the file: line index, read window, edit overlay
+  syntax/               the lexer that colours a line
+  fuzzy/                the subsequence match the pickers narrow with
+  editor/               the editor itself: modes, motions, windows, pickers
+```
+
+Nothing below `editor` imports it, and nothing imports `editor` but `main`, so
+the dependencies run one way: `chars`, `theme` and `buffer` depend on nothing of
+the editor's, `syntax` on `chars` and `theme`, `fuzzy` on `chars`. The editor
+still keeps its state in package-level variables — the cursor, the buffer being
+edited, the mode — which is what makes it one package rather than several.
+
 ## Features
 
 - **Modal editing** — a Read (Normal) mode for navigation, an Edit (Insert) mode for typing and a Visual mode for selecting, with the terminal cursor changing shape (block vs. blinking bar) depending on mode. The cursor sits *on* a character in Normal mode, stopping at the last one on the line like VIM does; only Insert mode reaches the column past it, where appending happens.
@@ -49,7 +71,7 @@ back to tmux.
 - **Syntax highlighting** — nine token classes, coloured by the theme in use; the default palette groups them in families so the screen reads as a handful of colours rather than a dozen: magenta for the words the language reserves (keywords, and a lighter shade for literals like `true` and `nil`), yellow for the names of things (types, and escape sequences inside strings), cyan for what can be called (a name with a `(` after it, and a lighter shade for built-ins like `len` or `print`), green for strings, red for numbers and blue for comments. The language is picked by the file's name: Go, the C family (C/C++, C#, Java, JavaScript/TypeScript, Rust, Kotlin, Swift, PHP…), and everything whose comments start with `#`, from Python and the shells to YAML and `Makefile`. A file that matches no rule is drawn plain. Each line is lexed as it is drawn, so highlighting costs a screenful of text and nothing about it scales with the size of the file; block comments are the one construct that spans lines, and one that started above the window is found by lexing at most 64 lines back.
 - **Viewport scrolling** — the visible window follows the cursor both vertically and horizontally as the buffer grows past the terminal size. `zz` recentres it on the cursor's line without moving the cursor, and `40zz` centres on line 40, jumping there first; near the end of the buffer the window is left hanging past the last line rather than pinned to it, the way VIM does it.
 - **Ex commands** — `:` opens the same prompt the search does, for the commands a VIM user types without thinking: `:w` (and `:w other.txt`, which writes there and carries on editing that file, like `:saveas`), `:q`, `:wq`, `:x`, `:q!` to leave unsaved changes behind, `:e other.txt` to edit another file (`:e` on its own rereads the current one), `:bnext`/`:bprev`/`:bdelete`/`:ls` for the buffer list, `:split`/`:vsplit`/`:close`/`:only` for windows, `:nohlsearch` to drop the search highlight, and a bare line number — `:42`, `:$` — to jump there. `:q` closes the window it is typed in and quits once that was the last one; on a modified buffer it refuses and says so rather than losing the changes, and names the buffer when it is one of the others that is unsaved (`E162`); the raw `q` key still quits outright, without that check. Anything unrecognised is reported (`E492`) instead of guessed at.
-- **Themes** — `:theme=2` switches the whole palette, `:theme=1` goes back, and `:theme` on its own names what is in use. Three so far: **1** the editor's own colours, the only one that leaves the terminal's background alone; **2** [gruvbox](https://github.com/morhetz/gruvbox) — red keywords, yellow types, green strings and bold green functions, purple literals, aqua built-ins, grey comments over its `bg0`; **3** GitHub's dark default — red keywords, green type names, purple functions, blue literals, light-blue strings over `#0d1117`. Both are the nearest 256-colour index to each hex value the palette itself publishes. Every colour the editor draws in, syntax and interface alike, comes out of the theme in use, so a fourth one is a value in `theme.go` and nothing else.
+- **Themes** — `:theme=2` switches the whole palette, `:theme=1` goes back, and `:theme` on its own names what is in use. Three so far: **1** the editor's own colours, the only one that leaves the terminal's background alone; **2** [gruvbox](https://github.com/morhetz/gruvbox) — red keywords, yellow types, green strings and bold green functions, purple literals, aqua built-ins, grey comments over its `bg0`; **3** GitHub's dark default — red keywords, green type names, purple functions, blue literals, light-blue strings over `#0d1117`. Both are the nearest 256-colour index to each hex value the palette itself publishes. Every colour the editor draws in, syntax and interface alike, comes out of the theme in use, so a fourth one is a value in `internal/theme` and nothing else.
 - **File explorer** — `<leader>e` (Space, then `e`) lists the directory the file being edited lives in, over the window it is opened in the way `netrw` does rather than in a sidebar — the other windows of a split carry on showing their buffers. Directories come first and carry a trailing `/`, `..` sits on top, and `hjkl` move the way they do in the buffer: `j`/`k` walk the listing, `Enter` or `l` descends into a directory or opens a file, `h` or `-` steps back out — landing on the directory just left rather than at the top — `g`/`G` jump to the ends and `Ctrl-D`/`Ctrl-U` move half a screen at a time, as they do in the buffer. `H` shows the dotfiles it hides by default, `q` returns to the buffer, `Ctrl-H`/`J`/`K`/`L` leave it for the window that way, and a second `<leader>e` closes the explorer the same way the first opened it. `/` hands the status line to the same prompt the buffer's search uses and narrows the listing to the names matching what is typed, case-insensitively, as it is typed: `Enter` settles on that listing, `Esc` puts the whole directory back, and a second `Esc` — with nothing left to drop — closes the explorer. Moving to another directory drops the filter with it; toggling dotfiles keeps it. Opening a file adds it to the buffer list and edits it, leaving the buffer it was opened from — unsaved changes and all — a `Tab` away.
 
 - **Buffers** — every file opened stays open, the way VIM's hidden buffers and LazyVim's buffer line do: `:e` and the explorer put the new file *beside* the one being edited rather than over it, and `Tab` walks the list, wrapping at the end. `H` and `L` are LazyVim's own step back and forward through it. A buffer keeps what belongs to it — its cursor, its viewport, its unsaved changes and its undo history — so switching away and back leaves the file exactly as it was, and editing a file already in the list switches to it rather than opening it twice. The list is drawn as a row of tabs across the top of the window, the buffer being edited picked out in the theme's own colours and an unsaved one carrying a dot; the row scrolls sideways to keep the current tab on screen when more buffers are open than fit. `:ls` names them all on the status line, marking the current one with `%`. LazyVim's `<leader>b` group is where the rest of it sits: `<leader>bn` and `<leader>bp` step through the list, `<leader>bb` goes back to the buffer last left (VIM's `:b#`), `<leader>bd` closes the current one, and `<leader>bo`, `<leader>bl` and `<leader>br` close the others — all of them, the ones to the left, or the ones to the right. Closing refuses to take unsaved changes with it, and a bulk close refuses the whole move rather than half of it, naming the buffer that stopped it (`E162`); `:bd!` is the one way to drop changes, since a chord has no `!` to add. Closing the last buffer open leaves an empty one behind.
@@ -164,7 +186,7 @@ the neighbouring line, so typing can run off one line onto the next.
 
 ## Memory model
 
-The file is never loaded. It stays on disk with its handle open, and `buffer.go`
+The file is never loaded. It stays on disk with its handle open, and `internal/buffer`
 holds three things, none of which scale with how much of it you have visited:
 
 | | held | 23MB / 202k-line file |
