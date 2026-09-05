@@ -155,6 +155,29 @@ func Adopt(e *state.Editor, path string, b *buffer.Buffer, hist history.History)
 	return entry
 }
 
+// Drop is the buffer of a file that is no longer on disk, which is what the
+// explorer's 'd' leaves behind. There is nowhere left to write unsaved changes
+// back to, so the entry goes whether or not it holds any.
+func Drop(e *state.Editor, path string) bool {
+	at := BufferIndex(path)
+	if at < 0 {
+		return false
+	}
+	if at == currentBuffer {
+		CloseBuffer(e, true)
+		return true
+	}
+
+	SyncBuffer(e)
+	gone, live := buffers[at], buffers[currentBuffer]
+	gone.Buf.Close()
+	buffers = slices.Delete(buffers, at, at+1)
+	currentBuffer = slices.Index(buffers, live)
+	showBufferInstead(e, gone, live)
+
+	return true
+}
+
 // CloseCurrentBuffer is '<leader>d', which is ':bd' without the colon: dropping
 // unsaved changes needs the command, since a chord has no '!' to add.
 func CloseCurrentBuffer(e *state.Editor) { CloseBuffer(e, false) }
