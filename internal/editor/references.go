@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ArditZubaku/tex/internal/decl"
+	"github.com/ArditZubaku/tex/internal/editor/picker"
 	"github.com/ArditZubaku/tex/internal/project"
 )
 
@@ -40,8 +41,8 @@ func openReferences() {
 	showPicker(fmt.Sprintf("%d references to %s", len(entries), word), entries)
 }
 
-func referencesInBuffer(mentions *regexp.Regexp) []pickerEntry {
-	entries := make([]pickerEntry, 0, 16)
+func referencesInBuffer(mentions *regexp.Regexp) []picker.Entry {
+	entries := make([]picker.Entry, 0, 16)
 	for row := range buf.LineCount() {
 		line := lineBytes(row)
 		for _, at := range mentions.FindAllIndex(line, -1) {
@@ -55,8 +56,8 @@ func referencesInBuffer(mentions *regexp.Regexp) []pickerEntry {
 	return entries
 }
 
-func referencesInFiles(mentions *regexp.Regexp) []pickerEntry {
-	entries := make([]pickerEntry, 0, 16)
+func referencesInFiles(mentions *regexp.Regexp) []picker.Entry {
+	entries := make([]picker.Entry, 0, 16)
 	for path, content := range project.Siblings(sourceFile) {
 		for row, line := range strings.Split(string(content), "\n") {
 			for _, at := range mentions.FindAllStringIndex(line, -1) {
@@ -71,11 +72,11 @@ func referencesInFiles(mentions *regexp.Regexp) []pickerEntry {
 	return entries
 }
 
-func reference(path string, row, col int, line string) pickerEntry {
-	return pickerEntry{
-		label: fmt.Sprintf("%s:%d: %s", filepath.Base(path), row+1, strings.TrimSpace(line)),
-		path:  path,
-		row:   row,
-		col:   col,
+func reference(path string, row, col int, line string) picker.Entry {
+	return picker.Entry{
+		Label: fmt.Sprintf("%s:%d: %s", filepath.Base(path), row+1, strings.TrimSpace(line)),
+		Path:  path,
+		Row:   row,
+		Col:   col,
 	}
 }

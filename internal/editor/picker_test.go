@@ -28,9 +28,10 @@ func inPicker(t *testing.T, names ...string) {
 }
 
 func matchedLabels() []string {
-	paths := make([]string, 0, len(pickerMatches))
-	for _, match := range pickerMatches {
-		paths = append(paths, pickerEntries[match.at].label)
+	matched := pick.Matched()
+	paths := make([]string, 0, len(matched))
+	for _, entry := range matched {
+		paths = append(paths, entry.Label)
 	}
 
 	return paths
@@ -103,7 +104,7 @@ func TestEnterOpensThePickedFileAsABuffer(t *testing.T) {
 	press(t, "two")
 	pressKey(t, termbox.KeyEnter)
 
-	if pickerOpen {
+	if pick.Open() {
 		t.Error("the picker stayed open")
 	}
 	wantCurrent(t, "two.go")
@@ -127,8 +128,8 @@ func TestEscClosesThePickerAndLeavesTheBufferAlone(t *testing.T) {
 	press(t, "  ")
 	pressKey(t, termbox.KeyEsc)
 
-	if pickerOpen || mode != ReadMode {
-		t.Errorf("picker open = %v, mode = %v", pickerOpen, mode)
+	if pick.Open() || mode != ReadMode {
+		t.Errorf("picker open = %v, mode = %v", pick.Open(), mode)
 	}
 	wantCurrent(t, "start.txt")
 }
@@ -141,7 +142,7 @@ func TestBackspacingOffAnEmptyQueryClosesThePicker(t *testing.T) {
 	pressKey(t, termbox.KeyBackspace2)
 	pressKey(t, termbox.KeyBackspace2)
 
-	if pickerOpen {
+	if pick.Open() {
 		t.Error("the picker stayed open")
 	}
 }

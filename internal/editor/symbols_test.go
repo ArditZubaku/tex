@@ -62,7 +62,7 @@ func TestEnterOnASymbolGoesToItsName(t *testing.T) {
 	pressKey(t, termbox.KeyEnter)
 
 	wantAt(t, 2, 5)
-	if pickerOpen {
+	if pick.Open() {
 		t.Error("the popup stayed open")
 	}
 }

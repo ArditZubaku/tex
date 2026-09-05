@@ -35,7 +35,7 @@ func TestGrTakesTheWholeWordOnly(t *testing.T) {
 
 	press(t, "gr")
 
-	if got := len(pickerMatches); got != 1 {
+	if got := len(pick.Matched()); got != 1 {
 		t.Errorf("%d references, want 1: %v", got, matchedLabels())
 	}
 }
@@ -48,7 +48,7 @@ func TestEnterOnAReferenceGoesToIt(t *testing.T) {
 	pressKey(t, termbox.KeyEnter)
 
 	wantAt(t, 2, 8)
-	if pickerOpen {
+	if pick.Open() {
 		t.Error("the popup stayed open")
 	}
 }

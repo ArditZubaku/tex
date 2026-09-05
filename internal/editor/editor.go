@@ -56,7 +56,7 @@ func Run(args []string) {
 		case PromptMode:
 			termbox.SetCursor(promptCol(), statusRow())
 		case PickerMode:
-			termbox.SetCursor(pickerCursorCol(), pickerRow()+1)
+			termbox.SetCursor(pick.CursorCol(screenArea()), pick.CursorRow(screenArea()))
 		case ExplorerMode:
 			termbox.SetCursor(screenCol(0), explorerCursorRow())
 		default:

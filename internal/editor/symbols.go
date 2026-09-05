@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/ArditZubaku/tex/internal/decl"
+	"github.com/ArditZubaku/tex/internal/editor/picker"
 	"github.com/ArditZubaku/tex/internal/project"
 )
 
@@ -40,18 +41,18 @@ func openWorkspaceSymbols() {
 	// which file a symbol is in matters once there is more than one of them,
 	// and the fuzzy match then narrows on the name and the file alike
 	for at, entry := range entries {
-		entries[at].label = fmt.Sprintf("%s  %s:%d", entry.label, filepath.Base(entry.path), entry.row+1)
+		entries[at].Label = fmt.Sprintf("%s  %s:%d", entry.Label, filepath.Base(entry.Path), entry.Row+1)
 	}
 
 	showPicker("Symbols under "+filepath.Base(project.Root(sourceFile)), entries)
 }
 
-func bufferSymbols() []pickerEntry {
+func bufferSymbols() []picker.Entry {
 	return symbolEntries(sourceFile, decl.Symbols(bufLines(), maxSymbols))
 }
 
-func symbolsInFiles(limit int) []pickerEntry {
-	entries := make([]pickerEntry, 0, 64)
+func symbolsInFiles(limit int) []picker.Entry {
+	entries := make([]picker.Entry, 0, 64)
 	for path, content := range project.Siblings(sourceFile) {
 		entries = append(entries, symbolEntries(path, decl.Symbols(decl.Of(content), limit-len(entries)))...)
 		if len(entries) >= limit {
@@ -62,14 +63,14 @@ func symbolsInFiles(limit int) []pickerEntry {
 	return entries
 }
 
-func symbolEntries(path string, symbols []decl.Symbol) []pickerEntry {
-	entries := make([]pickerEntry, 0, len(symbols))
+func symbolEntries(path string, symbols []decl.Symbol) []picker.Entry {
+	entries := make([]picker.Entry, 0, len(symbols))
 	for _, one := range symbols {
-		entries = append(entries, pickerEntry{
-			label: fmt.Sprintf("%-9s %s", one.Kind, one.Name),
-			path:  path,
-			row:   one.Row,
-			col:   one.Col,
+		entries = append(entries, picker.Entry{
+			Label: fmt.Sprintf("%-9s %s", one.Kind, one.Name),
+			Path:  path,
+			Row:   one.Row,
+			Col:   one.Col,
 		})
 	}
 
