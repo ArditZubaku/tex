@@ -3,6 +3,7 @@ package editor
 import (
 	"slices"
 
+	"github.com/ArditZubaku/tex/internal/layout"
 	"github.com/nsf/termbox-go"
 )
 
@@ -14,36 +15,17 @@ type window struct {
 	entry                *bufferEntry
 	cursorRow, cursorCol int
 	offsetRow, offsetCol int
-	row, col, rows, cols int
-}
-
-// The layout is a tree of rows and columns of windows: a leaf holds one window,
-// and a node divides its rectangle equally between its children — side by side
-// when it is vertical, stacked when it is not. Splitting in the direction a
-// node already runs adds a child to it rather than nesting under it, which is
-// what makes a third split a third of the room rather than a quarter.
-type layout struct {
-	win      *window
-	vertical bool
-	children []*layout
-}
-
-// A separator is the line drawn between two windows, kept from the layout pass
-// so that drawing them is one walk over the gaps rather than a second one over
-// the tree.
-type separator struct {
-	row, col, length int
-	vertical         bool
+	rect                 layout.Rect
 }
 
 var (
-	root    *layout
+	root    *layout.Tree[*window]
 	current *window
 
 	screenRows, screenCols int // the area the windows share
 	winRow, winCol         int // where the window being drawn starts on screen
 
-	separators []separator
+	separators []layout.Separator
 )
 
 // A window narrower than its gutter and a few columns of text, or shorter than
@@ -67,9 +49,9 @@ func currentWindow() *window {
 			entry:     currentEntry(),
 			cursorRow: currentRow, cursorCol: currentCol,
 			offsetRow: offsetRow, offsetCol: offsetCol,
-			row: tabBarRows, rows: ROWS, cols: COLS,
+			rect: layout.Rect{Row: tabBarRows, Rows: ROWS, Cols: COLS},
 		}
-		root = &layout{win: current}
+		root = layout.Leaf(current)
 	}
 
 	return current
@@ -99,7 +81,7 @@ func showWindow(w *window) {
 // room it has to draw in, which a resize changes under a window that is
 // otherwise untouched.
 func applyRect(w *window) {
-	winRow, winCol, ROWS, COLS = w.row, w.col, w.rows, w.cols
+	winRow, winCol, ROWS, COLS = w.rect.Row, w.rect.Col, w.rect.Rows, w.rect.Cols
 }
 
 // applyWindow makes a window the one being worked in: it takes the buffer's
@@ -128,22 +110,7 @@ func focusWindow(w *window) {
 func windowList() []*window {
 	currentWindow()
 
-	return appendWindows(nil, root)
-}
-
-func appendWindows(out []*window, node *layout) []*window {
-	if node == nil {
-		return out
-	}
-	if node.win != nil {
-		return append(out, node.win)
-	}
-
-	for _, child := range node.children {
-		out = appendWindows(out, child)
-	}
-
-	return out
+	return root.Leaves(nil)
 }
 
 func splitBelow() { splitWindow(false) }
@@ -155,7 +122,7 @@ func splitRight() { splitWindow(true) }
 // 'splitright' set, which is how LazyVim has them.
 func splitWindow(vertical bool) bool {
 	w := currentWindow()
-	if (vertical && w.cols <= 2*minWindowCols) || (!vertical && w.rows <= 2*minWindowRows) {
+	if (vertical && w.rect.Cols <= 2*minWindowCols) || (!vertical && w.rect.Rows <= 2*minWindowRows) {
 		statusMsg = "E36: Not enough room"
 		return false
 	}
@@ -166,36 +133,11 @@ func splitWindow(vertical bool) bool {
 		cursorRow: w.cursorRow, cursorCol: w.cursorCol,
 		offsetRow: w.offsetRow, offsetCol: w.offsetCol,
 	}
-	root = insertBeside(root, w, vertical, &layout{win: fresh})
+	root = root.InsertBeside(w, vertical, fresh)
 	layoutWindows()
 	applyWindow(fresh)
 
 	return true
-}
-
-func insertBeside(node *layout, target *window, vertical bool, fresh *layout) *layout {
-	if node.win != nil {
-		if node.win != target {
-			return node
-		}
-
-		return &layout{vertical: vertical, children: []*layout{node, fresh}}
-	}
-
-	for i, child := range node.children {
-		if child.win != target {
-			node.children[i] = insertBeside(child, target, vertical, fresh)
-			continue
-		}
-		if node.vertical == vertical {
-			node.children = slices.Insert(node.children, i+1, fresh)
-			return node
-		}
-		node.children[i] = &layout{vertical: vertical, children: []*layout{child, fresh}}
-		return node
-	}
-
-	return node
 }
 
 // closeWindow is ':close' and 'Ctrl-W c'. The buffer it was showing stays in
@@ -209,45 +151,18 @@ func closeWindow() {
 
 	syncWindow()
 	next := slices.Index(list, current)
-	root = prune(root, current)
+	root = root.Prune(current)
 	layoutWindows()
 
 	list = windowList()
 	applyWindow(list[min(next, len(list)-1)])
 }
 
-func prune(node *layout, target *window) *layout {
-	if node.win != nil {
-		if node.win == target {
-			return nil
-		}
-
-		return node
-	}
-
-	kept := node.children[:0]
-	for _, child := range node.children {
-		if pruned := prune(child, target); pruned != nil {
-			kept = append(kept, pruned)
-		}
-	}
-	node.children = kept
-
-	switch len(node.children) {
-	case 0:
-		return nil
-	case 1:
-		return node.children[0]
-	}
-
-	return node
-}
-
 // onlyWindow is ':only' and 'Ctrl-W o': every other window is closed, leaving
 // the one being worked in with the whole area to itself.
 func onlyWindow() {
 	syncWindow()
-	root = &layout{win: current}
+	root = layout.Leaf(current)
 	layoutWindows()
 	applyWindow(current)
 }
@@ -270,19 +185,8 @@ func focusDirection(dRow, dCol int) {
 			continue
 		}
 
-		var gap int
-		switch {
-		case dCol < 0:
-			gap = w.col - (other.col + other.cols)
-		case dCol > 0:
-			gap = other.col - (w.col + w.cols)
-		case dRow < 0:
-			gap = w.row - (other.row + other.rows)
-		default:
-			gap = other.row - (w.row + w.rows)
-		}
-
-		if gap < 0 || !overlaps(w, other, dCol != 0) {
+		gap, ok := w.rect.Gap(other.rect, dRow, dCol)
+		if !ok {
 			continue
 		}
 		if best == nil || gap < bestGap {
@@ -293,66 +197,17 @@ func focusDirection(dRow, dCol int) {
 	focusWindow(best)
 }
 
-func overlaps(a, b *window, rows bool) bool {
-	if rows {
-		return b.row < a.row+a.rows && a.row < b.row+b.rows
-	}
-
-	return b.col < a.col+a.cols && a.col < b.col+b.cols
-}
-
 // layoutWindows hands every window its rectangle, which is what the renderer
 // and the directional moves both read; it runs once a frame, since the terminal
 // may have been resized since the last one.
 func layoutWindows() {
 	currentWindow()
-	separators = separators[:0]
-	place(root, tabBarRows, 0, screenRows, screenCols)
+	separators = root.Place(
+		layout.Rect{Row: tabBarRows, Rows: screenRows, Cols: screenCols},
+		separators[:0],
+		func(w *window, rect layout.Rect) { w.rect = rect },
+	)
 	applyRect(current)
-}
-
-func place(node *layout, row, col, rows, cols int) {
-	if node.win != nil {
-		node.win.row, node.win.col, node.win.rows, node.win.cols = row, col, rows, cols
-		return
-	}
-
-	count := len(node.children)
-	if node.vertical {
-		room := cols - (count - 1) // a column between each pair carries the separator
-		for i, child := range node.children {
-			width := share(room, count, i)
-			place(child, row, col, rows, width)
-			col += width
-			if i < count-1 {
-				separators = append(separators, separator{row: row, col: col, length: rows, vertical: true})
-				col++
-			}
-		}
-		return
-	}
-
-	room := rows - (count - 1)
-	for i, child := range node.children {
-		height := share(room, count, i)
-		place(child, row, col, height, cols)
-		row += height
-		if i < count-1 {
-			separators = append(separators, separator{row: row, col: col, length: cols})
-			row++
-		}
-	}
-}
-
-// share hands the remainder to the first windows, so that the room divides
-// whole however many are sharing it.
-func share(room, count, i int) int {
-	size := room / count
-	if i < room%count {
-		size++
-	}
-
-	return size
 }
 
 // displayWindows draws every window through the one renderer, pointing the
@@ -388,12 +243,12 @@ func displayWindows() {
 func displaySeparators() {
 	for _, s := range separators {
 		ch := '─'
-		if s.vertical {
+		if s.Vertical {
 			ch = '│'
 		}
-		for i := range s.length {
-			row, col := s.row, s.col
-			if s.vertical {
+		for i := range s.Length {
+			row, col := s.Row, s.Col
+			if s.Vertical {
 				row += i
 			} else {
 				col += i

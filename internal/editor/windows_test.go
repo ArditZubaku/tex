@@ -36,9 +36,9 @@ func wantWindowCount(t *testing.T, want int) {
 func wantRect(t *testing.T, w *window, row, col, rows, cols int) {
 	t.Helper()
 
-	if w.row != row || w.col != col || w.rows != rows || w.cols != cols {
+	if w.rect.Row != row || w.rect.Col != col || w.rect.Rows != rows || w.rect.Cols != cols {
 		t.Errorf("window at %d,%d %dx%d, want %d,%d %dx%d",
-			w.row, w.col, w.rows, w.cols, row, col, rows, cols)
+			w.rect.Row, w.rect.Col, w.rect.Rows, w.rect.Cols, row, col, rows, cols)
 	}
 }
 
@@ -63,7 +63,7 @@ func TestSplitStacksTwoWindowsAndTakesTheLowerOne(t *testing.T) {
 	if current != list[1] {
 		t.Error("the cursor stayed above the split")
 	}
-	if len(separators) != 1 || separators[0].vertical {
+	if len(separators) != 1 || separators[0].Vertical {
 		t.Errorf("separators = %v, want one horizontal", separators)
 	}
 }
@@ -80,7 +80,7 @@ func TestVerticalSplitPutsTheWindowsSideBySideAndTakesTheRightOne(t *testing.T) 
 	if current != list[1] {
 		t.Error("the cursor stayed left of the split")
 	}
-	if len(separators) != 1 || !separators[0].vertical {
+	if len(separators) != 1 || !separators[0].Vertical {
 		t.Errorf("separators = %v, want one vertical", separators)
 	}
 }
@@ -94,8 +94,8 @@ func TestSplittingAgainTheSameWayShareTheRoomEqually(t *testing.T) {
 
 	wantWindowCount(t, 3)
 	for _, w := range windowList() {
-		if w.cols < 42 || w.cols > 43 {
-			t.Errorf("window %d columns wide, want a third of the 128 left by two separators", w.cols)
+		if w.rect.Cols < 42 || w.rect.Cols > 43 {
+			t.Errorf("window %d columns wide, want a third of the 128 left by two separators", w.rect.Cols)
 		}
 	}
 }
@@ -309,13 +309,13 @@ func TestLeaderSplitsAndClosesWindows(t *testing.T) {
 
 	press(t, " sv")
 	wantWindowCount(t, 2)
-	if separators[0].vertical {
+	if separators[0].Vertical {
 		t.Error("<leader>sv put the windows side by side")
 	}
 
 	press(t, " sh")
 	wantWindowCount(t, 3)
-	if !separators[len(separators)-1].vertical {
+	if !separators[len(separators)-1].Vertical {
 		t.Error("<leader>sh stacked the windows")
 	}
 
