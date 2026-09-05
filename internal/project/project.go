@@ -83,6 +83,27 @@ func Same(a, b string) bool {
 	return left == right
 }
 
+// HasPackage says whether the tree holds a directory of that name, which is
+// what tells the package a qualifier names ('command.Run') from the value one a
+// field is reached through ('b.file'): a package is a directory, and a value is
+// not. Only the walk is paid for, since no file has to be read to answer it.
+func HasPackage(of, name string) bool {
+	files, err := List(Root(of))
+	if err != nil {
+		return false
+	}
+
+	for _, rel := range files {
+		for dir := filepath.Dir(rel); dir != "."; dir = filepath.Dir(dir) {
+			if filepath.Base(dir) == name {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // A file is worth reading whole to look through, but not at the cost of
 // pulling a tree of them into memory: anything larger than this is left to a
 // real index.
