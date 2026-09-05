@@ -66,6 +66,17 @@ func SyncBuffer(e *state.Editor) {
 	entry.Hist = e.Hist
 }
 
+// Restore is SyncBuffer the other way round: what the list holds for the
+// current file copied back onto the editor, which is what a command that
+// reached that file through the list rather than through the editor — ':wa'
+// formatting every buffer it wrote — leaves the editor needing.
+func Restore(e *state.Editor) {
+	entry := CurrentEntry(e)
+	applyEntry(e, entry)
+	e.Row, e.Col = entry.Row, entry.Col
+	e.ClampCol()
+}
+
 func loadBuffer(e *state.Editor, index int) {
 	altPath, currentBuffer = e.SourceFile, index
 	entry := buffers[index]
