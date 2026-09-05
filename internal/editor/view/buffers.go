@@ -131,6 +131,30 @@ func Open(e *state.Editor, path string) {
 	loadBuffer(e, len(buffers)-1)
 }
 
+// Buffer is the entry a path is open as, or nil when it is not open at all. A
+// command that reaches into another file reads what the buffer holds through
+// it, so unsaved changes are worked on rather than overwritten.
+func Buffer(path string) *Entry {
+	if i := BufferIndex(path); i >= 0 {
+		return buffers[i]
+	}
+
+	return nil
+}
+
+// Adopt puts a buffer changed without ever being opened into the list, which is
+// how '<leader>cr' hands over the files it renamed in: each of them is there to
+// be looked at, undone and written, and the cursor never left the file the
+// rename was asked for in.
+func Adopt(e *state.Editor, path string, b *buffer.Buffer, hist history.History) *Entry {
+	SyncBuffer(e)
+
+	entry := &Entry{Buf: b, Path: path, Lang: syntax.Detect(path), Modified: true, Hist: hist}
+	buffers = append(buffers, entry)
+
+	return entry
+}
+
 // CloseCurrentBuffer is '<leader>d', which is ':bd' without the colon: dropping
 // unsaved changes needs the command, since a chord has no '!' to add.
 func CloseCurrentBuffer(e *state.Editor) { CloseBuffer(e, false) }
