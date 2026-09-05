@@ -1,4 +1,4 @@
-package editor
+package keys_test
 
 import (
 	"testing"

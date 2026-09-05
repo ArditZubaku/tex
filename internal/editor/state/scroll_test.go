@@ -1,4 +1,4 @@
-package editor
+package state_test
 
 import (
 	"strings"

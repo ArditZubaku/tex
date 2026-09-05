@@ -10,9 +10,6 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-// singleWindow is the state the editor's own layout pass leaves behind for one
-// unsplit window filling the screen, which is what every test that draws or
-// scrolls assumes it starts from.
 func wantWindowCount(t *testing.T, e *state.Editor, want int) {
 	t.Helper()
 
