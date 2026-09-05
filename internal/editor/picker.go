@@ -5,6 +5,7 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/editor/picker"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/project"
 	"github.com/nsf/termbox-go"
 )
@@ -45,7 +46,7 @@ func openPicked() {
 	closePicker()
 	ed.PushJump()
 	if !project.Same(entry.Path, ed.SourceFile) {
-		openInBuffer(entry.Path)
+		view.Open(ed, entry.Path)
 	}
 	if entry.Row >= 0 {
 		ed.Row, ed.Col = min(entry.Row, ed.Buf.LineCount()-1), entry.Col

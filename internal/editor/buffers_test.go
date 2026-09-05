@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 )
 
 func inBuffers(t *testing.T, names ...string) []string {
@@ -36,9 +37,9 @@ func openPaths(t *testing.T, paths ...string) {
 }
 
 func bufferNames() []string {
-	names := make([]string, 0, len(buffers))
-	for _, entry := range buffers {
-		names = append(names, filepath.Base(entry.path))
+	names := make([]string, 0, len(view.Buffers()))
+	for _, entry := range view.Buffers() {
+		names = append(names, filepath.Base(entry.Path))
 	}
 
 	return names
@@ -164,8 +165,8 @@ func TestRereadingTheCurrentFileStillRefusesToDropChanges(t *testing.T) {
 	press(t, ":e!\n")
 
 	wantLines(t, ed.Buf, "first")
-	if len(buffers) != 1 {
-		t.Errorf("%d buffers open, want 1", len(buffers))
+	if len(view.Buffers()) != 1 {
+		t.Errorf("%d buffers open, want 1", len(view.Buffers()))
 	}
 }
 
@@ -258,7 +259,7 @@ func TestClosingASideOfTheListRefusesWhenOneOfThemIsUnsaved(t *testing.T) {
 	press(t, " bl")
 
 	wantBuffers(t, "f.txt", "a.txt")
-	if want := unwritten(buffers[0]); ed.StatusMsg != want {
+	if want := view.Unwritten(view.Buffers()[0]); ed.StatusMsg != want {
 		t.Errorf("statusMsg = %q, want %q", ed.StatusMsg, want)
 	}
 }
@@ -312,7 +313,7 @@ func TestQuitRefusesWhileAnotherBufferHasUnsavedChanges(t *testing.T) {
 	if ed.Quitting {
 		t.Error("quit with another buffer unsaved")
 	}
-	if want := `E162: No write since last change for buffer "` + buffers[0].path + `"`; ed.StatusMsg != want {
+	if want := `E162: No write since last change for buffer "` + view.Buffers()[0].Path + `"`; ed.StatusMsg != want {
 		t.Errorf("statusMsg = %q, want %q", ed.StatusMsg, want)
 	}
 
@@ -351,7 +352,7 @@ func TestBufferLineListsTheOpenBuffersAndMarksTheUnsaved(t *testing.T) {
 	if open[1].Name != "a.txt" || open[1].Modified {
 		t.Errorf("tab 1 = %+v, want a.txt saved", open[1])
 	}
-	if currentBuffer != 1 {
-		t.Errorf("current buffer = %d, want the one just opened", currentBuffer)
+	if view.Index() != 1 {
+		t.Errorf("current buffer = %d, want the one just opened", view.Index())
 	}
 }

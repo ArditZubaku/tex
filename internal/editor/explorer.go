@@ -7,6 +7,7 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/nsf/termbox-go"
 )
 
@@ -170,9 +171,9 @@ func handleExplorerKey(event termbox.Event) {
 // showing a buffer, so the explorer is left behind the way opening a file from
 // it leaves it. A move with no window that way changes nothing.
 func leaveExplorerFor(move func()) {
-	was := currentWindow()
+	was := view.CurrentWindow(ed)
 	move()
-	if current != was {
+	if view.Focused() != was {
 		closeExplorer()
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/nsf/termbox-go"
 )
 
@@ -12,7 +13,7 @@ import (
 // unsplit window filling the screen, which is what every test that draws or
 // scrolls assumes it starts from.
 func singleWindow(rows, cols int) {
-	root, current = nil, nil
+	view.Reset()
 	ed.ScreenRows, ed.ScreenCols = rows, cols
 	ed.Rows, ed.Cols = rows, cols
 	ed.WinRow, ed.WinCol = state.TabBarRows, 0
@@ -29,17 +30,17 @@ func pressKey(t *testing.T, key termbox.Key) {
 func wantWindowCount(t *testing.T, want int) {
 	t.Helper()
 
-	if got := len(windowList()); got != want {
+	if got := len(view.List(ed)); got != want {
 		t.Fatalf("%d windows, want %d", got, want)
 	}
 }
 
-func wantRect(t *testing.T, w *window, row, col, rows, cols int) {
+func wantRect(t *testing.T, w *view.Window, row, col, rows, cols int) {
 	t.Helper()
 
-	if w.rect.Row != row || w.rect.Col != col || w.rect.Rows != rows || w.rect.Cols != cols {
+	if w.Rect.Row != row || w.Rect.Col != col || w.Rect.Rows != rows || w.Rect.Cols != cols {
 		t.Errorf("window at %d,%d %dx%d, want %d,%d %dx%d",
-			w.rect.Row, w.rect.Col, w.rect.Rows, w.rect.Cols, row, col, rows, cols)
+			w.Rect.Row, w.Rect.Col, w.Rect.Rows, w.Rect.Cols, row, col, rows, cols)
 	}
 }
 
@@ -58,14 +59,14 @@ func TestSplitStacksTwoWindowsAndTakesTheLowerOne(t *testing.T) {
 	press(t, ":sp\n")
 
 	wantWindowCount(t, 2)
-	list := windowList()
+	list := view.List(ed)
 	wantRect(t, list[0], state.TabBarRows, 0, 10, 80)
 	wantRect(t, list[1], state.TabBarRows+11, 0, 9, 80)
-	if current != list[1] {
+	if view.Focused() != list[1] {
 		t.Error("the cursor stayed above the split")
 	}
-	if len(separators) != 1 || separators[0].Vertical {
-		t.Errorf("separators = %v, want one horizontal", separators)
+	if len(view.Separators()) != 1 || view.Separators()[0].Vertical {
+		t.Errorf("separators = %v, want one horizontal", view.Separators())
 	}
 }
 
@@ -75,14 +76,14 @@ func TestVerticalSplitPutsTheWindowsSideBySideAndTakesTheRightOne(t *testing.T) 
 	press(t, ":vs\n")
 
 	wantWindowCount(t, 2)
-	list := windowList()
+	list := view.List(ed)
 	wantRect(t, list[0], state.TabBarRows, 0, 20, 40)
 	wantRect(t, list[1], state.TabBarRows, 41, 20, 39)
-	if current != list[1] {
+	if view.Focused() != list[1] {
 		t.Error("the cursor stayed left of the split")
 	}
-	if len(separators) != 1 || !separators[0].Vertical {
-		t.Errorf("separators = %v, want one vertical", separators)
+	if len(view.Separators()) != 1 || !view.Separators()[0].Vertical {
+		t.Errorf("separators = %v, want one vertical", view.Separators())
 	}
 }
 
@@ -94,9 +95,9 @@ func TestSplittingAgainTheSameWayShareTheRoomEqually(t *testing.T) {
 	press(t, ":vs\n")
 
 	wantWindowCount(t, 3)
-	for _, w := range windowList() {
-		if w.rect.Cols < 42 || w.rect.Cols > 43 {
-			t.Errorf("window %d columns wide, want a third of the 128 left by two separators", w.rect.Cols)
+	for _, w := range view.List(ed) {
+		if w.Rect.Cols < 42 || w.Rect.Cols > 43 {
+			t.Errorf("window %d columns wide, want a third of the 128 left by two separators", w.Rect.Cols)
 		}
 	}
 }
@@ -108,7 +109,7 @@ func TestSplittingTheOtherWayNestsInsideTheWindowSplit(t *testing.T) {
 	press(t, ":sp\n")
 
 	wantWindowCount(t, 3)
-	list := windowList()
+	list := view.List(ed)
 	wantRect(t, list[0], state.TabBarRows, 0, 20, 40)  // the left window, untouched
 	wantRect(t, list[1], state.TabBarRows, 41, 10, 39) // the right one, split in two
 	wantRect(t, list[2], state.TabBarRows+11, 41, 9, 39)
@@ -120,13 +121,13 @@ func TestASplitShowsTheSameBufferAtTheSamePlace(t *testing.T) {
 	press(t, "jl")
 	press(t, ":sp\n")
 
-	list := windowList()
-	if list[0].entry != list[1].entry {
+	list := view.List(ed)
+	if list[0].Entry != list[1].Entry {
 		t.Error("the split window shows another buffer")
 	}
-	if list[1].cursorRow != list[0].cursorRow || list[1].cursorCol != list[0].cursorCol {
+	if list[1].CursorRow != list[0].CursorRow || list[1].CursorCol != list[0].CursorCol {
 		t.Errorf("split cursor at %d,%d, want %d,%d",
-			list[1].cursorRow, list[1].cursorCol, list[0].cursorRow, list[0].cursorCol)
+			list[1].CursorRow, list[1].CursorCol, list[0].CursorRow, list[0].CursorCol)
 	}
 }
 
@@ -148,7 +149,7 @@ func TestTheLayoutPassLeavesTheCursorWhereItIs(t *testing.T) {
 	inWindows(t)
 
 	press(t, "l")
-	layoutWindows() // which every redraw runs before anything is drawn
+	view.Layout(ed) // which every redraw runs before anything is drawn
 
 	wantCursor(t, 0, 1)
 }
@@ -157,15 +158,15 @@ func TestCtrlJAndCtrlKMoveBetweenStackedWindows(t *testing.T) {
 	inWindows(t)
 
 	press(t, ":sp\n")
-	below := current
+	below := view.Focused()
 
 	pressKey(t, termbox.KeyCtrlK)
-	if current == below {
+	if view.Focused() == below {
 		t.Fatal("Ctrl-K stayed in the lower window")
 	}
 
 	pressKey(t, termbox.KeyCtrlJ)
-	if current != below {
+	if view.Focused() != below {
 		t.Error("Ctrl-J did not come back down")
 	}
 }
@@ -174,15 +175,15 @@ func TestCtrlHAndCtrlLMoveBetweenSideBySideWindows(t *testing.T) {
 	inWindows(t)
 
 	press(t, ":vs\n")
-	right := current
+	right := view.Focused()
 
 	pressKey(t, termbox.KeyCtrlH)
-	if current == right {
+	if view.Focused() == right {
 		t.Fatal("Ctrl-H stayed in the right window")
 	}
 
 	pressKey(t, termbox.KeyCtrlL)
-	if current != right {
+	if view.Focused() != right {
 		t.Error("Ctrl-L did not come back right")
 	}
 }
@@ -191,12 +192,12 @@ func TestAMoveWithNoWindowThatWayStaysPut(t *testing.T) {
 	inWindows(t)
 
 	press(t, ":sp\n")
-	below := current
+	below := view.Focused()
 
 	pressKey(t, termbox.KeyCtrlJ)
 	pressKey(t, termbox.KeyCtrlH)
 
-	if current != below {
+	if view.Focused() != below {
 		t.Error("a move with no window that way left the window")
 	}
 }
@@ -205,11 +206,11 @@ func TestCtrlHIsStillBackspaceWhileTyping(t *testing.T) {
 	inWindows(t)
 
 	press(t, ":vs\n")
-	right := current
+	right := view.Focused()
 	press(t, "lli")
 	pressKey(t, termbox.KeyCtrlH)
 
-	if current != right {
+	if view.Focused() != right {
 		t.Error("Ctrl-H left the window while typing")
 	}
 	wantLines(t, ed.Buf, "frst")
@@ -222,9 +223,9 @@ func TestClosingAWindowGivesItsRoomBack(t *testing.T) {
 	press(t, ":close\n")
 
 	wantWindowCount(t, 1)
-	wantRect(t, windowList()[0], state.TabBarRows, 0, 20, 80)
-	if len(separators) != 0 {
-		t.Errorf("separators = %v, want none", separators)
+	wantRect(t, view.List(ed)[0], state.TabBarRows, 0, 20, 80)
+	if len(view.Separators()) != 0 {
+		t.Errorf("separators = %v, want none", view.Separators())
 	}
 }
 
@@ -244,14 +245,14 @@ func TestOnlyClosesEveryOtherWindow(t *testing.T) {
 
 	press(t, ":sp\n")
 	press(t, ":vs\n")
-	kept := current
+	kept := view.Focused()
 	press(t, ":only\n")
 
 	wantWindowCount(t, 1)
-	if current != kept {
+	if view.Focused() != kept {
 		t.Error("only left another window than the one it was run in")
 	}
-	wantRect(t, current, state.TabBarRows, 0, 20, 80)
+	wantRect(t, view.Focused(), state.TabBarRows, 0, 20, 80)
 }
 
 func TestQuitClosesTheWindowUntilItIsTheLastOne(t *testing.T) {
@@ -277,11 +278,11 @@ func TestSplitWithANameOpensTheFileInTheNewWindowAlone(t *testing.T) {
 
 	press(t, ":sp "+paths[0]+"\n")
 
-	list := windowList()
-	if got := filepath.Base(list[1].entry.path); got != "a.txt" {
+	list := view.List(ed)
+	if got := filepath.Base(list[1].Entry.Path); got != "a.txt" {
 		t.Errorf("new window shows %q, want a.txt", got)
 	}
-	if got := filepath.Base(list[0].entry.path); got != "f.txt" {
+	if got := filepath.Base(list[0].Entry.Path); got != "f.txt" {
 		t.Errorf("old window shows %q, want f.txt", got)
 	}
 }
@@ -310,13 +311,13 @@ func TestLeaderSplitsAndClosesWindows(t *testing.T) {
 
 	press(t, " sv")
 	wantWindowCount(t, 2)
-	if separators[0].Vertical {
+	if view.Separators()[0].Vertical {
 		t.Error("<leader>sv put the windows side by side")
 	}
 
 	press(t, " sh")
 	wantWindowCount(t, 3)
-	if !separators[len(separators)-1].Vertical {
+	if !view.Separators()[len(view.Separators())-1].Vertical {
 		t.Error("<leader>sh stacked the windows")
 	}
 
@@ -331,11 +332,11 @@ func TestCtrlHLeavesTheExplorerForTheWindowBeside(t *testing.T) {
 	inWindows(t)
 
 	press(t, ":vs\n")
-	right := current
+	right := view.Focused()
 	press(t, " e")
 	pressKey(t, termbox.KeyCtrlH)
 
-	if current == right {
+	if view.Focused() == right {
 		t.Fatal("Ctrl-H stayed in the explorer's window")
 	}
 	if ed.ExplorerOpen || ed.Mode != state.ReadMode {
@@ -360,8 +361,8 @@ func TestClosingABufferLeavesNoWindowShowingIt(t *testing.T) {
 	press(t, ":sp "+paths[0]+"\n")
 	press(t, ":bd\n")
 
-	for _, w := range windowList() {
-		if got := filepath.Base(w.entry.path); got != "f.txt" {
+	for _, w := range view.List(ed) {
+		if got := filepath.Base(w.Entry.Path); got != "f.txt" {
 			t.Errorf("window still shows %q", got)
 		}
 	}

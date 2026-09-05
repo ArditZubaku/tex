@@ -8,6 +8,7 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 )
 
 func inExplorer(t *testing.T, names ...string) string {
@@ -178,8 +179,8 @@ func TestExplorerLeavesUnsavedChangesInTheirOwnBuffer(t *testing.T) {
 	if ed.Mode != state.ReadMode {
 		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
-	if len(buffers) != 2 {
-		t.Fatalf("%d buffers open, want 2", len(buffers))
+	if len(view.Buffers()) != 2 {
+		t.Fatalf("%d buffers open, want 2", len(view.Buffers()))
 	}
 
 	press(t, "\t")

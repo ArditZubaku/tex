@@ -9,6 +9,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/register"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/search"
 	"github.com/ArditZubaku/tex/internal/theme"
 	"github.com/nsf/termbox-go"
@@ -26,8 +27,9 @@ func inReadMode(t *testing.T, content string, row, col int) *buffer.Buffer {
 	promptChar, promptInput, ed.StatusMsg = 0, nil, ""
 	ed.Quitting, ed.Palette = false, theme.Default()
 	ed.ExplorerOpen, ed.Exp = false, explorer.Explorer{}
-	buffers, currentBuffer, tabs = nil, 0, tabbar.Bar{}
-	root, current, ed.WinRow, ed.WinCol = nil, nil, state.TabBarRows, 0
+	view.Reset()
+	tabs = tabbar.Bar{}
+	ed.WinRow, ed.WinCol = state.TabBarRows, 0
 
 	return b
 }

@@ -4,6 +4,7 @@ import (
 	"regexp"
 
 	"github.com/ArditZubaku/tex/internal/decl"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/project"
 )
 
@@ -53,7 +54,7 @@ func goToDefinition() {
 func jumpTo(found definition) {
 	ed.PushJump()
 	if found.path != ed.SourceFile {
-		openInBuffer(found.path)
+		view.Open(ed, found.path)
 	}
 	ed.Row, ed.Col = found.row, found.col
 	ed.ClampCol()
@@ -70,7 +71,7 @@ func jumpBack() {
 	}
 
 	if back.Path != ed.SourceFile {
-		openInBuffer(back.Path)
+		view.Open(ed, back.Path)
 	}
 	ed.Row, ed.Col = min(back.Row, ed.Buf.LineCount()-1), back.Col
 	ed.ClampCol()

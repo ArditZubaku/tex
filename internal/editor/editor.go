@@ -6,6 +6,7 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/gutter"
 	"github.com/ArditZubaku/tex/internal/syntax"
 	"github.com/nsf/termbox-go"
@@ -41,7 +42,7 @@ func Run(args []string) {
 		if ed.ScreenCols < 80 {
 			ed.ScreenCols = 80
 		}
-		layoutWindows()
+		view.Layout(ed)
 
 		if err := termbox.Clear(ed.Palette.Plain, ed.Palette.Background); err != nil {
 			slog.Error("Could not clear terminal", "error", err)
@@ -72,6 +73,6 @@ func Run(args []string) {
 		processKeyPress()
 	}
 
-	closeBuffers()
+	view.CloseAll(ed)
 	termbox.Close()
 }

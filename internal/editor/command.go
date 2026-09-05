@@ -10,6 +10,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/syntax"
 	"github.com/ArditZubaku/tex/internal/theme"
 )
@@ -62,14 +63,14 @@ func exCommandTable() map[string]func(arg string, force bool) {
 			}
 		},
 		"q quit":                 func(_ string, force bool) { quitWindow(force) },
-		"bn bnext":               func(string, bool) { nextBuffer() },
-		"bp bprev bprevious bN":  func(string, bool) { prevBuffer() },
-		"bd bdel bdelete":        func(_ string, force bool) { closeBuffer(force) },
-		"ls buffers files":       func(string, bool) { listBuffers() },
+		"bn bnext":               func(string, bool) { view.NextBuffer(ed) },
+		"bp bprev bprevious bN":  func(string, bool) { view.PrevBuffer(ed) },
+		"bd bdel bdelete":        func(_ string, force bool) { view.CloseBuffer(ed, force) },
+		"ls buffers files":       func(string, bool) { view.ListBuffers(ed) },
 		"sp split new":           func(arg string, force bool) { splitInto(arg, false, force) },
 		"vs vsp vsplit vnew":     func(arg string, force bool) { splitInto(arg, true, force) },
-		"clo close":              func(string, bool) { closeWindow() },
-		"on only":                func(string, bool) { onlyWindow() },
+		"clo close":              func(string, bool) { view.CloseWindow(ed) },
+		"on only":                func(string, bool) { view.OnlyWindow(ed) },
 		"noh nohl nohlsearch":    func(string, bool) { ed.HlSearch = false },
 		"theme colorscheme colo": func(arg string, _ bool) { setTheme(arg) },
 	}
@@ -129,8 +130,8 @@ func writeFile(path string) bool {
 // Rereading the file the cursor is already in is the one case that drops
 // changes, so that is the one that refuses the way ':q' does.
 func editFile(path string, force bool) bool {
-	syncBuffer()
-	rereading := bufferIndex(path) == currentBuffer
+	view.SyncBuffer(ed)
+	rereading := view.BufferIndex(path) == view.Index()
 
 	if rereading && ed.Modified && !force {
 		ed.StatusMsg = state.NoWriteSinceChange
@@ -143,9 +144,9 @@ func editFile(path string, force bool) bool {
 		ed.Row, ed.Col, ed.OffsetRow, ed.OffsetCol = 0, 0, 0, 0
 		ed.Modified = false
 		ed.Hist = history.History{}
-		syncBuffer()
+		view.SyncBuffer(ed)
 	} else {
-		openInBuffer(path)
+		view.Open(ed, path)
 	}
 	ed.StatusMsg = fmt.Sprintf("%q %dL", path, ed.Buf.LineCount())
 
@@ -192,7 +193,7 @@ func themeNames() []string {
 // splitInto is ':split' and ':vsplit', which take the name of a file to open in
 // the window they make, as VIM's own do.
 func splitInto(path string, vertical, force bool) {
-	if !splitWindow(vertical) {
+	if !view.Split(ed, vertical) {
 		return
 	}
 	if path != "" {
@@ -203,8 +204,8 @@ func splitInto(path string, vertical, force bool) {
 // quitWindow is ':q': it closes the window it was typed in, and quits the
 // editor when that was the last one, the way VIM does.
 func quitWindow(force bool) {
-	if len(windowList()) > 1 {
-		closeWindow()
+	if len(view.List(ed)) > 1 {
+		view.CloseWindow(ed)
 		return
 	}
 	quit(force)
@@ -217,8 +218,8 @@ func quit(force bool) {
 		ed.StatusMsg = state.NoWriteSinceChange
 		return
 	default:
-		if entry := modifiedBuffer(); entry != nil {
-			ed.StatusMsg = unwritten(entry)
+		if entry := view.ModifiedBuffer(ed); entry != nil {
+			ed.StatusMsg = view.Unwritten(entry)
 			return
 		}
 	}

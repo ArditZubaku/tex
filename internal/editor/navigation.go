@@ -6,6 +6,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/nsf/termbox-go"
 )
 
@@ -47,8 +48,8 @@ func handleCharKey(keyEvent termbox.Event) {
 // chord are held pending instead, see chordActions.
 var readModeActions = map[rune]func(){
 	'G': ed.GoToBottom,
-	'H': prevBuffer,
-	'L': nextBuffer,
+	'H': bind(view.PrevBuffer),
+	'L': bind(view.NextBuffer),
 	'I': ed.GoToStartOfLine,
 	'A': ed.GoToEndOfLine,
 	'a': ed.EditAfterWord,
@@ -119,18 +120,18 @@ func chordKeys() map[string]func() {
 		"yb":  bind(edit.YankToPrevWord),
 		"zz":  ed.CenterView,
 		" e":  openExplorer,
-		" bb": alternateBuffer,
-		" bd": closeCurrentBuffer,
-		" bn": nextBuffer,
-		" bp": prevBuffer,
-		" bo": closeOtherBuffers,
-		" bl": closeBuffersLeft,
-		" br": closeBuffersRight,
-		" sh": splitRight,
-		" sv": splitBelow,
+		" bb": bind(view.AlternateBuffer),
+		" bd": bind(view.CloseCurrentBuffer),
+		" bn": bind(view.NextBuffer),
+		" bp": bind(view.PrevBuffer),
+		" bo": bind(view.CloseOtherBuffers),
+		" bl": bind(view.CloseBuffersLeft),
+		" br": bind(view.CloseBuffersRight),
+		" sh": bind(view.SplitRight),
+		" sv": bind(view.SplitBelow),
 		" ss": openSymbols,
 		" sS": openWorkspaceSymbols,
-		" wd": closeWindow,
+		" wd": bind(view.CloseWindow),
 		"  ":  openPicker,
 	}
 
@@ -240,10 +241,10 @@ func runCommand(action func(), countAware bool) {
 // outside Edit mode: Ctrl-H is also the Backspace that terminals sending 0x08
 // rather than 0x7F give, and typing has first call on it.
 var windowMoveKeys = map[termbox.Key]func(){
-	termbox.KeyCtrlH: focusLeft,
-	termbox.KeyCtrlJ: focusDown,
-	termbox.KeyCtrlK: focusUp,
-	termbox.KeyCtrlL: focusRight,
+	termbox.KeyCtrlH: bind(view.FocusLeft),
+	termbox.KeyCtrlJ: bind(view.FocusDown),
+	termbox.KeyCtrlK: bind(view.FocusUp),
+	termbox.KeyCtrlL: bind(view.FocusRight),
 }
 
 var specialKeyActions = map[termbox.Key]func(){
@@ -284,7 +285,7 @@ func handleSpecialKey(keyEvent termbox.Event) {
 			insertRuneNTimes(keyEvent, 4)
 			break
 		}
-		nextBuffer()
+		view.NextBuffer(ed)
 	case termbox.KeySpace:
 		insertRuneNTimes(keyEvent, 1)
 	case termbox.KeyHome:

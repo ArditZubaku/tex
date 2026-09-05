@@ -8,6 +8,8 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/tabbar"
+	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/gutter"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
@@ -161,4 +163,69 @@ func scrollTextBuffer() {
 	if ed.Col >= ed.OffsetCol+textCols {
 		ed.OffsetCol = ed.Col - textCols + 1
 	}
+}
+
+var tabs tabbar.Bar
+
+// displayWindows draws every window through the one renderer, pointing the
+// globals at each in turn. Drawing changes nothing the editor is doing, so the
+// current window's own state is put back at the end.
+func displayWindows() {
+	view.SyncWindow(ed)
+	live := ed.Mode
+
+	for _, w := range view.List(ed) {
+		// only the window being worked in draws its mode: a selection belongs
+		// to the window it was made in, not to every view of the buffer
+		ed.Mode = live
+		if w != view.Focused() {
+			ed.Mode = state.ReadMode
+		}
+
+		view.ShowWindow(ed, w)
+		if ed.ExplorerOpen && w == view.Focused() {
+			displayExplorer()
+			continue
+		}
+		scrollTextBuffer()
+		displayTextBuffer()
+		w.OffsetRow, w.OffsetCol = ed.OffsetRow, ed.OffsetCol
+	}
+
+	ed.Mode = live
+	view.ShowWindow(ed, view.Focused())
+	displaySeparators()
+}
+
+func displaySeparators() {
+	for _, s := range view.Separators() {
+		ch := '─'
+		if s.Vertical {
+			ch = '│'
+		}
+		for i := range s.Length {
+			row, col := s.Row, s.Col
+			if s.Vertical {
+				row += i
+			} else {
+				col += i
+			}
+			termbox.SetCell(col, row, ch, ed.Palette.Separator, ed.Palette.Background)
+		}
+	}
+}
+
+func displayBufferLine() {
+	tabs.Draw(0, ed.ScreenCols, openTabs(), view.Index(), &ed.Palette)
+}
+
+func openTabs() []tabbar.Tab {
+	view.SyncBuffer(ed)
+
+	open := make([]tabbar.Tab, 0, len(view.Buffers()))
+	for _, entry := range view.Buffers() {
+		open = append(open, tabbar.Tab{Name: filepath.Base(entry.Path), Modified: entry.Modified})
+	}
+
+	return open
 }
