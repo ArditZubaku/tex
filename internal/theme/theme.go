@@ -23,6 +23,10 @@ type Palette struct {
 	TabBarBg, TabFg, TabActiveFg termbox.Attribute
 	TabActiveBg, TabModified     termbox.Attribute
 	Separator                    termbox.Attribute
+
+	// Error is the box in the corner, frame and text alike: the one colour the
+	// editor draws in that is meant to be looked at rather than read past.
+	Error termbox.Attribute
 }
 
 // Themes are addressed by position, the way ':theme=1' names the first one.
@@ -81,6 +85,7 @@ var defaultTheme = Palette{
 	TabActiveBg: color256(236),
 	TabModified: termbox.ColorYellow,
 	Separator:   color256(240),
+	Error:       termbox.ColorLightRed,
 }
 
 // Gruvbox, at the 256-colour indices its own palette documents for terminals,
@@ -119,6 +124,7 @@ var gruvboxTheme = Palette{
 	TabActiveBg: color256(235), // bg0 #282828
 	TabModified: color256(214), // yellow #fabd2f
 	Separator:   color256(239), // bg2 #504945, gruvbox's own VertSplit
+	Error:       color256(167), // red #fb4934
 }
 
 // GitHub's dark default, at the nearest 256-colour index to each of the hex
@@ -158,4 +164,5 @@ var githubDarkTheme = Palette{
 	TabActiveBg: color256(233), // canvas.default, as GitHub draws the open tab
 	TabModified: color256(178), // attention.fg  #d29922
 	Separator:   color256(237), // border.default #30363d
+	Error:       color256(203), // danger.fg     #f85149
 }
