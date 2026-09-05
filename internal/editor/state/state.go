@@ -163,6 +163,10 @@ func (e *Editor) ScreenArea() layout.Rect {
 	return layout.Rect{Row: TabBarRows, Rows: e.ScreenRows, Cols: e.ScreenCols}
 }
 
+// Close lets the editor's loop fall out and shut the terminal down on its way,
+// so quitting runs the same path whether it was 'q' or ':q' that asked.
+func (e *Editor) Close() { e.Quitting = true }
+
 func (e *Editor) PushJump() {
 	e.Jumps = append(e.Jumps, Jump{Path: e.SourceFile, Row: e.Row, Col: e.Col})
 }

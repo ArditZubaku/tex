@@ -3,6 +3,7 @@ package editor
 import (
 	"slices"
 
+	"github.com/ArditZubaku/tex/internal/editor/command"
 	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/mattn/go-runewidth"
@@ -65,7 +66,7 @@ func submitPrompt() {
 	}
 
 	if delimiter == ':' {
-		runExCommand(string(input))
+		command.Run(ed, string(input))
 		return
 	}
 	find.CommitSearch(ed, input, delimiter == '?')

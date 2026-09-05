@@ -3,6 +3,7 @@ package editor
 import (
 	"time"
 
+	"github.com/ArditZubaku/tex/internal/editor/command"
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
@@ -61,7 +62,7 @@ var readModeActions = map[rune]func(){
 	'w': ed.NextWord,
 	'b': ed.PrevWord,
 	'e': ed.EndOfWord,
-	'q': closeEditor,
+	'q': ed.Close,
 	'i': ed.EditBeforeWord,
 	'x': bind(edit.DeleteRune),
 	'o': bind(edit.OpenLineBelow),
@@ -249,7 +250,7 @@ var windowMoveKeys = map[termbox.Key]func(){
 }
 
 var specialKeyActions = map[termbox.Key]func(){
-	termbox.KeyCtrlS:      saveFile,
+	termbox.KeyCtrlS:      bind(command.Save),
 	termbox.KeyEnter:      bind(edit.Enter),
 	termbox.KeyBackspace:  bind(edit.Backspace),
 	termbox.KeyBackspace2: bind(edit.Backspace),
@@ -324,9 +325,3 @@ func esc() {
 }
 
 func startExPrompt() { startPrompt(':') }
-
-// closeEditor lets the editor's loop fall out and shut the terminal down on its
-// way, so quitting runs the same path whether it was 'q' or ':q' that asked.
-func closeEditor() {
-	ed.Quitting = true
-}

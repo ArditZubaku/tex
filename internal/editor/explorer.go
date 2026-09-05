@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ArditZubaku/tex/internal/editor/command"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
@@ -84,7 +85,7 @@ func openSelected() {
 		return
 	}
 
-	if editFile(path, false) {
+	if command.Edit(ed, path, false) {
 		closeExplorer()
 	}
 }
