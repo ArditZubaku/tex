@@ -10,7 +10,7 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-func inPicker(e *state.Editor, t *testing.T, names ...string) {
+func inPicker(t *testing.T, e *state.Editor, names ...string) {
 	t.Helper()
 
 	dir := t.TempDir()
@@ -39,7 +39,7 @@ func matchedLabels(e *state.Editor) []string {
 	return paths
 }
 
-func wantMatches(e *state.Editor, t *testing.T, want ...string) {
+func wantMatches(t *testing.T, e *state.Editor, want ...string) {
 	t.Helper()
 
 	got := matchedLabels(e)
@@ -56,63 +56,63 @@ func wantMatches(e *state.Editor, t *testing.T, want ...string) {
 func TestLeaderLeaderOpensThePickerOnEveryFileUnderTheRoot(t *testing.T) {
 	e := state.New()
 
-	inPicker(e, t, "one.go", "two.go", filepath.Join("sub", "three.go"))
+	inPicker(t, e, "one.go", "two.go", filepath.Join("sub", "three.go"))
 
 	edtest.Press(t, e, "  ")
 
 	if e.Mode != state.PickerMode {
 		t.Fatalf("mode = %v, want PickerMode", e.Mode)
 	}
-	wantMatches(e, t, "one.go", filepath.Join("sub", "three.go"), "two.go")
+	wantMatches(t, e, "one.go", filepath.Join("sub", "three.go"), "two.go")
 }
 
 func TestThePickerLeavesHiddenDirectoriesOut(t *testing.T) {
 	e := state.New()
 
-	inPicker(e, t, "one.go", filepath.Join(".git", "config"), ".env")
+	inPicker(t, e, "one.go", filepath.Join(".git", "config"), ".env")
 
 	edtest.Press(t, e, "  ")
 
-	wantMatches(e, t, "one.go")
+	wantMatches(t, e, "one.go")
 }
 
 func TestTypingNarrowsThePickerToWhatMatches(t *testing.T) {
 	e := state.New()
 
-	inPicker(e, t, "buffers.go", "windows.go", "README.md")
+	inPicker(t, e, "buffers.go", "windows.go", "README.md")
 
 	edtest.Press(t, e, "  ")
 	edtest.Press(t, e, "win")
 
-	wantMatches(e, t, "windows.go")
+	wantMatches(t, e, "windows.go")
 }
 
 func TestThePickerMatchesLettersItDoesNotHaveTogether(t *testing.T) {
 	e := state.New()
 
-	inPicker(e, t, "buffers.go", "windows.go")
+	inPicker(t, e, "buffers.go", "windows.go")
 
 	edtest.Press(t, e, "  ")
 	edtest.Press(t, e, "bfg")
 
-	wantMatches(e, t, "buffers.go")
+	wantMatches(t, e, "buffers.go")
 }
 
 func TestThePickerPutsTheNameBeforeTheDirectoryItIsIn(t *testing.T) {
 	e := state.New()
 
-	inPicker(e, t, filepath.Join("theme", "one.go"), "theme.go")
+	inPicker(t, e, filepath.Join("theme", "one.go"), "theme.go")
 
 	edtest.Press(t, e, "  ")
 	edtest.Press(t, e, "theme")
 
-	wantMatches(e, t, "theme.go", filepath.Join("theme", "one.go"))
+	wantMatches(t, e, "theme.go", filepath.Join("theme", "one.go"))
 }
 
 func TestEnterOpensThePickedFileAsABuffer(t *testing.T) {
 	e := state.New()
 
-	inPicker(e, t, "one.go", "two.go")
+	inPicker(t, e, "one.go", "two.go")
 
 	edtest.Press(t, e, "  ")
 	edtest.Press(t, e, "two")
@@ -128,7 +128,7 @@ func TestEnterOpensThePickedFileAsABuffer(t *testing.T) {
 func TestCtrlNAndCtrlPWalkTheListing(t *testing.T) {
 	e := state.New()
 
-	inPicker(e, t, "one.go", "two.go")
+	inPicker(t, e, "one.go", "two.go")
 
 	edtest.Press(t, e, "  ")
 	edtest.PressKey(t, e, termbox.KeyCtrlN)
@@ -141,7 +141,7 @@ func TestCtrlNAndCtrlPWalkTheListing(t *testing.T) {
 func TestEscClosesThePickerAndLeavesTheBufferAlone(t *testing.T) {
 	e := state.New()
 
-	inPicker(e, t, "one.go")
+	inPicker(t, e, "one.go")
 
 	edtest.Press(t, e, "  ")
 	edtest.PressKey(t, e, termbox.KeyEsc)
@@ -155,7 +155,7 @@ func TestEscClosesThePickerAndLeavesTheBufferAlone(t *testing.T) {
 func TestBackspacingOffAnEmptyQueryClosesThePicker(t *testing.T) {
 	e := state.New()
 
-	inPicker(e, t, "one.go")
+	inPicker(t, e, "one.go")
 
 	edtest.Press(t, e, "  ")
 	edtest.Press(t, e, "o")

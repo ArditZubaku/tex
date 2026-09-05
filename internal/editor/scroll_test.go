@@ -9,7 +9,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
-func inWindow(e *state.Editor, t *testing.T, lines, row int) {
+func inWindow(t *testing.T, e *state.Editor, lines, row int) {
 	t.Helper()
 
 	edtest.InReadMode(t, e, strings.Repeat("x\n", lines), row, 0)
@@ -20,7 +20,7 @@ func inWindow(e *state.Editor, t *testing.T, lines, row int) {
 func TestCenterViewPutsTheCursorLineInTheMiddle(t *testing.T) {
 	e := state.New()
 
-	inWindow(e, t, 100, 50)
+	inWindow(t, e, 100, 50)
 
 	edtest.Press(t, e, "zz")
 
@@ -35,7 +35,7 @@ func TestCenterViewPutsTheCursorLineInTheMiddle(t *testing.T) {
 func TestCenterViewNearTheTopStopsAtTheFirstLine(t *testing.T) {
 	e := state.New()
 
-	inWindow(e, t, 100, 3)
+	inWindow(t, e, 100, 3)
 
 	edtest.Press(t, e, "zz")
 
@@ -47,7 +47,7 @@ func TestCenterViewNearTheTopStopsAtTheFirstLine(t *testing.T) {
 func TestCenterViewNearTheEndScrollsPastTheLastLine(t *testing.T) {
 	e := state.New()
 
-	inWindow(e, t, 100, 99)
+	inWindow(t, e, 100, 99)
 
 	edtest.Press(t, e, "zz")
 
@@ -59,7 +59,7 @@ func TestCenterViewNearTheEndScrollsPastTheLastLine(t *testing.T) {
 func TestCountedCenterViewJumpsToThatLine(t *testing.T) {
 	e := state.New()
 
-	inWindow(e, t, 100, 0)
+	inWindow(t, e, 100, 0)
 
 	edtest.Press(t, e, "40zz")
 
@@ -74,7 +74,7 @@ func TestCountedCenterViewJumpsToThatLine(t *testing.T) {
 func TestCountedCenterViewStopsAtTheLastLine(t *testing.T) {
 	e := state.New()
 
-	inWindow(e, t, 10, 0)
+	inWindow(t, e, 10, 0)
 
 	edtest.Press(t, e, "99zz")
 
@@ -100,7 +100,7 @@ func TestCenterViewKeepsTheColumn(t *testing.T) {
 func TestCenterViewIsNotUndoable(t *testing.T) {
 	e := state.New()
 
-	inWindow(e, t, 100, 50)
+	inWindow(t, e, 100, 50)
 
 	edtest.Press(t, e, "zz")
 
@@ -112,7 +112,7 @@ func TestCenterViewIsNotUndoable(t *testing.T) {
 func TestScrollingFollowsTheCursorAwayFromACenteredView(t *testing.T) {
 	e := state.New()
 
-	inWindow(e, t, 100, 50)
+	inWindow(t, e, 100, 50)
 
 	edtest.Press(t, e, "zz")
 	render.Scroll(e)

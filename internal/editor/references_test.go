@@ -12,7 +12,7 @@ import (
 func TestGrListsEveryMentionInTheFileAndTheOnesBesideIt(t *testing.T) {
 	e := state.New()
 
-	inDefinition(e, t, "func target() {}\n\ntarget()\n", 0, 5, map[string]string{
+	inDefinition(t, e, "func target() {}\n\ntarget()\n", 0, 5, map[string]string{
 		"other.go":  "target()\n",
 		"notes.txt": "target()\n",
 	})
@@ -37,7 +37,7 @@ func TestGrListsEveryMentionInTheFileAndTheOnesBesideIt(t *testing.T) {
 func TestGrTakesTheWholeWordOnly(t *testing.T) {
 	e := state.New()
 
-	inDefinition(e, t, "target()\ntargeting()\nretarget()\n", 0, 0, nil)
+	inDefinition(t, e, "target()\ntargeting()\nretarget()\n", 0, 0, nil)
 
 	edtest.Press(t, e, "gr")
 
@@ -49,13 +49,13 @@ func TestGrTakesTheWholeWordOnly(t *testing.T) {
 func TestEnterOnAReferenceGoesToIt(t *testing.T) {
 	e := state.New()
 
-	inDefinition(e, t, "func target() {}\n\nvar x = target\n", 0, 5, nil)
+	inDefinition(t, e, "func target() {}\n\nvar x = target\n", 0, 5, nil)
 
 	edtest.Press(t, e, "gr")
 	edtest.PressKey(t, e, termbox.KeyCtrlN)
 	edtest.PressKey(t, e, termbox.KeyEnter)
 
-	wantAt(e, t, 2, 8)
+	wantAt(t, e, 2, 8)
 	if e.Pick.Open() {
 		t.Error("the popup stayed open")
 	}
@@ -64,7 +64,7 @@ func TestEnterOnAReferenceGoesToIt(t *testing.T) {
 func TestEnterOnAReferenceInAnotherFileOpensIt(t *testing.T) {
 	e := state.New()
 
-	inDefinition(e, t, "target()\n", 0, 0, map[string]string{"other.go": "package main\n\nvar target = 1\n"})
+	inDefinition(t, e, "target()\n", 0, 0, map[string]string{"other.go": "package main\n\nvar target = 1\n"})
 
 	edtest.Press(t, e, "gr")
 	edtest.PressKey(t, e, termbox.KeyCtrlN)
@@ -73,26 +73,26 @@ func TestEnterOnAReferenceInAnotherFileOpensIt(t *testing.T) {
 	if got := filepath.Base(e.SourceFile); got != "other.go" {
 		t.Fatalf("editing %q, want other.go", got)
 	}
-	wantAt(e, t, 2, 4)
+	wantAt(t, e, 2, 4)
 }
 
 func TestCtrlOComesBackFromAReference(t *testing.T) {
 	e := state.New()
 
-	inDefinition(e, t, "func target() {}\n\nvar x = target\n", 0, 5, nil)
+	inDefinition(t, e, "func target() {}\n\nvar x = target\n", 0, 5, nil)
 
 	edtest.Press(t, e, "gr")
 	edtest.PressKey(t, e, termbox.KeyCtrlN)
 	edtest.PressKey(t, e, termbox.KeyEnter)
 	edtest.PressKey(t, e, termbox.KeyCtrlO)
 
-	wantAt(e, t, 0, 5)
+	wantAt(t, e, 0, 5)
 }
 
 func TestTypingNarrowsTheReferences(t *testing.T) {
 	e := state.New()
 
-	inDefinition(e, t, "func target() {}\n\nvar x = target\n", 0, 5, nil)
+	inDefinition(t, e, "func target() {}\n\nvar x = target\n", 0, 5, nil)
 
 	edtest.Press(t, e, "gr")
 	edtest.Press(t, e, "func")
@@ -105,7 +105,7 @@ func TestTypingNarrowsTheReferences(t *testing.T) {
 func TestGrSaysWhenTheCursorIsOnNoIdentifier(t *testing.T) {
 	e := state.New()
 
-	inDefinition(e, t, "   \n", 0, 0, nil)
+	inDefinition(t, e, "   \n", 0, 0, nil)
 
 	edtest.Press(t, e, "gr")
 
