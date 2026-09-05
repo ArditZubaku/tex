@@ -90,9 +90,6 @@ func TestDeleteLine(t *testing.T) {
 
 // Deleting a line renumbers every line after it, so edits held in the overlay
 // have to move down with the lines they belong to.
-
-// Deleting a line renumbers every line after it, so edits held in the overlay
-// have to move down with the lines they belong to.
 func TestDeleteLineReKeysOverlay(t *testing.T) {
 	b := Open(writeTemp(t, "a\nb\nc\nd\ne\n"))
 	defer b.Close()
@@ -164,9 +161,6 @@ func TestInsertRune(t *testing.T) {
 
 // Typing must not copy the whole line on every keystroke: the first insert
 // lifts the line into the overlay, the rest grow it amortized.
-
-// Typing must not copy the whole line on every keystroke: the first insert
-// lifts the line into the overlay, the rest grow it amortized.
 func TestTypingIntoAnEditedLineDoesNotAllocate(t *testing.T) {
 	b := Open(writeTemp(t, "abc\n"))
 	defer b.Close()
@@ -181,9 +175,6 @@ func TestTypingIntoAnEditedLineDoesNotAllocate(t *testing.T) {
 		t.Errorf("RuneLen = %d, want 1005", got)
 	}
 }
-
-// Deleting scattered lines from a big file exercises the index shift, the
-// overlay re-key and the window invalidation together, against a full decode.
 
 // Deleting scattered lines from a big file exercises the index shift, the
 // overlay re-key and the window invalidation together, against a full decode.
@@ -219,9 +210,6 @@ func TestDeleteLinesAcrossBigFile(t *testing.T) {
 		}
 	}
 }
-
-// The operators run off the cursor globals, so drive them the way the key
-// handler does rather than through the Buffer directly.
 
 func TestJoinLine(t *testing.T) {
 	b := Open(writeTemp(t, "a\nbb\nccc\n"))

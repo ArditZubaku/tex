@@ -103,8 +103,6 @@ func TestSaveCreatesANewFile(t *testing.T) {
 }
 
 // Saving must not leave the directory littered if it fails, or on success.
-
-// Saving must not leave the directory littered if it fails, or on success.
 func TestSaveLeavesNoTempFile(t *testing.T) {
 	path := writeTemp(t, "a\n")
 	b := Open(path)

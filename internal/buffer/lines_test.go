@@ -30,9 +30,6 @@ func TestInsertLine(t *testing.T) {
 
 // The inserted line borrows the offset of the line below it, so the lines
 // either side of it must still read back from the file untouched.
-
-// The inserted line borrows the offset of the line below it, so the lines
-// either side of it must still read back from the file untouched.
 func TestInsertLineKeepsNeighboursReadable(t *testing.T) {
 	b := Open(writeTemp(t, "a\nbb\nccc\ndddd\n"))
 	defer b.Close()
@@ -45,9 +42,6 @@ func TestInsertLineKeepsNeighboursReadable(t *testing.T) {
 	b.InsertLine(4)
 	wantLines(t, b, "a", "bb", "NEW", "ccc", "", "dddd")
 }
-
-// A file with no trailing newline ends its last line at size rather than at a
-// terminator, so appending a line must not eat that line's final character.
 
 // A file with no trailing newline ends its last line at size rather than at a
 // terminator, so appending a line must not eat that line's final character.
@@ -150,8 +144,6 @@ func TestSplitLine(t *testing.T) {
 		})
 	}
 }
-
-// Split then join is a round trip, and both halves have to stay editable.
 
 // Split then join is a round trip, and both halves have to stay editable.
 func TestSplitLineThenEdit(t *testing.T) {

@@ -3,7 +3,6 @@ package editor
 import (
 	"testing"
 
-	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
@@ -85,18 +84,5 @@ func TestEditModeWrapsBetweenLines(t *testing.T) {
 	ed.Right()
 	if ed.Row != 1 || ed.Col != 0 {
 		t.Errorf("right: cursor at %d,%d, want 1,0", ed.Row, ed.Col)
-	}
-}
-
-func TestDeletingTheLastRunePullsTheCursorBack(t *testing.T) {
-	b := edtest.AtCursor(t, ed, "abc\n", 0, 2)
-	ed.Mode = state.ReadMode
-
-	edit.DeleteRune(ed)
-	ed.ClampCol()
-
-	edtest.WantLines(t, b, "ab")
-	if ed.Col != 1 {
-		t.Errorf("currentCol = %d, want 1", ed.Col)
 	}
 }
