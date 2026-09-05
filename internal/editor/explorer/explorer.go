@@ -62,6 +62,7 @@ const (
 	searchPrompt = '/'
 	createPrompt = 'a'
 	pastePrompt  = 'p'
+	deletePrompt = 'd'
 )
 
 // startSearch is '/', which hands the status line to the same prompt
@@ -87,6 +88,8 @@ func Submit(e *state.Editor, delimiter rune, input string) {
 		create(e, input)
 	case pastePrompt:
 		paste(e, input)
+	case deletePrompt:
+		confirmDelete(e, input)
 	default:
 		Filter(e, input)
 	}
@@ -254,6 +257,67 @@ func copyFile(from, to string) error {
 	return dst.Close()
 }
 
+// startDelete is 'd', which asks before it removes anything: a file goes only
+// once the prompt it opens has been answered with a 'y'.
+func startDelete(e *state.Editor) {
+	_, name, ok := selected(e)
+	if !ok {
+		return
+	}
+
+	e.StartLabelledPrompt(deletePrompt, "delete "+name+"? [y/N] ", "")
+}
+
+func confirmDelete(e *state.Editor, input string) {
+	path, name, ok := selected(e)
+	if !ok {
+		return
+	}
+	if !strings.EqualFold(strings.TrimSpace(input), "y") {
+		e.StatusMsg = fmt.Sprintf("%q kept", name)
+		return
+	}
+
+	// a directory goes only when it is empty: emptying a tree is not something
+	// a single keystroke and a 'y' should be able to do
+	if entries, err := os.ReadDir(path); err == nil && len(entries) > 0 {
+		e.StatusMsg = "E17: " + path + " is not empty"
+		return
+	}
+	if err := os.Remove(path); err != nil {
+		e.StatusMsg = "E484: Can't delete " + path
+		return
+	}
+
+	reload(e, after(e))
+	e.StatusMsg = fmt.Sprintf("%q deleted", path)
+	if view.Drop(e, path) {
+		e.StatusMsg += ", buffer closed"
+	}
+}
+
+// after is the entry the selection lands on once the one it is on is gone: the
+// one below it, or the one above when it was the last.
+func after(e *state.Editor) string {
+	entries, at := e.Exp.Entries(), e.Exp.Selection()
+	if at+1 < len(entries) {
+		return entries[at+1].Name
+	}
+	if at > 0 {
+		return entries[at-1].Name
+	}
+
+	return ""
+}
+
+// reload rereads the directory being listed, keeping the filter over it: what
+// was deleted from a narrowed listing leaves the rest of it narrowed.
+func reload(e *state.Editor, on string) {
+	if err := e.Exp.Enter(e.Exp.Dir(), on); err != nil {
+		e.StatusMsg = "E484: Can't open file " + e.Exp.Dir()
+	}
+}
+
 // clearFilter is Esc: it drops the filter it finds, and closes the explorer
 // when there is none left to drop.
 func clearFilter(e *state.Editor) {
@@ -320,6 +384,7 @@ var actions = map[rune]func(*state.Editor){
 	'a': startCreate,
 	'y': startYank,
 	'p': startPaste,
+	'd': startDelete,
 	'/': startSearch,
 	'q': Close,
 }

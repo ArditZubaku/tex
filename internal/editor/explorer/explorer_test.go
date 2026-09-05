@@ -649,3 +649,175 @@ func TestYyRefusesADirectory(t *testing.T) {
 		t.Errorf("yanked %q, want a directory to be refused", got)
 	}
 }
+
+func TestDDeletesTheFileOnceTheConfirmationIsAnswered(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "notes.md", "other.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jd")
+
+	if txt, ok := e.PromptStatus(); !ok || txt != "delete notes.md? [y/N] " {
+		t.Fatalf("prompt = %q, want %q", txt, "delete notes.md? [y/N] ")
+	}
+
+	edtest.Press(t, e, "y\n")
+
+	if _, err := os.Stat(filepath.Join(dir, "notes.md")); !os.IsNotExist(err) {
+		t.Error("notes.md is still there")
+	}
+	wantEntries(t, e, "../", "other.md")
+	if got := e.Exp.SelectedName(); got != "other.md" {
+		t.Errorf("selected %q, want other.md", got)
+	}
+}
+
+func TestDKeepsTheFileWhenTheConfirmationIsNot(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jd\n")
+
+	if _, err := os.Stat(filepath.Join(dir, "notes.md")); err != nil {
+		t.Error("notes.md was deleted without a y")
+	}
+
+	edtest.Press(t, e, "d")
+	edtest.Press(t, e, string(rune(27)))
+
+	if _, err := os.Stat(filepath.Join(dir, "notes.md")); err != nil {
+		t.Error("notes.md was deleted by a cancelled prompt")
+	}
+	if e.Mode != state.ExplorerMode {
+		t.Errorf("mode = %v, want ExplorerMode", e.Mode)
+	}
+}
+
+func TestDRefusesADirectoryWithAnythingInIt(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "pkg")
+	if err := os.WriteFile(filepath.Join(dir, "pkg", "in.txt"), []byte("x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jdy\n")
+
+	if _, err := os.Stat(filepath.Join(dir, "pkg")); err != nil {
+		t.Error("a directory with a file in it was deleted")
+	}
+	wantEntries(t, e, "../", "pkg/")
+}
+
+func TestDDeletesAnEmptyDirectory(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "pkg")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jdy\n")
+
+	if _, err := os.Stat(filepath.Join(dir, "pkg")); !os.IsNotExist(err) {
+		t.Error("pkg is still there")
+	}
+	wantEntries(t, e, "../")
+}
+
+func TestTheParentEntryIsNeitherYankedNorDeleted(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "yy")
+	edtest.Press(t, e, "d")
+
+	if got := e.Exp.Yanked(); got != "" {
+		t.Errorf("yanked %q, want the parent entry to be refused", got)
+	}
+	if e.Mode != state.ExplorerMode {
+		t.Errorf("mode = %v, want ExplorerMode", e.Mode)
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Error("the directory being listed was deleted")
+	}
+}
+
+func TestDeletingAFileClosesTheBufferItWasOpenedIn(t *testing.T) {
+	e := state.New()
+
+	inExplorer(t, e, "start.txt", "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "gj\n")
+
+	edtest.WantBuffers(t, "start.txt", "notes.md")
+	edtest.WantCurrent(t, e, "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "dy\n")
+
+	edtest.WantBuffers(t, "start.txt")
+	edtest.WantCurrent(t, e, "start.txt")
+}
+
+func TestDeletingAFileClosesItsBufferFromBehindAnother(t *testing.T) {
+	e := state.New()
+
+	inExplorer(t, e, "start.txt", "notes.md", "other.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "gj\n")
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "j\n")
+
+	edtest.WantBuffers(t, "start.txt", "notes.md", "other.md")
+	edtest.WantCurrent(t, e, "other.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "kdy\n")
+
+	edtest.WantBuffers(t, "start.txt", "other.md")
+	edtest.WantCurrent(t, e, "other.md")
+}
+
+func TestDeletingAFileWithUnsavedChangesStillClosesItsBuffer(t *testing.T) {
+	e := state.New()
+
+	inExplorer(t, e, "start.txt", "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "gj\n")
+	edtest.Press(t, e, "ix")
+	edtest.Press(t, e, string(rune(27)))
+
+	if !e.Modified {
+		t.Fatal("notes.md is not modified")
+	}
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "dy\n")
+
+	edtest.WantBuffers(t, "start.txt")
+	if e.Modified {
+		t.Error("the editor still reports unsaved changes to the deleted file")
+	}
+}
+
+func TestDeletingAFileNothingHasOpenedLeavesTheBufferListAlone(t *testing.T) {
+	e := state.New()
+
+	inExplorer(t, e, "start.txt", "notes.md", "other.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "gj\n")
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jdy\n")
+
+	edtest.WantBuffers(t, "start.txt", "notes.md")
+	edtest.WantCurrent(t, e, "notes.md")
+}
