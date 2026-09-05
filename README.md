@@ -52,7 +52,7 @@ internal/
   decl/                 what a declaration looks like: gd, gr and the symbols
   project/              the tree the file sits in, and the files beside it
   layout/               the window tree: splits, closes and rectangles
-  editor/               the loop, the globals it runs on, and the key tables
+  editor/               the loop: draw a frame, read a key, repeat
     screen/             putting text on the terminal, and taking a key off it
     history/            the changes u and Ctrl-R step through
     register/           what was last yanked or deleted
@@ -67,6 +67,8 @@ internal/
     find/               search, gd, gr, the symbols and the picker's popup
     explorer/           <leader>e: the file tree as the editor drives it
     render/             one frame: windows, buffer line, status line
+    keys/               which command each key, chord and count names
+    edtest/             the harness the packages' own tests share
 ```
 
 Nothing below `editor` imports it, and nothing imports `editor` but `main`, so
@@ -76,12 +78,13 @@ the dependencies run one way. Under `internal/`, `chars`, `theme`, `buffer`,
 `motion` on both. Under `editor/`, `screen`, `history`, `register`, `picker`,
 `filetree`, `tabbar` and `prompt` are leaves in the same way; `state` holds them
 and is what every command below takes as its one argument — `edit` first, then
-`view` on top of it, then `command`, `find` and `explorer`, with `render`
-reading all of them.
+`view` on top of it, then `command`, `find` and `explorer`, with `render` and
+`keys` reading all of them.
 
-What is left in `editor` itself is the wiring: the loop that draws and reads a
-key, the one `state.Editor` it runs on, and the tables that say which command
-each key names.
+What is left in `editor` itself is the loop: it makes the one `state.Editor`,
+draws a frame from it and hands the next key to `keys`. Every test lives in the
+package whose behaviour it asserts, outside it where the shared harness would
+otherwise close a cycle.
 
 ## Features
 

@@ -169,7 +169,7 @@ func prefixesOf(chords map[string]func(*state.Editor)) map[string]bool {
 	return prefixes
 }
 
-// A count-aware command reads count() itself, because the count says how much
+// A count-aware command reads CmdCount itself, because the count says how much
 // text it works on rather than how many times it runs; everything else is
 // simply run that many times.
 var (
