@@ -144,6 +144,10 @@ func Esc(t *testing.T, e *state.Editor) {
 	PressKey(t, e, termbox.KeyEsc)
 }
 
+// BigFile needs many window refills, with line lengths varying either side of
+// the window size so refill boundaries land in awkward places.
+// BigFile needs many window refills, with line lengths varying either side of
+// the window size so refill boundaries land in awkward places.
 func BigFile(t *testing.T, lines int) string {
 	t.Helper()
 

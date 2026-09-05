@@ -1,4 +1,4 @@
-package editor
+package edit_test
 
 import (
 	"testing"
