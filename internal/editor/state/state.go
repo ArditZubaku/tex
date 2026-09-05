@@ -10,6 +10,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/picker"
+	"github.com/ArditZubaku/tex/internal/editor/prompt"
 	"github.com/ArditZubaku/tex/internal/editor/register"
 	"github.com/ArditZubaku/tex/internal/layout"
 	"github.com/ArditZubaku/tex/internal/search"
@@ -92,6 +93,7 @@ type Editor struct {
 	Hist history.History
 	Clip register.Register
 
+	Prompt       prompt.Line
 	Pick         picker.Picker
 	Exp          explorer.Explorer
 	ExplorerOpen bool

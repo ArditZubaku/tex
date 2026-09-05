@@ -6,6 +6,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/history"
+	"github.com/ArditZubaku/tex/internal/editor/prompt"
 	"github.com/ArditZubaku/tex/internal/editor/register"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
@@ -24,7 +25,7 @@ func inReadMode(t *testing.T, content string, row, col int) *buffer.Buffer {
 	ed.Hist = history.History{}
 	ed.Clip = register.Register{}
 	ed.SearchPat, ed.SearchBack, ed.HlSearch = search.Pattern{}, false, false
-	promptChar, promptInput, ed.StatusMsg = 0, nil, ""
+	ed.Prompt, ed.StatusMsg = prompt.Line{}, ""
 	ed.Quitting, ed.Palette = false, theme.Default()
 	ed.ExplorerOpen, ed.Exp = false, explorer.Explorer{}
 	view.Reset()
