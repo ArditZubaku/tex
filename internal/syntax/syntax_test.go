@@ -170,3 +170,40 @@ func TestDetectSyntax(t *testing.T) {
 		})
 	}
 }
+
+func TestCodeMarksTheColumnsThatAreNotCommentOrString(t *testing.T) {
+	cases := []struct {
+		name    string
+		lang    *Syntax
+		line    string
+		inBlock bool
+		want    string // '#' where the column is code, '.' where it is not
+	}{
+		{"a line comment", goSyntax, `x := 1 // x is one`, false, `#######...........`},
+		{"only the comment", goSyntax, `// x is one`, false, `...........`},
+		{"a string literal", goSyntax, `log("x", x)`, false, `####...####`},
+		{"an escape inside one", goSyntax, `p("a\nb")`, false, `##......#`},
+		{"a block comment carrying on", cSyntax, `still comment */ code`, true, `................#####`},
+		{"a language with no syntax has no mask", nil, `x := 1 // x`, false, ``},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			code, _ := tc.lang.Code([]rune(tc.line), tc.inBlock, nil)
+			if tc.lang == nil {
+				if code != nil {
+					t.Errorf("Code() = %v, want nil", code)
+				}
+				return
+			}
+
+			got := strings.Builder{}
+			for _, isCode := range code {
+				got.WriteByte(map[bool]byte{true: '#', false: '.'}[isCode])
+			}
+			if got.String() != tc.want {
+				t.Errorf("Code(%q)\n = %s\nwant %s", tc.line, got.String(), tc.want)
+			}
+		})
+	}
+}

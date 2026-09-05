@@ -143,6 +143,44 @@ func (s *Syntax) LineColors(line []rune, inBlock bool, palette *theme.Palette) (
 	return out, s.Highlight(line, inBlock, out, palette)
 }
 
+// Code reports which columns of a line the lexer reads as code rather than as a
+// comment or a string, and the block-comment state the line below starts in. It
+// is the same pass the screen is coloured by, run against a palette that tells
+// those two apart, so what a command reads as code cannot drift from what the
+// colours show. A file of no known language answers nil, which is every column.
+func (s *Syntax) Code(line []rune, inBlock bool, out []bool) ([]bool, bool) {
+	if s == nil {
+		return nil, false
+	}
+
+	if cap(marks) < len(line) {
+		marks = make([]termbox.Attribute, len(line))
+	}
+	painted := marks[:len(line)]
+	for i := range painted {
+		painted[i] = codeMark
+	}
+	inBlock = s.Highlight(line, inBlock, painted, &proseOnly)
+
+	for _, at := range painted {
+		out = append(out, at == codeMark)
+	}
+
+	return out, inBlock
+}
+
+// proseOnly is the whole palette Code needs: one shade for what is written for
+// people to read, another for everything else.
+const (
+	codeMark  = termbox.Attribute(0)
+	proseMark = termbox.Attribute(1)
+)
+
+var (
+	marks     []termbox.Attribute
+	proseOnly = theme.Palette{Comment: proseMark, StringLit: proseMark, Escape: proseMark}
+)
+
 func hasPrefixAt(line []rune, i int, prefix string) bool {
 	if prefix == "" || i+len(prefix) > len(line) {
 		return false
