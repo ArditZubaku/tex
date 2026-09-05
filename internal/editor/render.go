@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
-	"strings"
 
+	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/gutter"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
@@ -42,7 +42,7 @@ func displayTextBuffer() {
 			numberColor, background = active.CursorLineNumber, active.CursorLineBg
 			highlightRow(row)
 		}
-		printMessage(screenCol(0), screenRow(row), numberColor, background, gutter.Label(textBufRow, currentRow, gutterCols))
+		screen.Print(screenCol(0), screenRow(row), numberColor, background, gutter.Label(textBufRow, currentRow, gutterCols))
 
 		line := buf.Line(textBufRow)
 		lineLen := len(line)
@@ -90,12 +90,12 @@ func displayTextBuffer() {
 
 func displayStatusBar() {
 	if txt, ok := promptStatus(); ok {
-		printMessage(0, statusRow(), active.StatusFg, active.StatusBg, padTo(txt, screenCols))
+		screen.Print(0, statusRow(), active.StatusFg, active.StatusBg, screen.Pad(txt, screenCols))
 		return
 	}
 
 	if explorerOpen {
-		printMessage(0, statusRow(), active.StatusFg, active.StatusBg, padTo(explorerStatus(), screenCols))
+		screen.Print(0, statusRow(), active.StatusFg, active.StatusBg, screen.Pad(explorerStatus(), screenCols))
 		return
 	}
 
@@ -143,20 +143,9 @@ func displayStatusBar() {
 
 	leftStatus := modeStatus + fileStatus + copyStatus + undoStatus + redoStatus
 	rightStatus := countStatus + cursorStatus
-	txt := padTo(leftStatus, screenCols-runewidth.StringWidth(rightStatus)) + rightStatus
+	txt := screen.Pad(leftStatus, screenCols-runewidth.StringWidth(rightStatus)) + rightStatus
 
-	printMessage(0, statusRow(), active.StatusFg, active.StatusBg, txt)
-}
-
-func padTo(txt string, width int) string {
-	return txt + strings.Repeat(" ", max(width-runewidth.StringWidth(txt), 0))
-}
-
-func printMessage(col, row int, fg, bg termbox.Attribute, msg string) {
-	for _, ch := range msg {
-		termbox.SetCell(col, row, ch, fg, bg)
-		col += runewidth.RuneWidth(ch)
-	}
+	screen.Print(0, statusRow(), active.StatusFg, active.StatusBg, txt)
 }
 
 func scrollTextBuffer() {
@@ -177,17 +166,4 @@ func scrollTextBuffer() {
 	if currentCol >= offsetCol+textCols {
 		offsetCol = currentCol - textCols + 1
 	}
-}
-
-func getKey() termbox.Event {
-	var keyEvent termbox.Event
-
-	switch event := termbox.PollEvent(); event.Type {
-	case termbox.EventKey:
-		keyEvent = event
-	case termbox.EventError:
-		panic(event.Err) // TODO: Will think of something better in such a case
-	}
-
-	return keyEvent
 }

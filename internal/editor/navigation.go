@@ -3,12 +3,13 @@ package editor
 import (
 	"time"
 
+	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/motion"
 	"github.com/nsf/termbox-go"
 )
 
 func processKeyPress() {
-	keyEvent := getKey()
+	keyEvent := screen.Key()
 	statusMsg = "" // whatever the last command reported has had its redraw
 
 	dispatchKey(keyEvent)

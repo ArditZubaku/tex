@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/nsf/termbox-go"
 )
 
@@ -298,7 +299,7 @@ func leaveExplorerFor(move func()) {
 
 func displayExplorer() {
 	scrollExplorer()
-	printMessage(screenCol(0), screenRow(0), active.CursorLineNumber, active.Background, padTo(explorerDir, COLS))
+	screen.Print(screenCol(0), screenRow(0), active.CursorLineNumber, active.Background, screen.Pad(explorerDir, COLS))
 
 	for row := explorerHeaderRows; row < ROWS; row++ {
 		i := row - explorerHeaderRows + explorerOffset
@@ -316,7 +317,7 @@ func displayExplorer() {
 			highlightRow(row)
 		}
 
-		printMessage(screenCol(0), screenRow(row), foreground, background, padTo(" "+entryLabel(entry), COLS))
+		screen.Print(screenCol(0), screenRow(row), foreground, background, screen.Pad(" "+entryLabel(entry), COLS))
 	}
 }
 

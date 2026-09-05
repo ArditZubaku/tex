@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/fuzzy"
 	"github.com/ArditZubaku/tex/internal/project"
 	"github.com/mattn/go-runewidth"
@@ -175,8 +176,8 @@ func displayPicker() {
 	scrollPicker(listRows)
 	drawPickerFrame(row, col, rows, cols)
 
-	printMessage(col+1, row+1, active.Plain, active.Background,
-		padTo(" > "+string(pickerQuery), cols-2))
+	screen.Print(col+1, row+1, active.Plain, active.Background,
+		screen.Pad(" > "+string(pickerQuery), cols-2))
 
 	for i := range listRows {
 		at := pickerOffset + i
@@ -189,8 +190,8 @@ func displayPicker() {
 			foreground, background = active.TabActiveFg, active.TabActiveBg
 		}
 		entry := pickerEntries[pickerMatches[at].at]
-		printMessage(col+1, row+3+i, foreground, background,
-			padTo(" "+truncate(entry.label, cols-3, entry.row < 0), cols-2))
+		screen.Print(col+1, row+3+i, foreground, background,
+			screen.Pad(" "+screen.Truncate(entry.label, cols-3, entry.row < 0), cols-2))
 	}
 }
 
@@ -234,33 +235,18 @@ func drawPickerFrame(row, col, rows, cols int) {
 	count := fmt.Sprintf(" %d/%d ", len(pickerMatches), len(pickerEntries))
 	copy(top[cols-2-len([]rune(count)):], []rune(count))
 
-	printMessage(col, row, active.Separator, active.Background, string(top))
-	printMessage(col, row+2, active.Separator, active.Background,
+	screen.Print(col, row, active.Separator, active.Background, string(top))
+	screen.Print(col, row+2, active.Separator, active.Background,
 		"├"+strings.Repeat("─", cols-2)+"┤")
-	printMessage(col, row+rows-1, active.Separator, active.Background,
+	screen.Print(col, row+rows-1, active.Separator, active.Background,
 		"└"+strings.Repeat("─", cols-2)+"┘")
 
 	for i := 1; i < rows-1; i++ {
 		if i == 2 {
 			continue
 		}
-		printMessage(col, row+i, active.Separator, active.Background, "│")
-		printMessage(col+1, row+i, active.Plain, active.Background, strings.Repeat(" ", cols-2))
-		printMessage(col+cols-1, row+i, active.Separator, active.Background, "│")
+		screen.Print(col, row+i, active.Separator, active.Background, "│")
+		screen.Print(col+1, row+i, active.Plain, active.Background, strings.Repeat(" ", cols-2))
+		screen.Print(col+cols-1, row+i, active.Separator, active.Background, "│")
 	}
-}
-
-// A path is cut at the front, since the name at its end is what is being looked
-// for; a line of text is cut at its end, where a reference has already said
-// which file and which row it is on.
-func truncate(txt string, width int, fromFront bool) string {
-	runes := []rune(txt)
-	if len(runes) <= width {
-		return txt
-	}
-	if fromFront {
-		return "…" + string(runes[len(runes)-width+1:])
-	}
-
-	return string(runes[:width-1]) + "…"
 }
