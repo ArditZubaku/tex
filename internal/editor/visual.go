@@ -1,6 +1,10 @@
 package editor
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/ArditZubaku/tex/internal/editor/register"
+)
 
 // Visual mode marks a run of text for the operator that follows it: 'v' marks
 // runes and 'V' whole lines, from the anchor the mode was entered at to
@@ -214,7 +218,7 @@ func yankSpan(s selection) {
 	}
 
 	if s.startRow == s.endRow {
-		clipboard = register{lines: [][]rune{runeSpan(s.startRow, s.startCol, s.endCol+1)}}
+		clipboard = register.Charwise([][]rune{runeSpan(s.startRow, s.startCol, s.endCol+1)})
 		return
 	}
 
@@ -225,7 +229,7 @@ func yankSpan(s selection) {
 	}
 	lines = append(lines, runeSpan(s.endRow, 0, s.endCol+1))
 
-	clipboard = register{lines: lines}
+	clipboard = register.Charwise(lines)
 }
 
 func runeSpan(row, from, to int) []rune {

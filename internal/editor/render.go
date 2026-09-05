@@ -118,7 +118,7 @@ func displayStatusBar() {
 
 	cursorStatus = fmt.Sprintf("Row %s, Col %s ", strconv.Itoa(currentRow+1), strconv.Itoa(currentCol+1))
 
-	if !clipboard.empty() {
+	if !clipboard.Empty() {
 		copyStatus = " [Copy]"
 	}
 

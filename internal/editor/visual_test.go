@@ -63,7 +63,7 @@ func TestVisualYankLeavesTheCursorAtTheStart(t *testing.T) {
 	if currentCol != 2 {
 		t.Errorf("currentCol = %d, want 2", currentCol)
 	}
-	if got := string(clipboard.lines[0]); got != "o b" {
+	if got := string(clipboard.Content()[0]); got != "o b" {
 		t.Errorf("register = %q, want %q", got, "o b")
 	}
 }

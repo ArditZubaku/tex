@@ -18,7 +18,7 @@ func TestCountedDeleteRune(t *testing.T) {
 	press(t, "3x")
 
 	wantLines(t, b, "def")
-	if got := string(clipboard.lines[0]); got != "abc" {
+	if got := string(clipboard.Content()[0]); got != "abc" {
 		t.Errorf("register holds %q, want %q", got, "abc")
 	}
 }

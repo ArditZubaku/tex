@@ -3,22 +3,11 @@ package editor
 import (
 	"slices"
 
+	"github.com/ArditZubaku/tex/internal/editor/register"
 	"github.com/ArditZubaku/tex/internal/motion"
 )
 
-// clipboard is VIM's unnamed register: whatever was last yanked or deleted,
-// held either as whole lines (yy, dd, V) or as a run of runes (yw, x, v), which
-// spans more than one line only when a Visual selection did.
-type register struct {
-	lines    [][]rune
-	linewise bool
-}
-
-var clipboard register
-
-func (r register) empty() bool {
-	return len(r.lines) == 0
-}
+var clipboard register.Register
 
 func yankLine() {
 	yankLines(currentRow, count())
@@ -31,11 +20,11 @@ func yankLines(row, n int) {
 	for i := range n {
 		lines = append(lines, slices.Clone(buf.Line(row+i)))
 	}
-	clipboard = register{lines: lines, linewise: true}
+	clipboard = register.Linewise(lines)
 }
 
 func yankChars(row, from, to int) {
-	clipboard = register{lines: [][]rune{slices.Clone(buf.Line(row)[from:to])}}
+	clipboard = register.Charwise([][]rune{slices.Clone(buf.Line(row)[from:to])})
 }
 
 // yankWord is 'yw', yankToWordEnd is 'ye' and yankToPrevWord is 'yb'. Like the
@@ -78,11 +67,11 @@ func pasteAfter()  { paste(true) }
 func pasteBefore() { paste(false) }
 
 func paste(after bool) {
-	if clipboard.empty() {
+	if clipboard.Empty() {
 		return
 	}
 
-	if clipboard.linewise {
+	if clipboard.IsLinewise() {
 		pasteLines(after)
 		return
 	}
@@ -97,7 +86,7 @@ func pasteLines(after bool) {
 
 	at := row
 	for range count() {
-		for _, line := range clipboard.lines {
+		for _, line := range clipboard.Content() {
 			touchInsertLine(at)
 			buf.InsertLine(at)
 			buf.SetLine(at, slices.Clone(line))
@@ -110,7 +99,7 @@ func pasteLines(after bool) {
 }
 
 func pasteChars(after bool) {
-	text := repeatChars(clipboard.lines, count())
+	text := clipboard.Repeated(count())
 	line := slices.Clone(buf.Line(currentRow))
 
 	col := currentCol
@@ -145,26 +134,4 @@ func pasteChars(after bool) {
 
 	currentCol = col
 	modified = true
-}
-
-// repeatChars is a counted put of a charwise register: the copies run into each
-// other, so putting a two-line register twice leaves three lines, not four.
-func repeatChars(lines [][]rune, n int) [][]rune {
-	if n <= 1 {
-		return lines
-	}
-
-	out := make([][]rune, 0, (len(lines)-1)*n+1)
-	for range n {
-		if len(out) == 0 {
-			out = append(out, slices.Clone(lines[0]))
-		} else {
-			out[len(out)-1] = append(out[len(out)-1], lines[0]...)
-		}
-		for _, l := range lines[1:] {
-			out = append(out, slices.Clone(l))
-		}
-	}
-
-	return out
 }
