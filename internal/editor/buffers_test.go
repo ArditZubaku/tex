@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/render"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
@@ -95,7 +96,7 @@ func TestTabIsStillAnIndentInEditMode(t *testing.T) {
 	press(t, "i\t")
 
 	wantCurrent(t, "a.txt")
-	wantLines(t, ed.Buf, "    in a.txt")
+	edtest.WantLines(t, ed.Buf, "    in a.txt")
 }
 
 func TestShiftHAndShiftLTakeTheBufferBeforeAndAfter(t *testing.T) {
@@ -133,11 +134,11 @@ func TestSwitchingBuffersKeepsUnsavedChangesAndTheirUndoHistory(t *testing.T) {
 	if !ed.Modified {
 		t.Error("the buffer came back saved")
 	}
-	wantLines(t, ed.Buf, "irst")
+	edtest.WantLines(t, ed.Buf, "irst")
 
 	press(t, "u")
 
-	wantLines(t, ed.Buf, "first")
+	edtest.WantLines(t, ed.Buf, "first")
 }
 
 func TestEditingAnOpenFileSwitchesToItRatherThanOpeningItTwice(t *testing.T) {
@@ -161,11 +162,11 @@ func TestRereadingTheCurrentFileStillRefusesToDropChanges(t *testing.T) {
 	if ed.StatusMsg != state.NoWriteSinceChange {
 		t.Errorf("statusMsg = %q, want %q", ed.StatusMsg, state.NoWriteSinceChange)
 	}
-	wantLines(t, ed.Buf, "irst")
+	edtest.WantLines(t, ed.Buf, "irst")
 
 	press(t, ":e!\n")
 
-	wantLines(t, ed.Buf, "first")
+	edtest.WantLines(t, ed.Buf, "first")
 	if len(view.Buffers()) != 1 {
 		t.Errorf("%d buffers open, want 1", len(view.Buffers()))
 	}

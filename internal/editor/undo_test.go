@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/editor/edit"
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/nsf/termbox-go"
 )
 
@@ -19,26 +20,26 @@ func TestUndoRedoDeleteLine(t *testing.T) {
 	b := inReadMode(t, "foo\nbar\n", 0, 0)
 
 	press(t, "dd")
-	wantLines(t, b, "bar")
+	edtest.WantLines(t, b, "bar")
 
 	press(t, "u")
-	wantLines(t, b, "foo", "bar")
+	edtest.WantLines(t, b, "foo", "bar")
 	if ed.Row != 0 || ed.Col != 0 {
 		t.Errorf("cursor at %d,%d, want 0,0", ed.Row, ed.Col)
 	}
 
 	ed.Redo()
-	wantLines(t, b, "bar")
+	edtest.WantLines(t, b, "bar")
 }
 
 func TestUndoCountedDeleteLineInOneStep(t *testing.T) {
 	b := inReadMode(t, "a\nb\nc\n", 0, 0)
 
 	press(t, "2dd")
-	wantLines(t, b, "c")
+	edtest.WantLines(t, b, "c")
 
 	press(t, "u")
-	wantLines(t, b, "a", "b", "c")
+	edtest.WantLines(t, b, "a", "b", "c")
 }
 
 func TestUndoInsertSessionAsOneChange(t *testing.T) {
@@ -47,16 +48,16 @@ func TestUndoInsertSessionAsOneChange(t *testing.T) {
 	press(t, "i")
 	typeIn(t, "abc")
 	esc()
-	wantLines(t, b, "abcfoo")
+	edtest.WantLines(t, b, "abcfoo")
 
 	press(t, "u")
-	wantLines(t, b, "foo")
+	edtest.WantLines(t, b, "foo")
 	if ed.Hist.CanUndo() {
 		t.Error("the insert session left more than one change behind")
 	}
 
 	ed.Redo()
-	wantLines(t, b, "abcfoo")
+	edtest.WantLines(t, b, "abcfoo")
 }
 
 func TestUndoOpenedLine(t *testing.T) {
@@ -65,10 +66,10 @@ func TestUndoOpenedLine(t *testing.T) {
 	press(t, "o")
 	typeIn(t, "bar")
 	esc()
-	wantLines(t, b, "foo", "bar")
+	edtest.WantLines(t, b, "foo", "bar")
 
 	press(t, "u")
-	wantLines(t, b, "foo")
+	edtest.WantLines(t, b, "foo")
 }
 
 func TestUndoSplit(t *testing.T) {
@@ -77,13 +78,13 @@ func TestUndoSplit(t *testing.T) {
 	press(t, "i")
 	edit.Enter(ed)
 	esc()
-	wantLines(t, b, "foo", "bar")
+	edtest.WantLines(t, b, "foo", "bar")
 
 	press(t, "u")
-	wantLines(t, b, "foobar")
+	edtest.WantLines(t, b, "foobar")
 
 	ed.Redo()
-	wantLines(t, b, "foo", "bar")
+	edtest.WantLines(t, b, "foo", "bar")
 }
 
 func TestUndoJoinRestoresBothLines(t *testing.T) {
@@ -92,20 +93,20 @@ func TestUndoJoinRestoresBothLines(t *testing.T) {
 	press(t, "i")
 	edit.Backspace(ed)
 	esc()
-	wantLines(t, b, "foobar")
+	edtest.WantLines(t, b, "foobar")
 
 	press(t, "u")
-	wantLines(t, b, "foo", "bar")
+	edtest.WantLines(t, b, "foo", "bar")
 }
 
 func TestUndoPaste(t *testing.T) {
 	b := inReadMode(t, "foo\n", 0, 0)
 
 	press(t, "yy3p")
-	wantLines(t, b, "foo", "foo", "foo", "foo")
+	edtest.WantLines(t, b, "foo", "foo", "foo", "foo")
 
 	press(t, "u")
-	wantLines(t, b, "foo")
+	edtest.WantLines(t, b, "foo")
 }
 
 func TestNewEditClearsTheRedoStack(t *testing.T) {
@@ -120,30 +121,30 @@ func TestNewEditClearsTheRedoStack(t *testing.T) {
 	if ed.Hist.CanRedo() {
 		t.Error("the new edit left the redo stack standing")
 	}
-	wantLines(t, b, "", "b")
+	edtest.WantLines(t, b, "", "b")
 }
 
 func TestUndoEmptyingTheLastLine(t *testing.T) {
 	b := inReadMode(t, "solo\n", 0, 0)
 
 	press(t, "dd")
-	wantLines(t, b, "")
+	edtest.WantLines(t, b, "")
 
 	press(t, "u")
-	wantLines(t, b, "solo")
+	edtest.WantLines(t, b, "solo")
 }
 
 func TestUndoDeleteWord(t *testing.T) {
 	b := inReadMode(t, "foo bar baz\n", 0, 0)
 
 	press(t, "dw")
-	wantLines(t, b, "bar baz")
+	edtest.WantLines(t, b, "bar baz")
 
 	press(t, "u")
-	wantLines(t, b, "foo bar baz")
+	edtest.WantLines(t, b, "foo bar baz")
 
 	ed.Redo()
-	wantLines(t, b, "bar baz")
+	edtest.WantLines(t, b, "bar baz")
 }
 
 func TestUndoWithNothingToUndo(t *testing.T) {
@@ -151,5 +152,5 @@ func TestUndoWithNothingToUndo(t *testing.T) {
 
 	press(t, "u")
 
-	wantLines(t, b, "foo")
+	edtest.WantLines(t, b, "foo")
 }

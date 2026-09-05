@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/filetree"
 	"github.com/ArditZubaku/tex/internal/editor/state"
@@ -163,7 +164,7 @@ func TestExplorerOpensAFileIntoTheBuffer(t *testing.T) {
 	if want := filepath.Join(dir, "other.txt"); ed.SourceFile != want {
 		t.Fatalf("sourceFile = %q, want %q", ed.SourceFile, want)
 	}
-	wantLines(t, ed.Buf, "in other.txt")
+	edtest.WantLines(t, ed.Buf, "in other.txt")
 	if ed.Row != 0 || ed.Col != 0 {
 		t.Errorf("cursor at %d,%d, want 0,0", ed.Row, ed.Col)
 	}
@@ -361,7 +362,7 @@ func TestAFilteredFileStillOpens(t *testing.T) {
 	if want := filepath.Join(dir, "other.txt"); ed.SourceFile != want {
 		t.Fatalf("sourceFile = %q, want %q", ed.SourceFile, want)
 	}
-	wantLines(t, ed.Buf, "in other.txt")
+	edtest.WantLines(t, ed.Buf, "in other.txt")
 }
 
 func TestSteppingIntoADirectoryDropsTheFilter(t *testing.T) {

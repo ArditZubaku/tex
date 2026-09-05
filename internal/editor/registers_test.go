@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/filetree"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/prompt"
@@ -19,7 +20,7 @@ import (
 func inReadMode(t *testing.T, content string, row, col int) *buffer.Buffer {
 	t.Helper()
 
-	b := atCursor(t, content, row, col)
+	b := edtest.AtCursor(t, ed, content, row, col)
 	ed.Mode = state.ReadMode
 	ed.PendingKeys, ed.PendingCount, ed.CmdCount = nil, 0, 1
 	ed.Hist = history.History{}
@@ -68,7 +69,7 @@ func TestYankLineAndPaste(t *testing.T) {
 
 	press(t, "yyp")
 
-	wantLines(t, b, "foo", "foo", "bar")
+	edtest.WantLines(t, b, "foo", "foo", "bar")
 	if ed.Row != 1 || ed.Col != 0 {
 		t.Errorf("cursor at %d,%d, want 1,0", ed.Row, ed.Col)
 	}
@@ -79,7 +80,7 @@ func TestPasteBeforePutsTheLineAbove(t *testing.T) {
 
 	press(t, "yyP")
 
-	wantLines(t, b, "foo", "bar", "bar")
+	edtest.WantLines(t, b, "foo", "bar", "bar")
 	if ed.Row != 1 {
 		t.Errorf("currentRow = %d, want 1", ed.Row)
 	}
@@ -90,7 +91,7 @@ func TestCountedPaste(t *testing.T) {
 
 	press(t, "yy3p")
 
-	wantLines(t, b, "foo", "foo", "foo", "foo")
+	edtest.WantLines(t, b, "foo", "foo", "foo", "foo")
 }
 
 func TestCountedYankLine(t *testing.T) {
@@ -98,7 +99,7 @@ func TestCountedYankLine(t *testing.T) {
 
 	press(t, "2yyp")
 
-	wantLines(t, b, "a", "a", "b", "b", "c")
+	edtest.WantLines(t, b, "a", "a", "b", "b", "c")
 }
 
 func TestCharwiseYankAndPaste(t *testing.T) {
@@ -106,7 +107,7 @@ func TestCharwiseYankAndPaste(t *testing.T) {
 
 	press(t, "ywp")
 
-	wantLines(t, b, "ffoo oo bar")
+	edtest.WantLines(t, b, "ffoo oo bar")
 	if ed.Col != 4 {
 		t.Errorf("currentCol = %d, want 4", ed.Col)
 	}
@@ -117,7 +118,7 @@ func TestDeleteLineFillsTheRegister(t *testing.T) {
 
 	press(t, "ddp")
 
-	wantLines(t, b, "bar", "foo")
+	edtest.WantLines(t, b, "bar", "foo")
 }
 
 func TestDeleteRuneFillsTheRegister(t *testing.T) {
@@ -125,7 +126,7 @@ func TestDeleteRuneFillsTheRegister(t *testing.T) {
 
 	press(t, "3xp")
 
-	wantLines(t, b, "dabcef")
+	edtest.WantLines(t, b, "dabcef")
 }
 
 func TestPasteWithAnEmptyRegisterDoesNothing(t *testing.T) {
@@ -133,7 +134,7 @@ func TestPasteWithAnEmptyRegisterDoesNothing(t *testing.T) {
 
 	press(t, "p")
 
-	wantLines(t, b, "foo")
+	edtest.WantLines(t, b, "foo")
 	if ed.Modified {
 		t.Error("modified with nothing to paste")
 	}

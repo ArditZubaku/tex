@@ -3,6 +3,7 @@ package editor
 import (
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
@@ -21,7 +22,7 @@ func TestCountedDeleteRune(t *testing.T) {
 
 	press(t, "3x")
 
-	wantLines(t, b, "def")
+	edtest.WantLines(t, b, "def")
 	if got := string(ed.Clip.Content()[0]); got != "abc" {
 		t.Errorf("register holds %q, want %q", got, "abc")
 	}

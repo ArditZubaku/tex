@@ -1,11 +1,9 @@
-package editor
+package buffer
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/ArditZubaku/tex/internal/buffer"
 )
 
 func readBack(t *testing.T, path string) string {
@@ -21,7 +19,7 @@ func readBack(t *testing.T, path string) string {
 
 func TestSaveWritesEditsAndDeletes(t *testing.T) {
 	path := writeTemp(t, "a\nbb\nccc\ndddd\n")
-	b := buffer.Open(path)
+	b := Open(path)
 	defer b.Close()
 
 	b.SetLine(1, []rune("EDITED"))
@@ -51,7 +49,7 @@ func TestSaveTerminators(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			path := writeTemp(t, tc.content)
-			b := buffer.Open(path)
+			b := Open(path)
 			defer b.Close()
 
 			b.InsertRune(1, 0, 'X')
@@ -71,7 +69,7 @@ func TestSaveKeepsFileMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b := buffer.Open(path)
+	b := Open(path)
 	defer b.Close()
 
 	if err := b.Save(path); err != nil {
@@ -88,7 +86,7 @@ func TestSaveKeepsFileMode(t *testing.T) {
 }
 
 func TestSaveCreatesANewFile(t *testing.T) {
-	b := buffer.NewEmpty()
+	b := NewEmpty()
 	path := filepath.Join(t.TempDir(), "new.txt")
 
 	b.InsertRune(0, 0, 'h')
@@ -105,9 +103,11 @@ func TestSaveCreatesANewFile(t *testing.T) {
 }
 
 // Saving must not leave the directory littered if it fails, or on success.
+
+// Saving must not leave the directory littered if it fails, or on success.
 func TestSaveLeavesNoTempFile(t *testing.T) {
 	path := writeTemp(t, "a\n")
-	b := buffer.Open(path)
+	b := Open(path)
 	defer b.Close()
 
 	if err := b.Save(path); err != nil {
@@ -127,7 +127,7 @@ func TestSaveBigFileMatchesFullDecode(t *testing.T) {
 	path := bigFile(t, 5000)
 	want := fullDecode(t, path)
 
-	b := buffer.Open(path)
+	b := Open(path)
 	defer b.Close()
 
 	b.SetLine(41, []rune("was the oversized line"))

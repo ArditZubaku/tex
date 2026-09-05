@@ -4,11 +4,12 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/editor/edit"
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
 func TestReadModeStopsOnTheLastRune(t *testing.T) {
-	atCursor(t, "package main\n", 0, 0)
+	edtest.AtCursor(t, ed, "package main\n", 0, 0)
 	ed.Mode = state.ReadMode
 
 	for range 20 {
@@ -21,7 +22,7 @@ func TestReadModeStopsOnTheLastRune(t *testing.T) {
 }
 
 func TestEditModeReachesTheGapAfterTheLastRune(t *testing.T) {
-	atCursor(t, "package main\n", 0, 0)
+	edtest.AtCursor(t, ed, "package main\n", 0, 0)
 	ed.Mode = state.EditMode
 
 	for range 20 {
@@ -34,7 +35,7 @@ func TestEditModeReachesTheGapAfterTheLastRune(t *testing.T) {
 }
 
 func TestEmptyLineClampsToColumnZero(t *testing.T) {
-	atCursor(t, "package main\n\n", 0, 11)
+	edtest.AtCursor(t, ed, "package main\n\n", 0, 11)
 	ed.Mode = state.ReadMode
 
 	ed.Down()
@@ -46,7 +47,7 @@ func TestEmptyLineClampsToColumnZero(t *testing.T) {
 }
 
 func TestEscStepsOffTheGap(t *testing.T) {
-	atCursor(t, "package main\n", 0, 12)
+	edtest.AtCursor(t, ed, "package main\n", 0, 12)
 	ed.Mode = state.EditMode
 
 	esc()
@@ -57,7 +58,7 @@ func TestEscStepsOffTheGap(t *testing.T) {
 }
 
 func TestReadModeDoesNotWrapBetweenLines(t *testing.T) {
-	atCursor(t, "package main\nfoo\n", 1, 0)
+	edtest.AtCursor(t, ed, "package main\nfoo\n", 1, 0)
 	ed.Mode = state.ReadMode
 
 	ed.Left()
@@ -73,7 +74,7 @@ func TestReadModeDoesNotWrapBetweenLines(t *testing.T) {
 }
 
 func TestEditModeWrapsBetweenLines(t *testing.T) {
-	atCursor(t, "package main\nfoo\n", 1, 0)
+	edtest.AtCursor(t, ed, "package main\nfoo\n", 1, 0)
 	ed.Mode = state.EditMode
 
 	ed.Left()
@@ -88,13 +89,13 @@ func TestEditModeWrapsBetweenLines(t *testing.T) {
 }
 
 func TestDeletingTheLastRunePullsTheCursorBack(t *testing.T) {
-	b := atCursor(t, "abc\n", 0, 2)
+	b := edtest.AtCursor(t, ed, "abc\n", 0, 2)
 	ed.Mode = state.ReadMode
 
 	edit.DeleteRune(ed)
 	ed.ClampCol()
 
-	wantLines(t, b, "ab")
+	edtest.WantLines(t, b, "ab")
 	if ed.Col != 1 {
 		t.Errorf("currentCol = %d, want 1", ed.Col)
 	}

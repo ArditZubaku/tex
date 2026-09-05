@@ -3,6 +3,7 @@ package editor
 import (
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
@@ -11,7 +12,7 @@ func TestVisualDeleteRunesOnOneLine(t *testing.T) {
 
 	press(t, "vlld")
 
-	wantLines(t, b, "def")
+	edtest.WantLines(t, b, "def")
 	if ed.Mode != state.ReadMode {
 		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
@@ -25,7 +26,7 @@ func TestVisualDeleteAcrossLinesJoinsWhatIsLeft(t *testing.T) {
 
 	press(t, "vjld")
 
-	wantLines(t, b, "f", "baz")
+	edtest.WantLines(t, b, "f", "baz")
 	if ed.Row != 0 || ed.Col != 0 {
 		t.Errorf("cursor at %d,%d, want 0,0", ed.Row, ed.Col)
 	}
@@ -37,7 +38,7 @@ func TestVisualDeleteAndPutRoundTrips(t *testing.T) {
 	press(t, "vjld")
 	press(t, "p")
 
-	wantLines(t, b, "foo", "bar", "baz")
+	edtest.WantLines(t, b, "foo", "bar", "baz")
 }
 
 func TestVisualLineDelete(t *testing.T) {
@@ -45,9 +46,9 @@ func TestVisualLineDelete(t *testing.T) {
 
 	press(t, "Vjd")
 
-	wantLines(t, b, "c")
+	edtest.WantLines(t, b, "c")
 	press(t, "P")
-	wantLines(t, b, "a", "b", "c")
+	edtest.WantLines(t, b, "a", "b", "c")
 }
 
 func TestVisualSelectionRunsBackwardsToo(t *testing.T) {
@@ -55,7 +56,7 @@ func TestVisualSelectionRunsBackwardsToo(t *testing.T) {
 
 	press(t, "Vkd")
 
-	wantLines(t, b, "a")
+	edtest.WantLines(t, b, "a")
 }
 
 func TestVisualYankLeavesTheCursorAtTheStart(t *testing.T) {
@@ -63,7 +64,7 @@ func TestVisualYankLeavesTheCursorAtTheStart(t *testing.T) {
 
 	press(t, "vhhy")
 
-	wantLines(t, b, "foo bar")
+	edtest.WantLines(t, b, "foo bar")
 	if ed.Col != 2 {
 		t.Errorf("currentCol = %d, want 2", ed.Col)
 	}
@@ -78,7 +79,7 @@ func TestVisualYankAcrossLinesPutsBackAsARun(t *testing.T) {
 	press(t, "vjy")
 	press(t, "p")
 
-	wantLines(t, b, "fooo", "bao", "bar")
+	edtest.WantLines(t, b, "fooo", "bao", "bar")
 }
 
 func TestCountedMotionExtendsTheSelection(t *testing.T) {
@@ -86,7 +87,7 @@ func TestCountedMotionExtendsTheSelection(t *testing.T) {
 
 	press(t, "v3ld")
 
-	wantLines(t, b, "ef")
+	edtest.WantLines(t, b, "ef")
 }
 
 // A count typed before an operator repeats it, and the repeats must not carry
@@ -96,7 +97,7 @@ func TestCountedOperatorDeletesTheSelectionOnce(t *testing.T) {
 
 	press(t, "vl2d")
 
-	wantLines(t, b, "cdef")
+	edtest.WantLines(t, b, "cdef")
 }
 
 func TestVisualKeysSwitchAndLeaveTheMode(t *testing.T) {
@@ -133,7 +134,7 @@ func TestEscLeavesVisualMode(t *testing.T) {
 		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
 	press(t, "d")
-	wantLines(t, b, "abc")
+	edtest.WantLines(t, b, "abc")
 }
 
 func TestVisualOSwapsTheEndsOfTheSelection(t *testing.T) {
@@ -141,7 +142,7 @@ func TestVisualOSwapsTheEndsOfTheSelection(t *testing.T) {
 
 	press(t, "vllohhd")
 
-	wantLines(t, b, "f")
+	edtest.WantLines(t, b, "f")
 }
 
 func TestVisualChangeReplacesTheRunes(t *testing.T) {
@@ -149,7 +150,7 @@ func TestVisualChangeReplacesTheRunes(t *testing.T) {
 
 	typeIn(t, "vllcBAZ")
 
-	wantLines(t, b, "BAZ bar")
+	edtest.WantLines(t, b, "BAZ bar")
 	if ed.Mode != state.EditMode {
 		t.Errorf("mode = %v, want EditMode", ed.Mode)
 	}
@@ -160,17 +161,17 @@ func TestVisualLineChangeLeavesOneLineToTypeOn(t *testing.T) {
 
 	typeIn(t, "VjcX")
 
-	wantLines(t, b, "X", "c")
+	edtest.WantLines(t, b, "X", "c")
 }
 
 func TestVisualDeleteAcrossLinesUndoesInOneStep(t *testing.T) {
 	b := inReadMode(t, "foo\nbar\nbaz\nqux\n", 0, 1)
 
 	press(t, "vjjld")
-	wantLines(t, b, "f", "qux")
+	edtest.WantLines(t, b, "f", "qux")
 
 	press(t, "u")
-	wantLines(t, b, "foo", "bar", "baz", "qux")
+	edtest.WantLines(t, b, "foo", "bar", "baz", "qux")
 }
 
 func TestVisualLineChangeUndoesInOneStep(t *testing.T) {
@@ -180,7 +181,7 @@ func TestVisualLineChangeUndoesInOneStep(t *testing.T) {
 	esc()
 
 	press(t, "u")
-	wantLines(t, b, "a", "b", "c")
+	edtest.WantLines(t, b, "a", "b", "c")
 }
 
 func TestSelectingAnEmptyLineYanksNothingToPutBack(t *testing.T) {
@@ -188,7 +189,7 @@ func TestSelectingAnEmptyLineYanksNothingToPutBack(t *testing.T) {
 
 	press(t, "vyjp")
 
-	wantLines(t, b, "", "foo")
+	edtest.WantLines(t, b, "", "foo")
 	if ed.Col != 0 {
 		t.Errorf("currentCol = %d, want 0", ed.Col)
 	}

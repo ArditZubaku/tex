@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/nsf/termbox-go"
@@ -213,7 +214,7 @@ func TestCtrlHIsStillBackspaceWhileTyping(t *testing.T) {
 	if view.Focused() != right {
 		t.Error("Ctrl-H left the window while typing")
 	}
-	wantLines(t, ed.Buf, "frst")
+	edtest.WantLines(t, ed.Buf, "frst")
 }
 
 func TestClosingAWindowGivesItsRoomBack(t *testing.T) {
