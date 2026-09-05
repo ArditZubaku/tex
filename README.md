@@ -103,6 +103,21 @@ otherwise close a cycle.
 - **Modal editing** — a Read (Normal) mode for navigation, an Edit (Insert) mode for typing and a Visual mode for selecting, with the terminal cursor changing shape (block vs. blinking bar) depending on mode. The cursor sits *on* a character in Normal mode, stopping at the last one on the line like VIM does; only Insert mode reaches the column past it, where appending happens.
 - **VIM-style navigation** — `hjkl`, word motions (`w`/`b`/`e`), line jumps (`I`/`A`), buffer jumps (`gg`/`G`); see the full list below.
 - **Saving** — `:w` or `Ctrl-S`, in either mode. The buffer is streamed to a temporary file in the same directory and renamed over the target, so a failed write cannot truncate the original; untouched lines are copied as raw bytes, so a save costs no more memory than scrolling does. File permissions, CRLF line endings on untouched lines, and a missing trailing newline are all preserved.
+- **Format on save** — a file written with `:w`, `:wq` or `Ctrl-S` is handed to whatever formats its language, and the result is read straight back into the buffer, so the formatting appears under the cursor rather than only on disk. Four languages so far, each taking the first of its formatters that is actually installed: **Go** (`gofumpt`, `goimports`, `gofmt`), **Rust** (`rustfmt`), and **JavaScript**/**TypeScript** (`prettier`, `biome`) — a JavaScript project's own `node_modules/.bin` is looked in before the `PATH`, since that is where `prettier` almost always is. A language with nothing installed for it, and a file of any other kind, is written exactly as it was. The formatter runs from inside the file's own directory, so `rustfmt.toml`, `.prettierrc` and the rest are found the way the tool's own CLI finds them.
+
+  It costs a save what the formatter itself costs and nothing else: the lookup for a formatter on the `PATH` is made once and remembered, a file already formatted is left alone and not reread — `gofmt` over a 300-line file takes about **3ms**, which is under a frame either way — and only a file the formatter actually rewrote is read back, which the modification time says without reading either version. A formatter that hangs is given five seconds and then killed, since the editor's loop blocks on the keyboard, and a file too large for one to be worth waiting on (4MB) is written unformatted. **The write always lands first.** A formatter that refuses the file — while it is being typed into, almost always a syntax error rather than anything else — leaves what was written exactly where it is, and its complaint goes in a box in the top-right corner rather than onto the status line, which carries the write as usual:
+
+  ```
+   broken.go
+  1   package main                                       ┌─ gofmt ───────────────────────────────────┐
+    1                                                    │ broken.go:6:20: expected '}', found 'EOF' │
+    2 import "fmt"                                       └───────────────────────────────────────────┘
+    3
+    4 func main() {
+    5  fmt.Println("hi")
+  ```
+
+  The box is titled with the formatter that raised it, sized to the message and wrapped to fit, and comes down on `Esc`, on the next write, or once six seconds have passed — nothing wakes the editor, so it is the next keypress that takes an expired one off the screen, which leaves it up for as long as nobody is at the keyboard, which is when it is being read. A save is never lost to a half-finished line. Undo survives a reformat that only moved text within its lines, which is what most of them are; one that added or removed a line is the one case that drops the history, since replaying it would put lines back at rows that have moved. `:wa` formats every buffer it writes, on the same terms.
 - **Deleting** — `x`, `dw`, `de`, `db` and `dd` in Normal mode, `Backspace` in Insert mode, all in place: a line delete compacts the line index rather than rebuilding it, and a character delete reuses the edited line's own backing array, so deleting never costs more memory than the text it removes.
 - **Line structure** — `o`/`O` open a line, `Enter` splits one at the cursor and `Backspace` at column 0 joins it back. Each shifts the line index in place rather than rebuilding it, and a split copies only the tail: the half before the cursor keeps the array it already had.
 - **Yank and put** — `yy`, `yw`, `ye` and `yb` copy into VIM's unnamed register, which the delete operators fill too, and `p`/`P` put it back after or before the cursor. A line yank puts whole lines below or above the cursor; a word yank puts the run of characters back into the line the cursor is on.
@@ -171,10 +186,10 @@ otherwise close a cycle.
 | `?` | Normal | the same, searching backwards |
 | `n` | Normal | jump to the next match in the search's direction |
 | `N` | Normal | jump to the next match against it |
-| `:w` | Normal | write the buffer (`:w name` writes there and keeps editing it) |
+| `:w` | Normal | write the buffer, formatting it first (`:w name` writes there and keeps editing it) |
 | `:q` | Normal | quit, refusing if there are unsaved changes |
 | `:q!` | Normal | quit, dropping unsaved changes |
-| `:wq` `:x` | Normal | write, then quit |
+| `:wq` `:x` | Normal | write and format, then quit |
 | `:42` `:$` | Normal | jump to that line / the last line |
 | `:noh` | Normal | clear the search highlight |
 | `:e` | Normal | edit another file (`:e name`); refuses to drop unsaved changes, `:e!` overrides |
@@ -197,7 +212,7 @@ otherwise close a cycle.
 | `gr` | Normal | list every mention of the identifier under the cursor |
 | `<leader>cr` | Normal | rename the identifier under the cursor as far as it reaches |
 | `:rename` | Normal | the same, typed out (`:rename handle`) |
-| `:wa` | Normal | write every buffer with unsaved changes |
+| `:wa` | Normal | write and format every buffer with unsaved changes |
 | `Ctrl-O` | Normal | go back to where the last jump left from |
 | `<leader><leader>` | Normal | open the file picker on the project root |
 | `<leader>ss` | Normal | list the declarations of the file being edited |
@@ -236,11 +251,11 @@ otherwise close a cycle.
 | `O` | Normal | open an empty line above and enter Insert mode |
 | `i` | Normal | enter Insert mode before the cursor |
 | `a` | Normal | enter Insert mode after the cursor |
-| `Ctrl-S` | Either | save to the file that was opened |
+| `Ctrl-S` | Either | save to the file that was opened, formatting it first |
 | `zz` | Normal | redraw with the cursor's line in the middle of the window, keeping the column (`[count]zz` centres on that line) |
 | `Ctrl-U` | Either | scroll up half a screen |
 | `Ctrl-D` | Either | scroll down half a screen |
-| `Esc` | Insert | return to Normal mode (cursor steps back a column, VIM-style) |
+| `Esc` | Insert | return to Normal mode (cursor steps back a column, VIM-style), taking down the error box with it |
 
 Arrow keys, `Home`, `End`, `PgUp`, and `PgDn` also work in either mode. Left and
 right stop at the ends of the line in Normal mode; in Insert mode they wrap onto
