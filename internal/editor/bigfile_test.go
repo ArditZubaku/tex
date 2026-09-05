@@ -1,10 +1,6 @@
 package editor
 
 import (
-	"bufio"
-	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -17,66 +13,11 @@ import (
 
 // bigFile needs many window refills, with line lengths varying either side
 // of the window size so refill boundaries land in awkward places.
-func bigFile(t *testing.T, lines int) string {
-	t.Helper()
-
-	path := filepath.Join(t.TempDir(), "big.txt")
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = f.Close() }()
-
-	w := bufio.NewWriter(f)
-	for i := range lines {
-		switch i % 97 {
-		case 0:
-			// empty line
-		case 13:
-			_, _ = fmt.Fprintf(w, "%d %s", i, strings.Repeat("ünïcödé ", 9))
-		case 41:
-			// longer than the whole window, to force the oversize path
-			_, _ = fmt.Fprintf(w, "%d %s", i, strings.Repeat("x", buffer.WindowBytes+512))
-		default:
-			_, _ = fmt.Fprintf(w, "%d %s", i, strings.Repeat("abcdefgh ", 1+i%14))
-		}
-		_ = w.WriteByte('\n')
-	}
-	if err := w.Flush(); err != nil {
-		t.Fatal(err)
-	}
-
-	return path
-}
-
-// fullDecode is the reference the windowed Buffer is checked against.
-func fullDecode(t *testing.T, path string) [][]rune {
-	t.Helper()
-
-	f, err := os.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = f.Close() }()
-
-	var lines [][]rune
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 0, 64*1024), 4<<20)
-	for sc.Scan() {
-		lines = append(lines, []rune(sc.Text()))
-	}
-	if err := sc.Err(); err != nil {
-		t.Fatal(err)
-	}
-
-	return lines
-}
-
 // An off-by-one in the window bounds surfaces here as a panic or stuck cursor.
 func TestNavigationOverBigFile(t *testing.T) {
 	e := state.New()
 
-	e.Buf = buffer.Open(bigFile(t, 20000))
+	e.Buf = buffer.Open(edtest.BigFile(t, 20000))
 	defer e.Buf.Close()
 
 	edtest.SingleWindow(e, 30, 80)
@@ -135,7 +76,7 @@ func TestNavigationOverBigFile(t *testing.T) {
 func TestInsertDoesNotCorruptNeighbours(t *testing.T) {
 	e := state.New()
 
-	e.Buf = buffer.Open(bigFile(t, 20000))
+	e.Buf = buffer.Open(edtest.BigFile(t, 20000))
 	defer e.Buf.Close()
 
 	const row = 5001

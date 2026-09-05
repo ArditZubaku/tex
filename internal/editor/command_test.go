@@ -135,7 +135,7 @@ func TestLineNumberCommandJumps(t *testing.T) {
 
 	edtest.Press(t, e, ":4\n")
 
-	wantCursor(e, t, 3, 0)
+	edtest.WantCursor(t, e, 3, 0)
 }
 
 func TestLineNumberCommandClamps(t *testing.T) {
@@ -144,10 +144,10 @@ func TestLineNumberCommandClamps(t *testing.T) {
 	edtest.InReadMode(t, e, "a\nb\nc\n", 0, 0)
 
 	edtest.Press(t, e, ":99\n")
-	wantCursor(e, t, 2, 0)
+	edtest.WantCursor(t, e, 2, 0)
 
 	edtest.Press(t, e, ":0\n")
-	wantCursor(e, t, 0, 0)
+	edtest.WantCursor(t, e, 0, 0)
 }
 
 func TestDollarCommandJumpsToTheLastLine(t *testing.T) {
@@ -157,7 +157,7 @@ func TestDollarCommandJumpsToTheLastLine(t *testing.T) {
 
 	edtest.Press(t, e, ":$\n")
 
-	wantCursor(e, t, 2, 0)
+	edtest.WantCursor(t, e, 2, 0)
 }
 
 func TestUnknownCommandIsReported(t *testing.T) {
@@ -187,7 +187,7 @@ func TestNohlsearchCommandClearsTheHighlight(t *testing.T) {
 		t.Errorf("still highlighting %v after :noh", hits.Cols())
 	}
 	edtest.Press(t, e, "n")
-	wantCursor(e, t, 0, 0)
+	edtest.WantCursor(t, e, 0, 0)
 }
 
 func TestEscLeavesTheCommandPromptWithoutRunningIt(t *testing.T) {

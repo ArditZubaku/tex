@@ -136,11 +136,11 @@ func TestEachWindowKeepsItsOwnCursor(t *testing.T) {
 	edtest.Press(t, e, "l") // only the lower window moves
 	edtest.PressKey(t, e, termbox.KeyCtrlK)
 
-	wantCursor(e, t, 0, 0)
+	edtest.WantCursor(t, e, 0, 0)
 
 	edtest.PressKey(t, e, termbox.KeyCtrlJ)
 
-	wantCursor(e, t, 0, 1)
+	edtest.WantCursor(t, e, 0, 1)
 }
 
 func TestTheLayoutPassLeavesTheCursorWhereItIs(t *testing.T) {
@@ -151,7 +151,7 @@ func TestTheLayoutPassLeavesTheCursorWhereItIs(t *testing.T) {
 	edtest.Press(t, e, "l")
 	view.Layout(e) // which every redraw runs before anything is drawn
 
-	wantCursor(e, t, 0, 1)
+	edtest.WantCursor(t, e, 0, 1)
 }
 
 func TestCtrlJAndCtrlKMoveBetweenStackedWindows(t *testing.T) {

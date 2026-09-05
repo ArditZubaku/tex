@@ -174,7 +174,7 @@ func TestVisualChangeReplacesTheRunes(t *testing.T) {
 
 	b := edtest.InReadMode(t, e, "foo bar\n", 0, 0)
 
-	typeIn(e, t, "vllcBAZ")
+	edtest.TypeIn(t, e, "vllcBAZ")
 
 	edtest.WantLines(t, b, "BAZ bar")
 	if e.Mode != state.EditMode {
@@ -187,7 +187,7 @@ func TestVisualLineChangeLeavesOneLineToTypeOn(t *testing.T) {
 
 	b := edtest.InReadMode(t, e, "a\nb\nc\n", 0, 0)
 
-	typeIn(e, t, "VjcX")
+	edtest.TypeIn(t, e, "VjcX")
 
 	edtest.WantLines(t, b, "X", "c")
 }
@@ -209,7 +209,7 @@ func TestVisualLineChangeUndoesInOneStep(t *testing.T) {
 
 	b := edtest.InReadMode(t, e, "a\nb\nc\n", 0, 0)
 
-	typeIn(e, t, "VjcX")
+	edtest.TypeIn(t, e, "VjcX")
 	edtest.Esc(t, e)
 
 	edtest.Press(t, e, "u")

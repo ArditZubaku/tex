@@ -121,8 +121,8 @@ func TestEnterOpensThePickedFileAsABuffer(t *testing.T) {
 	if e.Pick.Open() {
 		t.Error("the picker stayed open")
 	}
-	wantCurrent(e, t, "two.go")
-	wantBuffers(t, "start.txt", "two.go")
+	edtest.WantCurrent(t, e, "two.go")
+	edtest.WantBuffers(t, "start.txt", "two.go")
 }
 
 func TestCtrlNAndCtrlPWalkTheListing(t *testing.T) {
@@ -135,7 +135,7 @@ func TestCtrlNAndCtrlPWalkTheListing(t *testing.T) {
 	edtest.PressKey(t, e, termbox.KeyCtrlN) // which is as far as two files go
 	edtest.PressKey(t, e, termbox.KeyEnter)
 
-	wantCurrent(e, t, "two.go")
+	edtest.WantCurrent(t, e, "two.go")
 }
 
 func TestEscClosesThePickerAndLeavesTheBufferAlone(t *testing.T) {
@@ -149,7 +149,7 @@ func TestEscClosesThePickerAndLeavesTheBufferAlone(t *testing.T) {
 	if e.Pick.Open() || e.Mode != state.ReadMode {
 		t.Errorf("picker open = %v, mode = %v", e.Pick.Open(), e.Mode)
 	}
-	wantCurrent(e, t, "start.txt")
+	edtest.WantCurrent(t, e, "start.txt")
 }
 
 func TestBackspacingOffAnEmptyQueryClosesThePicker(t *testing.T) {

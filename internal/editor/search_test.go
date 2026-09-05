@@ -12,14 +12,6 @@ import (
 	"github.com/ArditZubaku/tex/internal/search"
 )
 
-func wantCursor(e *state.Editor, t *testing.T, row, col int) {
-	t.Helper()
-
-	if e.Row != row || e.Col != col {
-		t.Errorf("cursor at %d,%d, want %d,%d", e.Row, e.Col, row, col)
-	}
-}
-
 func TestSearchJumpsToTheStartOfTheMatch(t *testing.T) {
 	e := state.New()
 
@@ -27,7 +19,7 @@ func TestSearchJumpsToTheStartOfTheMatch(t *testing.T) {
 
 	edtest.Press(t, e, "/needle\n")
 
-	wantCursor(e, t, 1, 5)
+	edtest.WantCursor(t, e, 1, 5)
 }
 
 func TestSearchStartsAfterTheCursor(t *testing.T) {
@@ -37,7 +29,7 @@ func TestSearchStartsAfterTheCursor(t *testing.T) {
 
 	edtest.Press(t, e, "/foo\n")
 
-	wantCursor(e, t, 0, 4)
+	edtest.WantCursor(t, e, 0, 4)
 }
 
 func TestSearchWrapsAroundTheEndOfTheBuffer(t *testing.T) {
@@ -47,7 +39,7 @@ func TestSearchWrapsAroundTheEndOfTheBuffer(t *testing.T) {
 
 	edtest.Press(t, e, "/needle\n")
 
-	wantCursor(e, t, 0, 0)
+	edtest.WantCursor(t, e, 0, 0)
 }
 
 func TestSearchWrapsBackOntoTheStartingLine(t *testing.T) {
@@ -57,7 +49,7 @@ func TestSearchWrapsBackOntoTheStartingLine(t *testing.T) {
 
 	edtest.Press(t, e, "/needle\n")
 
-	wantCursor(e, t, 0, 3)
+	edtest.WantCursor(t, e, 0, 3)
 }
 
 func TestBackwardSearchFindsTheMatchBeforeTheCursor(t *testing.T) {
@@ -67,7 +59,7 @@ func TestBackwardSearchFindsTheMatchBeforeTheCursor(t *testing.T) {
 
 	edtest.Press(t, e, "?two\n")
 
-	wantCursor(e, t, 1, 6)
+	edtest.WantCursor(t, e, 1, 6)
 }
 
 func TestBackwardSearchWrapsToTheEnd(t *testing.T) {
@@ -77,7 +69,7 @@ func TestBackwardSearchWrapsToTheEnd(t *testing.T) {
 
 	edtest.Press(t, e, "?needle\n")
 
-	wantCursor(e, t, 2, 0)
+	edtest.WantCursor(t, e, 2, 0)
 }
 
 func TestNextMatchRepeatsTheSearch(t *testing.T) {
@@ -87,7 +79,7 @@ func TestNextMatchRepeatsTheSearch(t *testing.T) {
 
 	edtest.Press(t, e, "/hit\nn")
 
-	wantCursor(e, t, 2, 0)
+	edtest.WantCursor(t, e, 2, 0)
 }
 
 func TestPreviousMatchRunsAgainstTheSearchDirection(t *testing.T) {
@@ -97,7 +89,7 @@ func TestPreviousMatchRunsAgainstTheSearchDirection(t *testing.T) {
 
 	edtest.Press(t, e, "/hit\nnN")
 
-	wantCursor(e, t, 1, 0)
+	edtest.WantCursor(t, e, 1, 0)
 }
 
 func TestNextMatchAfterABackwardSearchKeepsGoingBackwards(t *testing.T) {
@@ -107,7 +99,7 @@ func TestNextMatchAfterABackwardSearchKeepsGoingBackwards(t *testing.T) {
 
 	edtest.Press(t, e, "?hit\nn")
 
-	wantCursor(e, t, 0, 0)
+	edtest.WantCursor(t, e, 0, 0)
 }
 
 func TestCountedNextMatch(t *testing.T) {
@@ -117,7 +109,7 @@ func TestCountedNextMatch(t *testing.T) {
 
 	edtest.Press(t, e, "/hit\n2n")
 
-	wantCursor(e, t, 3, 0)
+	edtest.WantCursor(t, e, 3, 0)
 }
 
 func TestSearchWithNoMatchLeavesTheCursorAndReports(t *testing.T) {
@@ -127,7 +119,7 @@ func TestSearchWithNoMatchLeavesTheCursorAndReports(t *testing.T) {
 
 	edtest.Press(t, e, "/three\n")
 
-	wantCursor(e, t, 1, 1)
+	edtest.WantCursor(t, e, 1, 1)
 	if e.StatusMsg != "Pattern not found: three" {
 		t.Errorf("statusMsg = %q", e.StatusMsg)
 	}
@@ -140,7 +132,7 @@ func TestSearchSpansSeveralWords(t *testing.T) {
 
 	edtest.Press(t, e, "/quick brown\n")
 
-	wantCursor(e, t, 1, 4)
+	edtest.WantCursor(t, e, 1, 4)
 }
 
 func TestSearchFindsOverlappingMatches(t *testing.T) {
@@ -150,7 +142,7 @@ func TestSearchFindsOverlappingMatches(t *testing.T) {
 
 	edtest.Press(t, e, "/aa\nn")
 
-	wantCursor(e, t, 0, 2)
+	edtest.WantCursor(t, e, 0, 2)
 }
 
 func TestSearchCountsColumnsInRunesNotBytes(t *testing.T) {
@@ -160,7 +152,7 @@ func TestSearchCountsColumnsInRunesNotBytes(t *testing.T) {
 
 	edtest.Press(t, e, "/needle\n")
 
-	wantCursor(e, t, 0, 10)
+	edtest.WantCursor(t, e, 0, 10)
 }
 
 func TestSearchIsCaseSensitive(t *testing.T) {
@@ -170,7 +162,7 @@ func TestSearchIsCaseSensitive(t *testing.T) {
 
 	edtest.Press(t, e, "/needle\n")
 
-	wantCursor(e, t, 1, 0)
+	edtest.WantCursor(t, e, 1, 0)
 }
 
 func TestSearchSeesLinesEditedInTheOverlay(t *testing.T) {
@@ -181,7 +173,7 @@ func TestSearchSeesLinesEditedInTheOverlay(t *testing.T) {
 
 	edtest.Press(t, e, "/needle\n")
 
-	wantCursor(e, t, 1, 2)
+	edtest.WantCursor(t, e, 1, 2)
 }
 
 func TestSearchReachesPastTheReadWindow(t *testing.T) {
@@ -193,7 +185,7 @@ func TestSearchReachesPastTheReadWindow(t *testing.T) {
 
 	edtest.Press(t, e, "/needle\n")
 
-	wantCursor(e, t, want, 4)
+	edtest.WantCursor(t, e, want, 4)
 }
 
 func TestEmptyPatternRepeatsTheLastSearch(t *testing.T) {
@@ -204,7 +196,7 @@ func TestEmptyPatternRepeatsTheLastSearch(t *testing.T) {
 	edtest.Press(t, e, "/hit\n")
 	edtest.Press(t, e, "/\n")
 
-	wantCursor(e, t, 0, 0)
+	edtest.WantCursor(t, e, 0, 0)
 }
 
 func TestEmptyPatternTakesTheDirectionItWasTypedWith(t *testing.T) {
@@ -215,7 +207,7 @@ func TestEmptyPatternTakesTheDirectionItWasTypedWith(t *testing.T) {
 	edtest.Press(t, e, "/hit\n")
 	edtest.Press(t, e, "?\n")
 
-	wantCursor(e, t, 0, 0)
+	edtest.WantCursor(t, e, 0, 0)
 }
 
 func TestEscCancelsTheSearchPrompt(t *testing.T) {
@@ -229,7 +221,7 @@ func TestEscCancelsTheSearchPrompt(t *testing.T) {
 	if e.Mode != state.ReadMode {
 		t.Errorf("mode = %v, want ReadMode", e.Mode)
 	}
-	wantCursor(e, t, 0, 1)
+	edtest.WantCursor(t, e, 0, 1)
 }
 
 func TestBackspaceOnAnEmptyPromptCancelsTheSearch(t *testing.T) {
@@ -242,7 +234,7 @@ func TestBackspaceOnAnEmptyPromptCancelsTheSearch(t *testing.T) {
 	if e.Mode != state.ReadMode {
 		t.Errorf("mode = %v, want ReadMode", e.Mode)
 	}
-	wantCursor(e, t, 0, 1)
+	edtest.WantCursor(t, e, 0, 1)
 }
 
 func TestBackspaceEditsThePattern(t *testing.T) {
@@ -252,7 +244,7 @@ func TestBackspaceEditsThePattern(t *testing.T) {
 
 	edtest.Press(t, e, "/needlex\b\n")
 
-	wantCursor(e, t, 1, 0)
+	edtest.WantCursor(t, e, 1, 0)
 }
 
 func TestThePromptShowsWhatIsBeingTyped(t *testing.T) {
@@ -281,7 +273,7 @@ func TestNextMatchWithoutASearchDoesNothing(t *testing.T) {
 
 	edtest.Press(t, e, "nN")
 
-	wantCursor(e, t, 0, 1)
+	edtest.WantCursor(t, e, 0, 1)
 	if e.StatusMsg != "" {
 		t.Errorf("statusMsg = %q, want empty", e.StatusMsg)
 	}
@@ -311,7 +303,7 @@ func TestMatchesAreHighlightedUntilEsc(t *testing.T) {
 	}
 
 	edtest.Press(t, e, "n")
-	wantCursor(e, t, 0, 0)
+	edtest.WantCursor(t, e, 0, 0)
 }
 
 // referenceMatches is the brute-force answer the windowed search is checked
@@ -332,8 +324,8 @@ func referenceMatches(lines [][]rune, pat []rune) [][2]int {
 func TestSearchOverBigFileMatchesFullDecode(t *testing.T) {
 	e := state.New()
 
-	path := bigFile(t, 3000)
-	want := referenceMatches(fullDecode(t, path), []rune("ünïcödé"))
+	path := edtest.BigFile(t, 3000)
+	want := referenceMatches(edtest.FullDecode(t, path), []rune("ünïcödé"))
 	if len(want) < 30 {
 		t.Fatalf("test file holds %d matches, too few to be interesting", len(want))
 	}

@@ -5,18 +5,8 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/edtest"
-	"github.com/ArditZubaku/tex/internal/editor/keys"
 	"github.com/ArditZubaku/tex/internal/editor/state"
-	"github.com/nsf/termbox-go"
 )
-
-func typeIn(e *state.Editor, t *testing.T, text string) {
-	t.Helper()
-
-	for _, ch := range text {
-		keys.Dispatch(e, termbox.Event{Ch: ch})
-	}
-}
 
 func TestUndoRedoDeleteLine(t *testing.T) {
 	e := state.New()
@@ -54,7 +44,7 @@ func TestUndoInsertSessionAsOneChange(t *testing.T) {
 	b := edtest.InReadMode(t, e, "foo\n", 0, 0)
 
 	edtest.Press(t, e, "i")
-	typeIn(e, t, "abc")
+	edtest.TypeIn(t, e, "abc")
 	edtest.Esc(t, e)
 	edtest.WantLines(t, b, "abcfoo")
 
@@ -74,7 +64,7 @@ func TestUndoOpenedLine(t *testing.T) {
 	b := edtest.InReadMode(t, e, "foo\n", 0, 0)
 
 	edtest.Press(t, e, "o")
-	typeIn(e, t, "bar")
+	edtest.TypeIn(t, e, "bar")
 	edtest.Esc(t, e)
 	edtest.WantLines(t, b, "foo", "bar")
 

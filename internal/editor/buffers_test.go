@@ -38,37 +38,6 @@ func openPaths(e *state.Editor, t *testing.T, paths ...string) {
 	}
 }
 
-func bufferNames() []string {
-	names := make([]string, 0, len(view.Buffers()))
-	for _, entry := range view.Buffers() {
-		names = append(names, filepath.Base(entry.Path))
-	}
-
-	return names
-}
-
-func wantBuffers(t *testing.T, want ...string) {
-	t.Helper()
-
-	got := bufferNames()
-	if len(got) != len(want) {
-		t.Fatalf("buffers = %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("buffers = %v, want %v", got, want)
-		}
-	}
-}
-
-func wantCurrent(e *state.Editor, t *testing.T, want string) {
-	t.Helper()
-
-	if got := filepath.Base(e.SourceFile); got != want {
-		t.Errorf("editing %q, want %q", got, want)
-	}
-}
-
 func TestEditKeepsTheBufferItLeavesInTheList(t *testing.T) {
 	e := state.New()
 
@@ -76,8 +45,8 @@ func TestEditKeepsTheBufferItLeavesInTheList(t *testing.T) {
 
 	openPaths(e, t, paths...)
 
-	wantBuffers(t, "f.txt", "a.txt", "b.txt")
-	wantCurrent(e, t, "b.txt")
+	edtest.WantBuffers(t, "f.txt", "a.txt", "b.txt")
+	edtest.WantCurrent(t, e, "b.txt")
 }
 
 func TestTabWalksTheBufferListAndWrapsRound(t *testing.T) {
@@ -87,10 +56,10 @@ func TestTabWalksTheBufferListAndWrapsRound(t *testing.T) {
 	openPaths(e, t, paths...)
 
 	edtest.Press(t, e, "\t")
-	wantCurrent(e, t, "f.txt")
+	edtest.WantCurrent(t, e, "f.txt")
 
 	edtest.Press(t, e, "\t")
-	wantCurrent(e, t, "a.txt")
+	edtest.WantCurrent(t, e, "a.txt")
 }
 
 func TestTabIsStillAnIndentInEditMode(t *testing.T) {
@@ -101,7 +70,7 @@ func TestTabIsStillAnIndentInEditMode(t *testing.T) {
 
 	edtest.Press(t, e, "i\t")
 
-	wantCurrent(e, t, "a.txt")
+	edtest.WantCurrent(t, e, "a.txt")
 	edtest.WantLines(t, e.Buf, "    in a.txt")
 }
 
@@ -112,13 +81,13 @@ func TestShiftHAndShiftLTakeTheBufferBeforeAndAfter(t *testing.T) {
 	openPaths(e, t, paths...)
 
 	edtest.Press(t, e, "H")
-	wantCurrent(e, t, "a.txt")
+	edtest.WantCurrent(t, e, "a.txt")
 
 	edtest.Press(t, e, "L")
-	wantCurrent(e, t, "b.txt")
+	edtest.WantCurrent(t, e, "b.txt")
 
 	edtest.Press(t, e, "L")
-	wantCurrent(e, t, "f.txt")
+	edtest.WantCurrent(t, e, "f.txt")
 }
 
 func TestSwitchingBuffersKeepsTheCursorEachOneWasLeftAt(t *testing.T) {
@@ -130,8 +99,8 @@ func TestSwitchingBuffersKeepsTheCursorEachOneWasLeftAt(t *testing.T) {
 	openPaths(e, t, paths...)
 	edtest.Press(t, e, "\t")
 
-	wantCurrent(e, t, "f.txt")
-	wantCursor(e, t, 0, 1)
+	edtest.WantCurrent(t, e, "f.txt")
+	edtest.WantCursor(t, e, 0, 1)
 }
 
 func TestSwitchingBuffersKeepsUnsavedChangesAndTheirUndoHistory(t *testing.T) {
@@ -163,8 +132,8 @@ func TestEditingAnOpenFileSwitchesToItRatherThanOpeningItTwice(t *testing.T) {
 	edtest.Press(t, e, "\t")
 	edtest.Press(t, e, ":e "+first+"\n")
 
-	wantBuffers(t, "f.txt", "a.txt")
-	wantCurrent(e, t, "a.txt")
+	edtest.WantBuffers(t, "f.txt", "a.txt")
+	edtest.WantCurrent(t, e, "a.txt")
 }
 
 func TestRereadingTheCurrentFileStillRefusesToDropChanges(t *testing.T) {
@@ -197,8 +166,8 @@ func TestBufferDeleteDropsItAndLandsOnTheNextOne(t *testing.T) {
 	edtest.Press(t, e, "H")
 	edtest.Press(t, e, ":bd\n")
 
-	wantBuffers(t, "f.txt", "b.txt")
-	wantCurrent(e, t, "b.txt")
+	edtest.WantBuffers(t, "f.txt", "b.txt")
+	edtest.WantCurrent(t, e, "b.txt")
 }
 
 func TestLeaderBdClosesTheBufferAsBdDoes(t *testing.T) {
@@ -210,8 +179,8 @@ func TestLeaderBdClosesTheBufferAsBdDoes(t *testing.T) {
 	edtest.Press(t, e, "H")
 	edtest.Press(t, e, " bd")
 
-	wantBuffers(t, "f.txt", "b.txt")
-	wantCurrent(e, t, "b.txt")
+	edtest.WantBuffers(t, "f.txt", "b.txt")
+	edtest.WantCurrent(t, e, "b.txt")
 }
 
 func TestLeaderBdLeavesUnsavedChangesAlone(t *testing.T) {
@@ -223,7 +192,7 @@ func TestLeaderBdLeavesUnsavedChangesAlone(t *testing.T) {
 	edtest.Press(t, e, "x")
 	edtest.Press(t, e, " bd")
 
-	wantBuffers(t, "f.txt", "a.txt")
+	edtest.WantBuffers(t, "f.txt", "a.txt")
 	if e.StatusMsg != state.NoWriteSinceChange {
 		t.Errorf("statusMsg = %q, want %q", e.StatusMsg, state.NoWriteSinceChange)
 	}
@@ -236,10 +205,10 @@ func TestLeaderBnAndLeaderBpWalkTheList(t *testing.T) {
 	openPaths(e, t, paths...)
 
 	edtest.Press(t, e, " bp")
-	wantCurrent(e, t, "a.txt")
+	edtest.WantCurrent(t, e, "a.txt")
 
 	edtest.Press(t, e, " bn")
-	wantCurrent(e, t, "b.txt")
+	edtest.WantCurrent(t, e, "b.txt")
 }
 
 func TestLeaderBbGoesBackToTheBufferLastLeft(t *testing.T) {
@@ -250,10 +219,10 @@ func TestLeaderBbGoesBackToTheBufferLastLeft(t *testing.T) {
 
 	edtest.Press(t, e, "H") // a.txt, leaving b.txt behind
 	edtest.Press(t, e, " bb")
-	wantCurrent(e, t, "b.txt")
+	edtest.WantCurrent(t, e, "b.txt")
 
 	edtest.Press(t, e, " bb")
-	wantCurrent(e, t, "a.txt")
+	edtest.WantCurrent(t, e, "a.txt")
 }
 
 func TestLeaderBoClosesEveryOtherBuffer(t *testing.T) {
@@ -264,8 +233,8 @@ func TestLeaderBoClosesEveryOtherBuffer(t *testing.T) {
 
 	edtest.Press(t, e, " bo")
 
-	wantBuffers(t, "b.txt")
-	wantCurrent(e, t, "b.txt")
+	edtest.WantBuffers(t, "b.txt")
+	edtest.WantCurrent(t, e, "b.txt")
 }
 
 func TestLeaderBlAndLeaderBrCloseOneSideOfTheList(t *testing.T) {
@@ -276,11 +245,11 @@ func TestLeaderBlAndLeaderBrCloseOneSideOfTheList(t *testing.T) {
 
 	edtest.Press(t, e, "H") // b.txt, with two buffers to its left and one to its right
 	edtest.Press(t, e, " br")
-	wantBuffers(t, "f.txt", "a.txt", "b.txt")
+	edtest.WantBuffers(t, "f.txt", "a.txt", "b.txt")
 
 	edtest.Press(t, e, " bl")
-	wantBuffers(t, "b.txt")
-	wantCurrent(e, t, "b.txt")
+	edtest.WantBuffers(t, "b.txt")
+	edtest.WantCurrent(t, e, "b.txt")
 }
 
 func TestClosingASideOfTheListRefusesWhenOneOfThemIsUnsaved(t *testing.T) {
@@ -292,7 +261,7 @@ func TestClosingASideOfTheListRefusesWhenOneOfThemIsUnsaved(t *testing.T) {
 	openPaths(e, t, paths...)
 	edtest.Press(t, e, " bl")
 
-	wantBuffers(t, "f.txt", "a.txt")
+	edtest.WantBuffers(t, "f.txt", "a.txt")
 	if want := view.Unwritten(view.Buffers()[0]); e.StatusMsg != want {
 		t.Errorf("statusMsg = %q, want %q", e.StatusMsg, want)
 	}
@@ -322,12 +291,12 @@ func TestBufferDeleteRefusesToDropUnsavedChanges(t *testing.T) {
 	if e.StatusMsg != state.NoWriteSinceChange {
 		t.Errorf("statusMsg = %q, want %q", e.StatusMsg, state.NoWriteSinceChange)
 	}
-	wantBuffers(t, "f.txt", "a.txt")
+	edtest.WantBuffers(t, "f.txt", "a.txt")
 
 	edtest.Press(t, e, ":bd!\n")
 
-	wantBuffers(t, "f.txt")
-	wantCurrent(e, t, "f.txt")
+	edtest.WantBuffers(t, "f.txt")
+	edtest.WantCurrent(t, e, "f.txt")
 }
 
 func TestDeletingTheLastBufferLeavesAnEmptyOne(t *testing.T) {
@@ -337,7 +306,7 @@ func TestDeletingTheLastBufferLeavesAnEmptyOne(t *testing.T) {
 
 	edtest.Press(t, e, ":bd\n")
 
-	wantBuffers(t, state.DefaultFileName)
+	edtest.WantBuffers(t, state.DefaultFileName)
 	if e.Buf.LineCount() != 1 {
 		t.Errorf("%d lines, want the one of an empty buffer", e.Buf.LineCount())
 	}
