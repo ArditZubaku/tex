@@ -44,14 +44,23 @@ internal/
   buffer/               the file: line index, read window, edit overlay
   syntax/               the lexer that colours a line
   fuzzy/                the subsequence match the pickers narrow with
-  editor/               the editor itself: modes, motions, windows, pickers
+  gutter/               how wide the line numbers are, and what they read
+  motion/               where w, e and b land
+  search/               a literal pattern matched over a buffer
+  decl/                 what a declaration looks like: gd, gr and the symbols
+  project/              the tree the file sits in, and the files beside it
+  layout/               the window tree: splits, closes and rectangles
+  editor/               the editor itself: modes, commands, windows, pickers
 ```
 
 Nothing below `editor` imports it, and nothing imports `editor` but `main`, so
-the dependencies run one way: `chars`, `theme` and `buffer` depend on nothing of
-the editor's, `syntax` on `chars` and `theme`, `fuzzy` on `chars`. The editor
+the dependencies run one way: `chars`, `theme`, `buffer`, `gutter`, `project`
+and `layout` depend on nothing of the editor's, `syntax` on `chars` and `theme`,
+`fuzzy` and `decl` on `chars`, `search` on `buffer`, `motion` on both. The editor
 still keeps its state in package-level variables — the cursor, the buffer being
-edited, the mode — which is what makes it one package rather than several.
+edited, the mode — which is what makes it one package rather than several: what
+came out of it is the logic that could be handed its input instead of reading
+it off a global.
 
 ## Features
 
