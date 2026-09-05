@@ -5,152 +5,176 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/edtest"
+	"github.com/ArditZubaku/tex/internal/editor/keys"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
-func typeIn(t *testing.T, text string) {
+func typeIn(e *state.Editor, t *testing.T, text string) {
 	t.Helper()
 
 	for _, ch := range text {
-		handleCharKey(termbox.Event{Ch: ch})
+		keys.Dispatch(e, termbox.Event{Ch: ch})
 	}
 }
 
 func TestUndoRedoDeleteLine(t *testing.T) {
-	b := inReadMode(t, "foo\nbar\n", 0, 0)
+	e := state.New()
 
-	press(t, "dd")
+	b := edtest.InReadMode(t, e, "foo\nbar\n", 0, 0)
+
+	edtest.Press(t, e, "dd")
 	edtest.WantLines(t, b, "bar")
 
-	press(t, "u")
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "foo", "bar")
-	if ed.Row != 0 || ed.Col != 0 {
-		t.Errorf("cursor at %d,%d, want 0,0", ed.Row, ed.Col)
+	if e.Row != 0 || e.Col != 0 {
+		t.Errorf("cursor at %d,%d, want 0,0", e.Row, e.Col)
 	}
 
-	ed.Redo()
+	e.Redo()
 	edtest.WantLines(t, b, "bar")
 }
 
 func TestUndoCountedDeleteLineInOneStep(t *testing.T) {
-	b := inReadMode(t, "a\nb\nc\n", 0, 0)
+	e := state.New()
 
-	press(t, "2dd")
+	b := edtest.InReadMode(t, e, "a\nb\nc\n", 0, 0)
+
+	edtest.Press(t, e, "2dd")
 	edtest.WantLines(t, b, "c")
 
-	press(t, "u")
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "a", "b", "c")
 }
 
 func TestUndoInsertSessionAsOneChange(t *testing.T) {
-	b := inReadMode(t, "foo\n", 0, 0)
+	e := state.New()
 
-	press(t, "i")
-	typeIn(t, "abc")
-	esc()
+	b := edtest.InReadMode(t, e, "foo\n", 0, 0)
+
+	edtest.Press(t, e, "i")
+	typeIn(e, t, "abc")
+	edtest.Esc(t, e)
 	edtest.WantLines(t, b, "abcfoo")
 
-	press(t, "u")
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "foo")
-	if ed.Hist.CanUndo() {
+	if e.Hist.CanUndo() {
 		t.Error("the insert session left more than one change behind")
 	}
 
-	ed.Redo()
+	e.Redo()
 	edtest.WantLines(t, b, "abcfoo")
 }
 
 func TestUndoOpenedLine(t *testing.T) {
-	b := inReadMode(t, "foo\n", 0, 0)
+	e := state.New()
 
-	press(t, "o")
-	typeIn(t, "bar")
-	esc()
+	b := edtest.InReadMode(t, e, "foo\n", 0, 0)
+
+	edtest.Press(t, e, "o")
+	typeIn(e, t, "bar")
+	edtest.Esc(t, e)
 	edtest.WantLines(t, b, "foo", "bar")
 
-	press(t, "u")
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "foo")
 }
 
 func TestUndoSplit(t *testing.T) {
-	b := inReadMode(t, "foobar\n", 0, 3)
+	e := state.New()
 
-	press(t, "i")
-	edit.Enter(ed)
-	esc()
+	b := edtest.InReadMode(t, e, "foobar\n", 0, 3)
+
+	edtest.Press(t, e, "i")
+	edit.Enter(e)
+	edtest.Esc(t, e)
 	edtest.WantLines(t, b, "foo", "bar")
 
-	press(t, "u")
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "foobar")
 
-	ed.Redo()
+	e.Redo()
 	edtest.WantLines(t, b, "foo", "bar")
 }
 
 func TestUndoJoinRestoresBothLines(t *testing.T) {
-	b := inReadMode(t, "foo\nbar\n", 1, 0)
+	e := state.New()
 
-	press(t, "i")
-	edit.Backspace(ed)
-	esc()
+	b := edtest.InReadMode(t, e, "foo\nbar\n", 1, 0)
+
+	edtest.Press(t, e, "i")
+	edit.Backspace(e)
+	edtest.Esc(t, e)
 	edtest.WantLines(t, b, "foobar")
 
-	press(t, "u")
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "foo", "bar")
 }
 
 func TestUndoPaste(t *testing.T) {
-	b := inReadMode(t, "foo\n", 0, 0)
+	e := state.New()
 
-	press(t, "yy3p")
+	b := edtest.InReadMode(t, e, "foo\n", 0, 0)
+
+	edtest.Press(t, e, "yy3p")
 	edtest.WantLines(t, b, "foo", "foo", "foo", "foo")
 
-	press(t, "u")
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "foo")
 }
 
 func TestNewEditClearsTheRedoStack(t *testing.T) {
-	b := inReadMode(t, "a\nb\n", 0, 0)
+	e := state.New()
 
-	press(t, "ddu")
-	if !ed.Hist.CanRedo() {
+	b := edtest.InReadMode(t, e, "a\nb\n", 0, 0)
+
+	edtest.Press(t, e, "ddu")
+	if !e.Hist.CanRedo() {
 		t.Fatal("the undone delete left nothing to redo")
 	}
 
-	press(t, "x")
-	if ed.Hist.CanRedo() {
+	edtest.Press(t, e, "x")
+	if e.Hist.CanRedo() {
 		t.Error("the new edit left the redo stack standing")
 	}
 	edtest.WantLines(t, b, "", "b")
 }
 
 func TestUndoEmptyingTheLastLine(t *testing.T) {
-	b := inReadMode(t, "solo\n", 0, 0)
+	e := state.New()
 
-	press(t, "dd")
+	b := edtest.InReadMode(t, e, "solo\n", 0, 0)
+
+	edtest.Press(t, e, "dd")
 	edtest.WantLines(t, b, "")
 
-	press(t, "u")
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "solo")
 }
 
 func TestUndoDeleteWord(t *testing.T) {
-	b := inReadMode(t, "foo bar baz\n", 0, 0)
+	e := state.New()
 
-	press(t, "dw")
+	b := edtest.InReadMode(t, e, "foo bar baz\n", 0, 0)
+
+	edtest.Press(t, e, "dw")
 	edtest.WantLines(t, b, "bar baz")
 
-	press(t, "u")
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "foo bar baz")
 
-	ed.Redo()
+	e.Redo()
 	edtest.WantLines(t, b, "bar baz")
 }
 
 func TestUndoWithNothingToUndo(t *testing.T) {
-	b := inReadMode(t, "foo\n", 0, 0)
+	e := state.New()
 
-	press(t, "u")
+	b := edtest.InReadMode(t, e, "foo\n", 0, 0)
+
+	edtest.Press(t, e, "u")
 
 	edtest.WantLines(t, b, "foo")
 }

@@ -4,23 +4,26 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
 func TestGrListsEveryMentionInTheFileAndTheOnesBesideIt(t *testing.T) {
-	inDefinition(t, "func target() {}\n\ntarget()\n", 0, 5, map[string]string{
+	e := state.New()
+
+	inDefinition(e, t, "func target() {}\n\ntarget()\n", 0, 5, map[string]string{
 		"other.go":  "target()\n",
 		"notes.txt": "target()\n",
 	})
 
-	press(t, "gr")
+	edtest.Press(t, e, "gr")
 
-	if ed.Mode != state.PickerMode {
-		t.Fatalf("mode = %v, want PickerMode", ed.Mode)
+	if e.Mode != state.PickerMode {
+		t.Fatalf("mode = %v, want PickerMode", e.Mode)
 	}
 	want := []string{"start.go:1: func target() {}", "start.go:3: target()", "other.go:1: target()"}
-	got := matchedLabels()
+	got := matchedLabels(e)
 	if len(got) != len(want) {
 		t.Fatalf("references = %v, want %v", got, want)
 	}
@@ -32,69 +35,81 @@ func TestGrListsEveryMentionInTheFileAndTheOnesBesideIt(t *testing.T) {
 }
 
 func TestGrTakesTheWholeWordOnly(t *testing.T) {
-	inDefinition(t, "target()\ntargeting()\nretarget()\n", 0, 0, nil)
+	e := state.New()
 
-	press(t, "gr")
+	inDefinition(e, t, "target()\ntargeting()\nretarget()\n", 0, 0, nil)
 
-	if got := len(ed.Pick.Matched()); got != 1 {
-		t.Errorf("%d references, want 1: %v", got, matchedLabels())
+	edtest.Press(t, e, "gr")
+
+	if got := len(e.Pick.Matched()); got != 1 {
+		t.Errorf("%d references, want 1: %v", got, matchedLabels(e))
 	}
 }
 
 func TestEnterOnAReferenceGoesToIt(t *testing.T) {
-	inDefinition(t, "func target() {}\n\nvar x = target\n", 0, 5, nil)
+	e := state.New()
 
-	press(t, "gr")
-	pressKey(t, termbox.KeyCtrlN)
-	pressKey(t, termbox.KeyEnter)
+	inDefinition(e, t, "func target() {}\n\nvar x = target\n", 0, 5, nil)
 
-	wantAt(t, 2, 8)
-	if ed.Pick.Open() {
+	edtest.Press(t, e, "gr")
+	edtest.PressKey(t, e, termbox.KeyCtrlN)
+	edtest.PressKey(t, e, termbox.KeyEnter)
+
+	wantAt(e, t, 2, 8)
+	if e.Pick.Open() {
 		t.Error("the popup stayed open")
 	}
 }
 
 func TestEnterOnAReferenceInAnotherFileOpensIt(t *testing.T) {
-	inDefinition(t, "target()\n", 0, 0, map[string]string{"other.go": "package main\n\nvar target = 1\n"})
+	e := state.New()
 
-	press(t, "gr")
-	pressKey(t, termbox.KeyCtrlN)
-	pressKey(t, termbox.KeyEnter)
+	inDefinition(e, t, "target()\n", 0, 0, map[string]string{"other.go": "package main\n\nvar target = 1\n"})
 
-	if got := filepath.Base(ed.SourceFile); got != "other.go" {
+	edtest.Press(t, e, "gr")
+	edtest.PressKey(t, e, termbox.KeyCtrlN)
+	edtest.PressKey(t, e, termbox.KeyEnter)
+
+	if got := filepath.Base(e.SourceFile); got != "other.go" {
 		t.Fatalf("editing %q, want other.go", got)
 	}
-	wantAt(t, 2, 4)
+	wantAt(e, t, 2, 4)
 }
 
 func TestCtrlOComesBackFromAReference(t *testing.T) {
-	inDefinition(t, "func target() {}\n\nvar x = target\n", 0, 5, nil)
+	e := state.New()
 
-	press(t, "gr")
-	pressKey(t, termbox.KeyCtrlN)
-	pressKey(t, termbox.KeyEnter)
-	pressKey(t, termbox.KeyCtrlO)
+	inDefinition(e, t, "func target() {}\n\nvar x = target\n", 0, 5, nil)
 
-	wantAt(t, 0, 5)
+	edtest.Press(t, e, "gr")
+	edtest.PressKey(t, e, termbox.KeyCtrlN)
+	edtest.PressKey(t, e, termbox.KeyEnter)
+	edtest.PressKey(t, e, termbox.KeyCtrlO)
+
+	wantAt(e, t, 0, 5)
 }
 
 func TestTypingNarrowsTheReferences(t *testing.T) {
-	inDefinition(t, "func target() {}\n\nvar x = target\n", 0, 5, nil)
+	e := state.New()
 
-	press(t, "gr")
-	press(t, "func")
+	inDefinition(e, t, "func target() {}\n\nvar x = target\n", 0, 5, nil)
 
-	if got := matchedLabels(); len(got) != 1 || got[0] != "start.go:1: func target() {}" {
+	edtest.Press(t, e, "gr")
+	edtest.Press(t, e, "func")
+
+	if got := matchedLabels(e); len(got) != 1 || got[0] != "start.go:1: func target() {}" {
 		t.Errorf("references = %v", got)
 	}
 }
 
 func TestGrSaysWhenTheCursorIsOnNoIdentifier(t *testing.T) {
-	inDefinition(t, "   \n", 0, 0, nil)
+	e := state.New()
 
-	press(t, "gr")
+	inDefinition(e, t, "   \n", 0, 0, nil)
 
-	if ed.StatusMsg != "E349: No identifier under the cursor" {
-		t.Errorf("statusMsg = %q", ed.StatusMsg)
+	edtest.Press(t, e, "gr")
+
+	if e.StatusMsg != "E349: No identifier under the cursor" {
+		t.Errorf("statusMsg = %q", e.StatusMsg)
 	}
 }

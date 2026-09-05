@@ -5,10 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
-func inDefinition(t *testing.T, content string, row, col int, others map[string]string) {
+func inDefinition(e *state.Editor, t *testing.T, content string, row, col int, others map[string]string) {
 	t.Helper()
 
 	dir := t.TempDir()
@@ -18,127 +20,151 @@ func inDefinition(t *testing.T, content string, row, col int, others map[string]
 		}
 	}
 
-	inReadMode(t, content, row, col)
-	ed.SourceFile = filepath.Join(dir, "start.go")
-	singleWindow(20, 80)
+	edtest.InReadMode(t, e, content, row, col)
+	e.SourceFile = filepath.Join(dir, "start.go")
+	edtest.SingleWindow(e, 20, 80)
 }
 
-func wantAt(t *testing.T, row, col int) {
+func wantAt(e *state.Editor, t *testing.T, row, col int) {
 	t.Helper()
 
-	if ed.Row != row || ed.Col != col {
-		t.Errorf("cursor at %d,%d, want %d,%d", ed.Row, ed.Col, row, col)
+	if e.Row != row || e.Col != col {
+		t.Errorf("cursor at %d,%d, want %d,%d", e.Row, e.Col, row, col)
 	}
 }
 
 func TestGdJumpsToTheFunctionUnderTheCursor(t *testing.T) {
-	inDefinition(t, "func target() {}\n\nfunc caller() {\n\ttarget()\n}\n", 3, 1, nil)
+	e := state.New()
 
-	press(t, "gd")
+	inDefinition(e, t, "func target() {}\n\nfunc caller() {\n\ttarget()\n}\n", 3, 1, nil)
 
-	wantAt(t, 0, 5)
+	edtest.Press(t, e, "gd")
+
+	wantAt(e, t, 0, 5)
 }
 
 func TestGdPrefersADeclarationToAnEarlierMention(t *testing.T) {
-	inDefinition(t, "// target is called below\nvar target = 1\ntarget++\n", 2, 0, nil)
+	e := state.New()
 
-	press(t, "gd")
+	inDefinition(e, t, "// target is called below\nvar target = 1\ntarget++\n", 2, 0, nil)
 
-	wantAt(t, 1, 4)
+	edtest.Press(t, e, "gd")
+
+	wantAt(e, t, 1, 4)
 }
 
 func TestGdTakesTheTypeADeclarationDeclares(t *testing.T) {
-	inDefinition(t, "type window struct{}\n\nvar w window\n", 2, 6, nil)
+	e := state.New()
 
-	press(t, "gd")
+	inDefinition(e, t, "type window struct{}\n\nvar w window\n", 2, 6, nil)
 
-	wantAt(t, 0, 5)
+	edtest.Press(t, e, "gd")
+
+	wantAt(e, t, 0, 5)
 }
 
 func TestGdFallsBackToTheFirstMentionOfTheWord(t *testing.T) {
-	inDefinition(t, "one two\n\nsomething two more\n", 2, 10, nil)
+	e := state.New()
 
-	press(t, "gd")
+	inDefinition(e, t, "one two\n\nsomething two more\n", 2, 10, nil)
 
-	wantAt(t, 0, 4)
+	edtest.Press(t, e, "gd")
+
+	wantAt(e, t, 0, 4)
 }
 
 func TestGdFindsTheDefinitionInAnotherFileOfTheSameKind(t *testing.T) {
-	inDefinition(t, "helper()\n", 0, 0, map[string]string{
+	e := state.New()
+
+	inDefinition(e, t, "helper()\n", 0, 0, map[string]string{
 		"other.go":  "package main\n\nfunc helper() {}\n",
 		"notes.txt": "func helper() {}\n",
 	})
 
-	press(t, "gd")
+	edtest.Press(t, e, "gd")
 
-	if got := filepath.Base(ed.SourceFile); got != "other.go" {
+	if got := filepath.Base(e.SourceFile); got != "other.go" {
 		t.Fatalf("editing %q, want other.go", got)
 	}
-	wantAt(t, 2, 5)
+	wantAt(e, t, 2, 5)
 }
 
 func TestGdSaysWhenThereIsNoDefinitionToFind(t *testing.T) {
-	inDefinition(t, "missing()\n", 0, 0, nil)
+	e := state.New()
 
-	press(t, "gd")
+	inDefinition(e, t, "missing()\n", 0, 0, nil)
 
-	if ed.StatusMsg != "E388: Couldn't find definition of missing" {
-		t.Errorf("statusMsg = %q", ed.StatusMsg)
+	edtest.Press(t, e, "gd")
+
+	if e.StatusMsg != "E388: Couldn't find definition of missing" {
+		t.Errorf("statusMsg = %q", e.StatusMsg)
 	}
-	wantAt(t, 0, 0)
+	wantAt(e, t, 0, 0)
 }
 
 func TestGdSaysWhenThereIsNoWordUnderTheCursor(t *testing.T) {
-	inDefinition(t, "   \n", 0, 0, nil)
+	e := state.New()
 
-	press(t, "gd")
+	inDefinition(e, t, "   \n", 0, 0, nil)
 
-	if ed.StatusMsg != "E349: No identifier under the cursor" {
-		t.Errorf("statusMsg = %q", ed.StatusMsg)
+	edtest.Press(t, e, "gd")
+
+	if e.StatusMsg != "E349: No identifier under the cursor" {
+		t.Errorf("statusMsg = %q", e.StatusMsg)
 	}
 }
 
 func TestCtrlOGoesBackToWhereTheJumpLeftFrom(t *testing.T) {
-	inDefinition(t, "func target() {}\n\nfunc caller() {\n\ttarget()\n}\n", 3, 1, nil)
+	e := state.New()
 
-	press(t, "gd")
-	pressKey(t, termbox.KeyCtrlO)
+	inDefinition(e, t, "func target() {}\n\nfunc caller() {\n\ttarget()\n}\n", 3, 1, nil)
 
-	wantAt(t, 3, 1)
+	edtest.Press(t, e, "gd")
+	edtest.PressKey(t, e, termbox.KeyCtrlO)
+
+	wantAt(e, t, 3, 1)
 }
 
 func TestCtrlOComesBackAcrossFiles(t *testing.T) {
-	inDefinition(t, "helper()\n", 0, 0, map[string]string{"other.go": "package main\n\nfunc helper() {}\n"})
+	e := state.New()
 
-	press(t, "gd")
-	pressKey(t, termbox.KeyCtrlO)
+	inDefinition(e, t, "helper()\n", 0, 0, map[string]string{"other.go": "package main\n\nfunc helper() {}\n"})
 
-	if got := filepath.Base(ed.SourceFile); got != "start.go" {
+	edtest.Press(t, e, "gd")
+	edtest.PressKey(t, e, termbox.KeyCtrlO)
+
+	if got := filepath.Base(e.SourceFile); got != "start.go" {
 		t.Errorf("editing %q, want start.go", got)
 	}
-	wantAt(t, 0, 0)
+	wantAt(e, t, 0, 0)
 }
 
 func TestGdOnAnArgumentTakesTheParameterItWasPassedAs(t *testing.T) {
-	inDefinition(t, "func closeFile(file *os.File) {\n\tfile.Close()\n}\n\nfunc (b *B) Close() {\n\tb.file = nil\n}\n", 1, 1, nil)
+	e := state.New()
 
-	press(t, "gd")
+	inDefinition(e, t, "func closeFile(file *os.File) {\n\tfile.Close()\n}\n\nfunc (b *B) Close() {\n\tb.file = nil\n}\n", 1, 1, nil)
 
-	wantAt(t, 0, 15)
+	edtest.Press(t, e, "gd")
+
+	wantAt(e, t, 0, 15)
 }
 
 func TestGdSkipsAFieldOfSomethingElseOfTheSameName(t *testing.T) {
-	inDefinition(t, "var file = 1\n\nfunc f(b *B) {\n\tb.file = nil\n\tuse(file)\n}\n", 4, 6, nil)
+	e := state.New()
 
-	press(t, "gd")
+	inDefinition(e, t, "var file = 1\n\nfunc f(b *B) {\n\tb.file = nil\n\tuse(file)\n}\n", 4, 6, nil)
 
-	wantAt(t, 0, 4)
+	edtest.Press(t, e, "gd")
+
+	wantAt(e, t, 0, 4)
 }
 
 func TestGdTakesTheLocalNearestAboveTheCursor(t *testing.T) {
-	inDefinition(t, "var out = 1\n\nfunc f() {\n\tout := 2\n\tuse(out)\n}\n", 4, 6, nil)
+	e := state.New()
 
-	press(t, "gd")
+	inDefinition(e, t, "var out = 1\n\nfunc f() {\n\tout := 2\n\tuse(out)\n}\n", 4, 6, nil)
 
-	wantAt(t, 3, 1)
+	edtest.Press(t, e, "gd")
+
+	wantAt(e, t, 3, 1)
 }

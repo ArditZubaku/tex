@@ -8,12 +8,14 @@ import (
 )
 
 func TestEscStepsOffTheGap(t *testing.T) {
-	edtest.AtCursor(t, ed, "package main\n", 0, 12)
-	ed.Mode = state.EditMode
+	e := state.New()
 
-	esc()
+	edtest.AtCursor(t, e, "package main\n", 0, 12)
+	e.Mode = state.EditMode
 
-	if ed.Mode != state.ReadMode || ed.Col != 11 {
-		t.Errorf("mode %v, currentCol = %d, want ReadMode, 11", ed.Mode, ed.Col)
+	edtest.Esc(t, e)
+
+	if e.Mode != state.ReadMode || e.Col != 11 {
+		t.Errorf("mode %v, currentCol = %d, want ReadMode, 11", e.Mode, e.Col)
 	}
 }

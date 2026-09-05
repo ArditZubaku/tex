@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
@@ -21,56 +22,64 @@ func readFile(t *testing.T, path string) string {
 }
 
 func TestWriteCommandSavesTheBuffer(t *testing.T) {
-	inReadMode(t, "one\ntwo\n", 0, 0)
-	path := ed.SourceFile
+	e := state.New()
 
-	press(t, "x")
-	press(t, ":w\n")
+	edtest.InReadMode(t, e, "one\ntwo\n", 0, 0)
+	path := e.SourceFile
+
+	edtest.Press(t, e, "x")
+	edtest.Press(t, e, ":w\n")
 
 	if got := readFile(t, path); got != "ne\ntwo\n" {
 		t.Errorf("file = %q, want %q", got, "ne\ntwo\n")
 	}
-	if ed.Modified {
+	if e.Modified {
 		t.Error("buffer still marked modified after :w")
 	}
 }
 
 func TestWriteCommandWithANameContinuesEditingIt(t *testing.T) {
-	inReadMode(t, "one\n", 0, 0)
-	other := filepath.Join(filepath.Dir(ed.SourceFile), "other.txt")
+	e := state.New()
 
-	press(t, ":w "+other+"\n")
+	edtest.InReadMode(t, e, "one\n", 0, 0)
+	other := filepath.Join(filepath.Dir(e.SourceFile), "other.txt")
+
+	edtest.Press(t, e, ":w "+other+"\n")
 
 	if got := readFile(t, other); got != "one\n" {
 		t.Errorf("%s = %q, want %q", other, got, "one\n")
 	}
-	if ed.SourceFile != other {
-		t.Errorf("sourceFile = %q, want %q", ed.SourceFile, other)
+	if e.SourceFile != other {
+		t.Errorf("sourceFile = %q, want %q", e.SourceFile, other)
 	}
 }
 
 func TestQuitCommandRefusesToDropChanges(t *testing.T) {
-	inReadMode(t, "one\n", 0, 0)
+	e := state.New()
 
-	press(t, "x")
-	press(t, ":q\n")
+	edtest.InReadMode(t, e, "one\n", 0, 0)
 
-	if ed.Quitting {
+	edtest.Press(t, e, "x")
+	edtest.Press(t, e, ":q\n")
+
+	if e.Quitting {
 		t.Error("quit with unsaved changes")
 	}
-	if ed.StatusMsg != "E37: No write since last change (add ! to override)" {
-		t.Errorf("statusMsg = %q", ed.StatusMsg)
+	if e.StatusMsg != "E37: No write since last change (add ! to override)" {
+		t.Errorf("statusMsg = %q", e.StatusMsg)
 	}
 }
 
 func TestForcedQuitCommandDropsChanges(t *testing.T) {
-	inReadMode(t, "one\n", 0, 0)
-	path := ed.SourceFile
+	e := state.New()
 
-	press(t, "x")
-	press(t, ":q!\n")
+	edtest.InReadMode(t, e, "one\n", 0, 0)
+	path := e.SourceFile
 
-	if !ed.Quitting {
+	edtest.Press(t, e, "x")
+	edtest.Press(t, e, ":q!\n")
+
+	if !e.Quitting {
 		t.Error("still running after :q!")
 	}
 	if got := readFile(t, path); got != "one\n" {
@@ -79,122 +88,144 @@ func TestForcedQuitCommandDropsChanges(t *testing.T) {
 }
 
 func TestQuitCommandOnASavedBuffer(t *testing.T) {
-	inReadMode(t, "one\n", 0, 0)
+	e := state.New()
 
-	press(t, ":q\n")
+	edtest.InReadMode(t, e, "one\n", 0, 0)
 
-	if !ed.Quitting {
+	edtest.Press(t, e, ":q\n")
+
+	if !e.Quitting {
 		t.Error("still running after :q on an unmodified buffer")
 	}
 }
 
 func TestWriteQuitCommandDoesBoth(t *testing.T) {
-	inReadMode(t, "one\ntwo\n", 0, 0)
-	path := ed.SourceFile
+	e := state.New()
 
-	press(t, "dd")
-	press(t, ":wq\n")
+	edtest.InReadMode(t, e, "one\ntwo\n", 0, 0)
+	path := e.SourceFile
+
+	edtest.Press(t, e, "dd")
+	edtest.Press(t, e, ":wq\n")
 
 	if got := readFile(t, path); got != "two\n" {
 		t.Errorf("file = %q, want %q", got, "two\n")
 	}
-	if !ed.Quitting {
+	if !e.Quitting {
 		t.Error("still running after :wq")
 	}
 }
 
 func TestWriteQuitAliasX(t *testing.T) {
-	inReadMode(t, "one\n", 0, 0)
+	e := state.New()
 
-	press(t, ":x\n")
+	edtest.InReadMode(t, e, "one\n", 0, 0)
 
-	if !ed.Quitting {
+	edtest.Press(t, e, ":x\n")
+
+	if !e.Quitting {
 		t.Error("still running after :x")
 	}
 }
 
 func TestLineNumberCommandJumps(t *testing.T) {
-	inReadMode(t, "a\nb\nc\nd\ne\n", 0, 0)
+	e := state.New()
 
-	press(t, ":4\n")
+	edtest.InReadMode(t, e, "a\nb\nc\nd\ne\n", 0, 0)
 
-	wantCursor(t, 3, 0)
+	edtest.Press(t, e, ":4\n")
+
+	wantCursor(e, t, 3, 0)
 }
 
 func TestLineNumberCommandClamps(t *testing.T) {
-	inReadMode(t, "a\nb\nc\n", 0, 0)
+	e := state.New()
 
-	press(t, ":99\n")
-	wantCursor(t, 2, 0)
+	edtest.InReadMode(t, e, "a\nb\nc\n", 0, 0)
 
-	press(t, ":0\n")
-	wantCursor(t, 0, 0)
+	edtest.Press(t, e, ":99\n")
+	wantCursor(e, t, 2, 0)
+
+	edtest.Press(t, e, ":0\n")
+	wantCursor(e, t, 0, 0)
 }
 
 func TestDollarCommandJumpsToTheLastLine(t *testing.T) {
-	inReadMode(t, "a\nb\nc\n", 0, 0)
+	e := state.New()
 
-	press(t, ":$\n")
+	edtest.InReadMode(t, e, "a\nb\nc\n", 0, 0)
 
-	wantCursor(t, 2, 0)
+	edtest.Press(t, e, ":$\n")
+
+	wantCursor(e, t, 2, 0)
 }
 
 func TestUnknownCommandIsReported(t *testing.T) {
-	inReadMode(t, "one\n", 0, 0)
+	e := state.New()
 
-	press(t, ":bogus\n")
+	edtest.InReadMode(t, e, "one\n", 0, 0)
 
-	if ed.StatusMsg != "E492: Not an editor command: bogus" {
-		t.Errorf("statusMsg = %q", ed.StatusMsg)
+	edtest.Press(t, e, ":bogus\n")
+
+	if e.StatusMsg != "E492: Not an editor command: bogus" {
+		t.Errorf("statusMsg = %q", e.StatusMsg)
 	}
-	if ed.Quitting {
+	if e.Quitting {
 		t.Error("quit on an unknown command")
 	}
 }
 
 func TestNohlsearchCommandClearsTheHighlight(t *testing.T) {
-	inReadMode(t, "hit and hit\n", 0, 0)
+	e := state.New()
 
-	press(t, "/hit\n")
-	press(t, ":noh\n")
+	edtest.InReadMode(t, e, "hit and hit\n", 0, 0)
 
-	if hits := find.LineHits(ed, 0); len(hits.Cols()) != 0 {
+	edtest.Press(t, e, "/hit\n")
+	edtest.Press(t, e, ":noh\n")
+
+	if hits := find.LineHits(e, 0); len(hits.Cols()) != 0 {
 		t.Errorf("still highlighting %v after :noh", hits.Cols())
 	}
-	press(t, "n")
-	wantCursor(t, 0, 0)
+	edtest.Press(t, e, "n")
+	wantCursor(e, t, 0, 0)
 }
 
 func TestEscLeavesTheCommandPromptWithoutRunningIt(t *testing.T) {
-	inReadMode(t, "one\n", 0, 0)
+	e := state.New()
 
-	press(t, ":q")
-	press(t, string(rune(27)))
+	edtest.InReadMode(t, e, "one\n", 0, 0)
 
-	if ed.Quitting {
+	edtest.Press(t, e, ":q")
+	edtest.Press(t, e, string(rune(27)))
+
+	if e.Quitting {
 		t.Error("ran the command the prompt was cancelled on")
 	}
-	if ed.Mode != state.ReadMode {
-		t.Errorf("mode = %v, want ReadMode", ed.Mode)
+	if e.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", e.Mode)
 	}
 }
 
 func TestThePromptShowsTheCommandBeingTyped(t *testing.T) {
-	inReadMode(t, "one\n", 0, 0)
+	e := state.New()
 
-	press(t, ":wq")
+	edtest.InReadMode(t, e, "one\n", 0, 0)
 
-	if txt, ok := ed.PromptStatus(); !ok || txt != ":wq" {
+	edtest.Press(t, e, ":wq")
+
+	if txt, ok := e.PromptStatus(); !ok || txt != ":wq" {
 		t.Errorf("promptStatus = %q,%v, want \":wq\",true", txt, ok)
 	}
 }
 
 func TestEmptyCommandDoesNothing(t *testing.T) {
-	inReadMode(t, "one\n", 0, 0)
+	e := state.New()
 
-	press(t, ":\n")
+	edtest.InReadMode(t, e, "one\n", 0, 0)
 
-	if ed.StatusMsg != "" || ed.Quitting {
-		t.Errorf("statusMsg = %q, quitting = %v", ed.StatusMsg, ed.Quitting)
+	edtest.Press(t, e, ":\n")
+
+	if e.StatusMsg != "" || e.Quitting {
+		t.Errorf("statusMsg = %q, quitting = %v", e.StatusMsg, e.Quitting)
 	}
 }

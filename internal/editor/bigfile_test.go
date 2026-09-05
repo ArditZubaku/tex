@@ -10,6 +10,8 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/edit"
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
@@ -72,87 +74,91 @@ func fullDecode(t *testing.T, path string) [][]rune {
 
 // An off-by-one in the window bounds surfaces here as a panic or stuck cursor.
 func TestNavigationOverBigFile(t *testing.T) {
-	ed.Buf = buffer.Open(bigFile(t, 20000))
-	defer ed.Buf.Close()
+	e := state.New()
 
-	singleWindow(30, 80)
-	ed.Row, ed.Col = 0, 0
+	e.Buf = buffer.Open(bigFile(t, 20000))
+	defer e.Buf.Close()
+
+	edtest.SingleWindow(e, 30, 80)
+	e.Row, e.Col = 0, 0
 
 	for range 100 {
-		ed.Down()
+		e.Down()
 	}
-	if ed.Row != 100 {
-		t.Fatalf("after 100 down, row = %d", ed.Row)
+	if e.Row != 100 {
+		t.Fatalf("after 100 down, row = %d", e.Row)
 	}
 
-	ed.GoToBottom()
-	if ed.Row != ed.Buf.LineCount()-1 {
-		t.Fatalf("G landed on row %d, want %d", ed.Row, ed.Buf.LineCount()-1)
+	e.GoToBottom()
+	if e.Row != e.Buf.LineCount()-1 {
+		t.Fatalf("G landed on row %d, want %d", e.Row, e.Buf.LineCount()-1)
 	}
-	ed.Down()
-	if ed.Row != ed.Buf.LineCount()-1 {
-		t.Fatalf("down past the last line moved to %d", ed.Row)
+	e.Down()
+	if e.Row != e.Buf.LineCount()-1 {
+		t.Fatalf("down past the last line moved to %d", e.Row)
 	}
 
 	for range 20 {
-		ed.Up()
+		e.Up()
 	}
 	for range 200 {
-		ed.NextWord()
+		e.NextWord()
 	}
 	for range 200 {
-		ed.PrevWord()
+		e.PrevWord()
 	}
 	for range 50 {
-		ed.EndOfWord()
+		e.EndOfWord()
 	}
 
-	ed.GoToTop()
-	if ed.Row != 0 || ed.Col != 0 {
-		t.Fatalf("gg landed on %d,%d", ed.Row, ed.Col)
+	e.GoToTop()
+	if e.Row != 0 || e.Col != 0 {
+		t.Fatalf("gg landed on %d,%d", e.Row, e.Col)
 	}
-	ed.Up()
-	ed.Left()
-	if ed.Row != 0 || ed.Col != 0 {
-		t.Fatalf("moving off the top-left moved to %d,%d", ed.Row, ed.Col)
+	e.Up()
+	e.Left()
+	if e.Row != 0 || e.Col != 0 {
+		t.Fatalf("moving off the top-left moved to %d,%d", e.Row, e.Col)
 	}
 
 	for range 40 {
-		ed.PageDown()
+		e.PageDown()
 	}
 	for range 100 {
-		ed.PageUp()
+		e.PageUp()
 	}
-	if ed.Row != 0 {
-		t.Fatalf("pageUp past the top landed on %d", ed.Row)
+	if e.Row != 0 {
+		t.Fatalf("pageUp past the top landed on %d", e.Row)
 	}
 }
 
 func TestInsertDoesNotCorruptNeighbours(t *testing.T) {
-	ed.Buf = buffer.Open(bigFile(t, 20000))
-	defer ed.Buf.Close()
+	e := state.New()
+
+	e.Buf = buffer.Open(bigFile(t, 20000))
+	defer e.Buf.Close()
 
 	const row = 5001
-	before := []string{string(ed.Buf.Line(row - 1)), string(ed.Buf.Line(row + 1))}
+	before := []string{string(e.Buf.Line(row - 1)), string(e.Buf.Line(row + 1))}
 
-	ed.Row, ed.Col = row, 0
+	e.Row, e.Col = row, 0
 	for _, ch := range "abc" {
-		edit.InsertRune(ed, termbox.Event{Ch: ch})
+		edit.InsertRune(e, termbox.Event{Ch: ch})
 	}
 
-	if got := string(ed.Buf.Line(row)); !strings.HasPrefix(got, "abc") {
+	if got := string(e.Buf.Line(row)); !strings.HasPrefix(got, "abc") {
 		t.Fatalf("edited line = %q, want it to start with abc", got[:min(10, len(got))])
 	}
-	if got := string(ed.Buf.Line(row - 1)); got != before[0] {
+	if got := string(e.Buf.Line(row - 1)); got != before[0] {
 		t.Errorf("line above changed")
 	}
-	if got := string(ed.Buf.Line(row + 1)); got != before[1] {
+	if got := string(e.Buf.Line(row + 1)); got != before[1] {
 		t.Errorf("line below changed")
 	}
 
 	// The edit must survive a refill from elsewhere in the file.
-	_ = ed.Buf.Line(19000)
-	if got := string(ed.Buf.Line(row)); !strings.HasPrefix(got, "abc") {
+	_ = e.Buf.Line(19000)
+	if got := string(e.Buf.Line(row)); !strings.HasPrefix(got, "abc") {
 		t.Error("edit lost after the window moved")
 	}
 }

@@ -5,11 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
-func inPicker(t *testing.T, names ...string) {
+func inPicker(e *state.Editor, t *testing.T, names ...string) {
 	t.Helper()
 
 	dir := t.TempDir()
@@ -23,13 +24,13 @@ func inPicker(t *testing.T, names ...string) {
 		}
 	}
 
-	inReadMode(t, "first\n", 0, 0)
-	ed.SourceFile = filepath.Join(dir, "start.txt")
-	singleWindow(20, 80)
+	edtest.InReadMode(t, e, "first\n", 0, 0)
+	e.SourceFile = filepath.Join(dir, "start.txt")
+	edtest.SingleWindow(e, 20, 80)
 }
 
-func matchedLabels() []string {
-	matched := ed.Pick.Matched()
+func matchedLabels(e *state.Editor) []string {
+	matched := e.Pick.Matched()
 	paths := make([]string, 0, len(matched))
 	for _, entry := range matched {
 		paths = append(paths, entry.Label)
@@ -38,10 +39,10 @@ func matchedLabels() []string {
 	return paths
 }
 
-func wantMatches(t *testing.T, want ...string) {
+func wantMatches(e *state.Editor, t *testing.T, want ...string) {
 	t.Helper()
 
-	got := matchedLabels()
+	got := matchedLabels(e)
 	if len(got) != len(want) {
 		t.Fatalf("matches = %v, want %v", got, want)
 	}
@@ -53,97 +54,115 @@ func wantMatches(t *testing.T, want ...string) {
 }
 
 func TestLeaderLeaderOpensThePickerOnEveryFileUnderTheRoot(t *testing.T) {
-	inPicker(t, "one.go", "two.go", filepath.Join("sub", "three.go"))
+	e := state.New()
 
-	press(t, "  ")
+	inPicker(e, t, "one.go", "two.go", filepath.Join("sub", "three.go"))
 
-	if ed.Mode != state.PickerMode {
-		t.Fatalf("mode = %v, want PickerMode", ed.Mode)
+	edtest.Press(t, e, "  ")
+
+	if e.Mode != state.PickerMode {
+		t.Fatalf("mode = %v, want PickerMode", e.Mode)
 	}
-	wantMatches(t, "one.go", filepath.Join("sub", "three.go"), "two.go")
+	wantMatches(e, t, "one.go", filepath.Join("sub", "three.go"), "two.go")
 }
 
 func TestThePickerLeavesHiddenDirectoriesOut(t *testing.T) {
-	inPicker(t, "one.go", filepath.Join(".git", "config"), ".env")
+	e := state.New()
 
-	press(t, "  ")
+	inPicker(e, t, "one.go", filepath.Join(".git", "config"), ".env")
 
-	wantMatches(t, "one.go")
+	edtest.Press(t, e, "  ")
+
+	wantMatches(e, t, "one.go")
 }
 
 func TestTypingNarrowsThePickerToWhatMatches(t *testing.T) {
-	inPicker(t, "buffers.go", "windows.go", "README.md")
+	e := state.New()
 
-	press(t, "  ")
-	press(t, "win")
+	inPicker(e, t, "buffers.go", "windows.go", "README.md")
 
-	wantMatches(t, "windows.go")
+	edtest.Press(t, e, "  ")
+	edtest.Press(t, e, "win")
+
+	wantMatches(e, t, "windows.go")
 }
 
 func TestThePickerMatchesLettersItDoesNotHaveTogether(t *testing.T) {
-	inPicker(t, "buffers.go", "windows.go")
+	e := state.New()
 
-	press(t, "  ")
-	press(t, "bfg")
+	inPicker(e, t, "buffers.go", "windows.go")
 
-	wantMatches(t, "buffers.go")
+	edtest.Press(t, e, "  ")
+	edtest.Press(t, e, "bfg")
+
+	wantMatches(e, t, "buffers.go")
 }
 
 func TestThePickerPutsTheNameBeforeTheDirectoryItIsIn(t *testing.T) {
-	inPicker(t, filepath.Join("theme", "one.go"), "theme.go")
+	e := state.New()
 
-	press(t, "  ")
-	press(t, "theme")
+	inPicker(e, t, filepath.Join("theme", "one.go"), "theme.go")
 
-	wantMatches(t, "theme.go", filepath.Join("theme", "one.go"))
+	edtest.Press(t, e, "  ")
+	edtest.Press(t, e, "theme")
+
+	wantMatches(e, t, "theme.go", filepath.Join("theme", "one.go"))
 }
 
 func TestEnterOpensThePickedFileAsABuffer(t *testing.T) {
-	inPicker(t, "one.go", "two.go")
+	e := state.New()
 
-	press(t, "  ")
-	press(t, "two")
-	pressKey(t, termbox.KeyEnter)
+	inPicker(e, t, "one.go", "two.go")
 
-	if ed.Pick.Open() {
+	edtest.Press(t, e, "  ")
+	edtest.Press(t, e, "two")
+	edtest.PressKey(t, e, termbox.KeyEnter)
+
+	if e.Pick.Open() {
 		t.Error("the picker stayed open")
 	}
-	wantCurrent(t, "two.go")
+	wantCurrent(e, t, "two.go")
 	wantBuffers(t, "start.txt", "two.go")
 }
 
 func TestCtrlNAndCtrlPWalkTheListing(t *testing.T) {
-	inPicker(t, "one.go", "two.go")
+	e := state.New()
 
-	press(t, "  ")
-	pressKey(t, termbox.KeyCtrlN)
-	pressKey(t, termbox.KeyCtrlN) // which is as far as two files go
-	pressKey(t, termbox.KeyEnter)
+	inPicker(e, t, "one.go", "two.go")
 
-	wantCurrent(t, "two.go")
+	edtest.Press(t, e, "  ")
+	edtest.PressKey(t, e, termbox.KeyCtrlN)
+	edtest.PressKey(t, e, termbox.KeyCtrlN) // which is as far as two files go
+	edtest.PressKey(t, e, termbox.KeyEnter)
+
+	wantCurrent(e, t, "two.go")
 }
 
 func TestEscClosesThePickerAndLeavesTheBufferAlone(t *testing.T) {
-	inPicker(t, "one.go")
+	e := state.New()
 
-	press(t, "  ")
-	pressKey(t, termbox.KeyEsc)
+	inPicker(e, t, "one.go")
 
-	if ed.Pick.Open() || ed.Mode != state.ReadMode {
-		t.Errorf("picker open = %v, mode = %v", ed.Pick.Open(), ed.Mode)
+	edtest.Press(t, e, "  ")
+	edtest.PressKey(t, e, termbox.KeyEsc)
+
+	if e.Pick.Open() || e.Mode != state.ReadMode {
+		t.Errorf("picker open = %v, mode = %v", e.Pick.Open(), e.Mode)
 	}
-	wantCurrent(t, "start.txt")
+	wantCurrent(e, t, "start.txt")
 }
 
 func TestBackspacingOffAnEmptyQueryClosesThePicker(t *testing.T) {
-	inPicker(t, "one.go")
+	e := state.New()
 
-	press(t, "  ")
-	press(t, "o")
-	pressKey(t, termbox.KeyBackspace2)
-	pressKey(t, termbox.KeyBackspace2)
+	inPicker(e, t, "one.go")
 
-	if ed.Pick.Open() {
+	edtest.Press(t, e, "  ")
+	edtest.Press(t, e, "o")
+	edtest.PressKey(t, e, termbox.KeyBackspace2)
+	edtest.PressKey(t, e, termbox.KeyBackspace2)
+
+	if e.Pick.Open() {
 		t.Error("the picker stayed open")
 	}
 }

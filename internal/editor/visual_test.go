@@ -8,84 +8,100 @@ import (
 )
 
 func TestVisualDeleteRunesOnOneLine(t *testing.T) {
-	b := inReadMode(t, "abcdef\n", 0, 0)
+	e := state.New()
 
-	press(t, "vlld")
+	b := edtest.InReadMode(t, e, "abcdef\n", 0, 0)
+
+	edtest.Press(t, e, "vlld")
 
 	edtest.WantLines(t, b, "def")
-	if ed.Mode != state.ReadMode {
-		t.Errorf("mode = %v, want ReadMode", ed.Mode)
+	if e.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", e.Mode)
 	}
-	if ed.Col != 0 {
-		t.Errorf("currentCol = %d, want 0", ed.Col)
+	if e.Col != 0 {
+		t.Errorf("currentCol = %d, want 0", e.Col)
 	}
 }
 
 func TestVisualDeleteAcrossLinesJoinsWhatIsLeft(t *testing.T) {
-	b := inReadMode(t, "foo\nbar\nbaz\n", 0, 1)
+	e := state.New()
 
-	press(t, "vjld")
+	b := edtest.InReadMode(t, e, "foo\nbar\nbaz\n", 0, 1)
+
+	edtest.Press(t, e, "vjld")
 
 	edtest.WantLines(t, b, "f", "baz")
-	if ed.Row != 0 || ed.Col != 0 {
-		t.Errorf("cursor at %d,%d, want 0,0", ed.Row, ed.Col)
+	if e.Row != 0 || e.Col != 0 {
+		t.Errorf("cursor at %d,%d, want 0,0", e.Row, e.Col)
 	}
 }
 
 func TestVisualDeleteAndPutRoundTrips(t *testing.T) {
-	b := inReadMode(t, "foo\nbar\nbaz\n", 0, 1)
+	e := state.New()
 
-	press(t, "vjld")
-	press(t, "p")
+	b := edtest.InReadMode(t, e, "foo\nbar\nbaz\n", 0, 1)
+
+	edtest.Press(t, e, "vjld")
+	edtest.Press(t, e, "p")
 
 	edtest.WantLines(t, b, "foo", "bar", "baz")
 }
 
 func TestVisualLineDelete(t *testing.T) {
-	b := inReadMode(t, "a\nb\nc\n", 0, 0)
+	e := state.New()
 
-	press(t, "Vjd")
+	b := edtest.InReadMode(t, e, "a\nb\nc\n", 0, 0)
+
+	edtest.Press(t, e, "Vjd")
 
 	edtest.WantLines(t, b, "c")
-	press(t, "P")
+	edtest.Press(t, e, "P")
 	edtest.WantLines(t, b, "a", "b", "c")
 }
 
 func TestVisualSelectionRunsBackwardsToo(t *testing.T) {
-	b := inReadMode(t, "a\nb\nc\n", 2, 0)
+	e := state.New()
 
-	press(t, "Vkd")
+	b := edtest.InReadMode(t, e, "a\nb\nc\n", 2, 0)
+
+	edtest.Press(t, e, "Vkd")
 
 	edtest.WantLines(t, b, "a")
 }
 
 func TestVisualYankLeavesTheCursorAtTheStart(t *testing.T) {
-	b := inReadMode(t, "foo bar\n", 0, 4)
+	e := state.New()
 
-	press(t, "vhhy")
+	b := edtest.InReadMode(t, e, "foo bar\n", 0, 4)
+
+	edtest.Press(t, e, "vhhy")
 
 	edtest.WantLines(t, b, "foo bar")
-	if ed.Col != 2 {
-		t.Errorf("currentCol = %d, want 2", ed.Col)
+	if e.Col != 2 {
+		t.Errorf("currentCol = %d, want 2", e.Col)
 	}
-	if got := string(ed.Clip.Content()[0]); got != "o b" {
+	if got := string(e.Clip.Content()[0]); got != "o b" {
 		t.Errorf("register = %q, want %q", got, "o b")
 	}
 }
 
 func TestVisualYankAcrossLinesPutsBackAsARun(t *testing.T) {
-	b := inReadMode(t, "foo\nbar\n", 0, 1)
+	e := state.New()
 
-	press(t, "vjy")
-	press(t, "p")
+	b := edtest.InReadMode(t, e, "foo\nbar\n", 0, 1)
+
+	edtest.Press(t, e, "vjy")
+	edtest.Press(t, e, "p")
 
 	edtest.WantLines(t, b, "fooo", "bao", "bar")
 }
 
 func TestCountedMotionExtendsTheSelection(t *testing.T) {
-	b := inReadMode(t, "abcdef\n", 0, 0)
+	e := state.New()
 
-	press(t, "v3ld")
+	b := edtest.InReadMode(t, e, "abcdef\n", 0, 0)
+
+	edtest.Press(t, e, "v3ld")
 
 	edtest.WantLines(t, b, "ef")
 }
@@ -93,104 +109,122 @@ func TestCountedMotionExtendsTheSelection(t *testing.T) {
 // A count typed before an operator repeats it, and the repeats must not carry
 // on eating the text that followed the selection.
 func TestCountedOperatorDeletesTheSelectionOnce(t *testing.T) {
-	b := inReadMode(t, "abcdef\n", 0, 0)
+	e := state.New()
 
-	press(t, "vl2d")
+	b := edtest.InReadMode(t, e, "abcdef\n", 0, 0)
+
+	edtest.Press(t, e, "vl2d")
 
 	edtest.WantLines(t, b, "cdef")
 }
 
 func TestVisualKeysSwitchAndLeaveTheMode(t *testing.T) {
-	inReadMode(t, "abc\n", 0, 0)
+	e := state.New()
 
-	press(t, "v")
-	if ed.Mode != state.VisualMode || ed.VisualLine {
-		t.Fatalf("v gave mode %v, linewise %v", ed.Mode, ed.VisualLine)
+	edtest.InReadMode(t, e, "abc\n", 0, 0)
+
+	edtest.Press(t, e, "v")
+	if e.Mode != state.VisualMode || e.VisualLine {
+		t.Fatalf("v gave mode %v, linewise %v", e.Mode, e.VisualLine)
 	}
 
-	press(t, "V")
-	if ed.Mode != state.VisualMode || !ed.VisualLine {
-		t.Fatalf("V gave mode %v, linewise %v", ed.Mode, ed.VisualLine)
+	edtest.Press(t, e, "V")
+	if e.Mode != state.VisualMode || !e.VisualLine {
+		t.Fatalf("V gave mode %v, linewise %v", e.Mode, e.VisualLine)
 	}
 
-	press(t, "V")
-	if ed.Mode != state.ReadMode {
-		t.Errorf("V again gave mode %v, want ReadMode", ed.Mode)
+	edtest.Press(t, e, "V")
+	if e.Mode != state.ReadMode {
+		t.Errorf("V again gave mode %v, want ReadMode", e.Mode)
 	}
 
-	press(t, "vv")
-	if ed.Mode != state.ReadMode {
-		t.Errorf("vv gave mode %v, want ReadMode", ed.Mode)
+	edtest.Press(t, e, "vv")
+	if e.Mode != state.ReadMode {
+		t.Errorf("vv gave mode %v, want ReadMode", e.Mode)
 	}
 }
 
 func TestEscLeavesVisualMode(t *testing.T) {
-	b := inReadMode(t, "abc\n", 0, 0)
+	e := state.New()
 
-	press(t, "vl")
-	esc()
+	b := edtest.InReadMode(t, e, "abc\n", 0, 0)
 
-	if ed.Mode != state.ReadMode {
-		t.Errorf("mode = %v, want ReadMode", ed.Mode)
+	edtest.Press(t, e, "vl")
+	edtest.Esc(t, e)
+
+	if e.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", e.Mode)
 	}
-	press(t, "d")
+	edtest.Press(t, e, "d")
 	edtest.WantLines(t, b, "abc")
 }
 
 func TestVisualOSwapsTheEndsOfTheSelection(t *testing.T) {
-	b := inReadMode(t, "abcdef\n", 0, 2)
+	e := state.New()
 
-	press(t, "vllohhd")
+	b := edtest.InReadMode(t, e, "abcdef\n", 0, 2)
+
+	edtest.Press(t, e, "vllohhd")
 
 	edtest.WantLines(t, b, "f")
 }
 
 func TestVisualChangeReplacesTheRunes(t *testing.T) {
-	b := inReadMode(t, "foo bar\n", 0, 0)
+	e := state.New()
 
-	typeIn(t, "vllcBAZ")
+	b := edtest.InReadMode(t, e, "foo bar\n", 0, 0)
+
+	typeIn(e, t, "vllcBAZ")
 
 	edtest.WantLines(t, b, "BAZ bar")
-	if ed.Mode != state.EditMode {
-		t.Errorf("mode = %v, want EditMode", ed.Mode)
+	if e.Mode != state.EditMode {
+		t.Errorf("mode = %v, want EditMode", e.Mode)
 	}
 }
 
 func TestVisualLineChangeLeavesOneLineToTypeOn(t *testing.T) {
-	b := inReadMode(t, "a\nb\nc\n", 0, 0)
+	e := state.New()
 
-	typeIn(t, "VjcX")
+	b := edtest.InReadMode(t, e, "a\nb\nc\n", 0, 0)
+
+	typeIn(e, t, "VjcX")
 
 	edtest.WantLines(t, b, "X", "c")
 }
 
 func TestVisualDeleteAcrossLinesUndoesInOneStep(t *testing.T) {
-	b := inReadMode(t, "foo\nbar\nbaz\nqux\n", 0, 1)
+	e := state.New()
 
-	press(t, "vjjld")
+	b := edtest.InReadMode(t, e, "foo\nbar\nbaz\nqux\n", 0, 1)
+
+	edtest.Press(t, e, "vjjld")
 	edtest.WantLines(t, b, "f", "qux")
 
-	press(t, "u")
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "foo", "bar", "baz", "qux")
 }
 
 func TestVisualLineChangeUndoesInOneStep(t *testing.T) {
-	b := inReadMode(t, "a\nb\nc\n", 0, 0)
+	e := state.New()
 
-	typeIn(t, "VjcX")
-	esc()
+	b := edtest.InReadMode(t, e, "a\nb\nc\n", 0, 0)
 
-	press(t, "u")
+	typeIn(e, t, "VjcX")
+	edtest.Esc(t, e)
+
+	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "a", "b", "c")
 }
 
 func TestSelectingAnEmptyLineYanksNothingToPutBack(t *testing.T) {
-	b := inReadMode(t, "\nfoo\n", 0, 0)
+	e := state.New()
 
-	press(t, "vyjp")
+	b := edtest.InReadMode(t, e, "\nfoo\n", 0, 0)
+
+	edtest.Press(t, e, "vyjp")
 
 	edtest.WantLines(t, b, "", "foo")
-	if ed.Col != 0 {
-		t.Errorf("currentCol = %d, want 0", ed.Col)
+	if e.Col != 0 {
+		t.Errorf("currentCol = %d, want 0", e.Col)
 	}
 }

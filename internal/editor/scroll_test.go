@@ -4,107 +4,125 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/render"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
-func inWindow(t *testing.T, lines, row int) {
+func inWindow(e *state.Editor, t *testing.T, lines, row int) {
 	t.Helper()
 
-	inReadMode(t, strings.Repeat("x\n", lines), row, 0)
-	singleWindow(20, 80)
-	ed.OffsetRow, ed.OffsetCol = 0, 0
+	edtest.InReadMode(t, e, strings.Repeat("x\n", lines), row, 0)
+	edtest.SingleWindow(e, 20, 80)
+	e.OffsetRow, e.OffsetCol = 0, 0
 }
 
 func TestCenterViewPutsTheCursorLineInTheMiddle(t *testing.T) {
-	inWindow(t, 100, 50)
+	e := state.New()
 
-	press(t, "zz")
+	inWindow(e, t, 100, 50)
 
-	if ed.OffsetRow != 40 {
-		t.Errorf("offsetRow = %d, want 40", ed.OffsetRow)
+	edtest.Press(t, e, "zz")
+
+	if e.OffsetRow != 40 {
+		t.Errorf("offsetRow = %d, want 40", e.OffsetRow)
 	}
-	if ed.Row != 50 {
-		t.Errorf("currentRow = %d, want 50", ed.Row)
+	if e.Row != 50 {
+		t.Errorf("currentRow = %d, want 50", e.Row)
 	}
 }
 
 func TestCenterViewNearTheTopStopsAtTheFirstLine(t *testing.T) {
-	inWindow(t, 100, 3)
+	e := state.New()
 
-	press(t, "zz")
+	inWindow(e, t, 100, 3)
 
-	if ed.OffsetRow != 0 {
-		t.Errorf("offsetRow = %d, want 0", ed.OffsetRow)
+	edtest.Press(t, e, "zz")
+
+	if e.OffsetRow != 0 {
+		t.Errorf("offsetRow = %d, want 0", e.OffsetRow)
 	}
 }
 
 func TestCenterViewNearTheEndScrollsPastTheLastLine(t *testing.T) {
-	inWindow(t, 100, 99)
+	e := state.New()
 
-	press(t, "zz")
+	inWindow(e, t, 100, 99)
 
-	if ed.OffsetRow != 89 {
-		t.Errorf("offsetRow = %d, want 89", ed.OffsetRow)
+	edtest.Press(t, e, "zz")
+
+	if e.OffsetRow != 89 {
+		t.Errorf("offsetRow = %d, want 89", e.OffsetRow)
 	}
 }
 
 func TestCountedCenterViewJumpsToThatLine(t *testing.T) {
-	inWindow(t, 100, 0)
+	e := state.New()
 
-	press(t, "40zz")
+	inWindow(e, t, 100, 0)
 
-	if ed.Row != 39 {
-		t.Errorf("currentRow = %d, want 39", ed.Row)
+	edtest.Press(t, e, "40zz")
+
+	if e.Row != 39 {
+		t.Errorf("currentRow = %d, want 39", e.Row)
 	}
-	if ed.OffsetRow != 29 {
-		t.Errorf("offsetRow = %d, want 29", ed.OffsetRow)
+	if e.OffsetRow != 29 {
+		t.Errorf("offsetRow = %d, want 29", e.OffsetRow)
 	}
 }
 
 func TestCountedCenterViewStopsAtTheLastLine(t *testing.T) {
-	inWindow(t, 10, 0)
+	e := state.New()
 
-	press(t, "99zz")
+	inWindow(e, t, 10, 0)
 
-	if ed.Row != 9 {
-		t.Errorf("currentRow = %d, want 9", ed.Row)
+	edtest.Press(t, e, "99zz")
+
+	if e.Row != 9 {
+		t.Errorf("currentRow = %d, want 9", e.Row)
 	}
 }
 
 func TestCenterViewKeepsTheColumn(t *testing.T) {
-	inReadMode(t, "foo bar\nbaz\n", 0, 5)
-	singleWindow(20, 80)
-	ed.OffsetRow = 0
+	e := state.New()
 
-	press(t, "zz")
+	edtest.InReadMode(t, e, "foo bar\nbaz\n", 0, 5)
+	edtest.SingleWindow(e, 20, 80)
+	e.OffsetRow = 0
 
-	if ed.Col != 5 {
-		t.Errorf("currentCol = %d, want 5", ed.Col)
+	edtest.Press(t, e, "zz")
+
+	if e.Col != 5 {
+		t.Errorf("currentCol = %d, want 5", e.Col)
 	}
 }
 
 func TestCenterViewIsNotUndoable(t *testing.T) {
-	inWindow(t, 100, 50)
+	e := state.New()
 
-	press(t, "zz")
+	inWindow(e, t, 100, 50)
 
-	if ed.Hist.CanUndo() {
+	edtest.Press(t, e, "zz")
+
+	if e.Hist.CanUndo() {
 		t.Error("scrolling recorded a change")
 	}
 }
 
 func TestScrollingFollowsTheCursorAwayFromACenteredView(t *testing.T) {
-	inWindow(t, 100, 50)
+	e := state.New()
 
-	press(t, "zz")
-	render.Scroll(ed)
-	if ed.OffsetRow != 40 {
-		t.Fatalf("offsetRow = %d, want the centered 40 left alone", ed.OffsetRow)
+	inWindow(e, t, 100, 50)
+
+	edtest.Press(t, e, "zz")
+	render.Scroll(e)
+	if e.OffsetRow != 40 {
+		t.Fatalf("offsetRow = %d, want the centered 40 left alone", e.OffsetRow)
 	}
 
-	press(t, "30j")
-	render.Scroll(ed)
-	if ed.OffsetRow != 61 {
-		t.Errorf("offsetRow = %d, want 61", ed.OffsetRow)
+	edtest.Press(t, e, "30j")
+	render.Scroll(e)
+	if e.OffsetRow != 61 {
+		t.Errorf("offsetRow = %d, want 61", e.OffsetRow)
 	}
 }

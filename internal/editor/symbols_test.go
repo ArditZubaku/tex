@@ -4,19 +4,22 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
 func TestLeaderSsListsTheDeclarationsOfTheFile(t *testing.T) {
-	inDefinition(t, "package main\n\ntype Buffer struct{}\n\nfunc open() {}\n\nfunc (b *Buffer) Line() {}\n", 0, 0, nil)
+	e := state.New()
 
-	press(t, " ss")
+	inDefinition(e, t, "package main\n\ntype Buffer struct{}\n\nfunc open() {}\n\nfunc (b *Buffer) Line() {}\n", 0, 0, nil)
 
-	if ed.Mode != state.PickerMode {
-		t.Fatalf("mode = %v, want PickerMode", ed.Mode)
+	edtest.Press(t, e, " ss")
+
+	if e.Mode != state.PickerMode {
+		t.Fatalf("mode = %v, want PickerMode", e.Mode)
 	}
-	wantMatches(t,
+	wantMatches(e, t,
 		"Struct    Buffer",
 		"Function  open",
 		"Method    Buffer.Line",
@@ -24,11 +27,13 @@ func TestLeaderSsListsTheDeclarationsOfTheFile(t *testing.T) {
 }
 
 func TestLeaderSsListsEveryNameOfAVarBlock(t *testing.T) {
-	inDefinition(t, "var (\n\tROWS, COLS int\n\tbuf *Buffer\n)\n\nconst (\n\tReadMode Mode = iota\n\tEditMode\n)\n", 0, 0, nil)
+	e := state.New()
 
-	press(t, " ss")
+	inDefinition(e, t, "var (\n\tROWS, COLS int\n\tbuf *Buffer\n)\n\nconst (\n\tReadMode Mode = iota\n\tEditMode\n)\n", 0, 0, nil)
 
-	wantMatches(t,
+	edtest.Press(t, e, " ss")
+
+	wantMatches(e, t,
 		"Variable  ROWS",
 		"Variable  COLS",
 		"Variable  buf",
@@ -38,84 +43,98 @@ func TestLeaderSsListsEveryNameOfAVarBlock(t *testing.T) {
 }
 
 func TestLeaderSsLeavesLocalsOut(t *testing.T) {
-	inDefinition(t, "func open() {\n\ttotal := 0\n\tfor i := range 3 {\n\t\ttotal += i\n\t}\n}\n", 0, 0, nil)
+	e := state.New()
 
-	press(t, " ss")
+	inDefinition(e, t, "func open() {\n\ttotal := 0\n\tfor i := range 3 {\n\t\ttotal += i\n\t}\n}\n", 0, 0, nil)
 
-	wantMatches(t, "Function  open")
+	edtest.Press(t, e, " ss")
+
+	wantMatches(e, t, "Function  open")
 }
 
 func TestLeaderSsReadsALanguageWithoutBraces(t *testing.T) {
-	inDefinition(t, "class Parser:\n    def parse(self):\n        pass\n", 0, 0, nil)
+	e := state.New()
 
-	press(t, " ss")
+	inDefinition(e, t, "class Parser:\n    def parse(self):\n        pass\n", 0, 0, nil)
 
-	wantMatches(t,
+	edtest.Press(t, e, " ss")
+
+	wantMatches(e, t,
 		"Class     Parser",
 		"Function  parse",
 	)
 }
 
 func TestEnterOnASymbolGoesToItsName(t *testing.T) {
-	inDefinition(t, "package main\n\nfunc open() {}\n", 0, 0, nil)
+	e := state.New()
 
-	press(t, " ss")
-	pressKey(t, termbox.KeyEnter)
+	inDefinition(e, t, "package main\n\nfunc open() {}\n", 0, 0, nil)
 
-	wantAt(t, 2, 5)
-	if ed.Pick.Open() {
+	edtest.Press(t, e, " ss")
+	edtest.PressKey(t, e, termbox.KeyEnter)
+
+	wantAt(e, t, 2, 5)
+	if e.Pick.Open() {
 		t.Error("the popup stayed open")
 	}
 }
 
 func TestTypingNarrowsTheSymbols(t *testing.T) {
-	inDefinition(t, "func open() {}\nfunc close() {}\ntype Reader interface{}\n", 0, 0, nil)
+	e := state.New()
 
-	press(t, " ss")
-	press(t, "close")
+	inDefinition(e, t, "func open() {}\nfunc close() {}\ntype Reader interface{}\n", 0, 0, nil)
 
-	wantMatches(t, "Function  close")
+	edtest.Press(t, e, " ss")
+	edtest.Press(t, e, "close")
+
+	wantMatches(e, t, "Function  close")
 }
 
 func TestLeaderSsSaysWhenTheFileDeclaresNothing(t *testing.T) {
-	inDefinition(t, "just some prose\nand another line\n", 0, 0, nil)
+	e := state.New()
 
-	press(t, " ss")
+	inDefinition(e, t, "just some prose\nand another line\n", 0, 0, nil)
 
-	if ed.Mode == state.PickerMode {
-		t.Fatalf("the popup opened on %v", matchedLabels())
+	edtest.Press(t, e, " ss")
+
+	if e.Mode == state.PickerMode {
+		t.Fatalf("the popup opened on %v", matchedLabels(e))
 	}
-	if ed.StatusMsg != "no symbols in start.go" {
-		t.Errorf("statusMsg = %q", ed.StatusMsg)
+	if e.StatusMsg != "no symbols in start.go" {
+		t.Errorf("statusMsg = %q", e.StatusMsg)
 	}
 }
 
 func TestLeaderShiftSListsTheSymbolsOfTheFilesBeside(t *testing.T) {
-	inDefinition(t, "func open() {}\n", 0, 0, map[string]string{
+	e := state.New()
+
+	inDefinition(e, t, "func open() {}\n", 0, 0, map[string]string{
 		"other.go":  "type Reader interface{}\n",
 		"notes.txt": "func ignored() {}\n",
 	})
 
-	press(t, " sS")
+	edtest.Press(t, e, " sS")
 
-	if ed.Mode != state.PickerMode {
-		t.Fatalf("mode = %v, want PickerMode", ed.Mode)
+	if e.Mode != state.PickerMode {
+		t.Fatalf("mode = %v, want PickerMode", e.Mode)
 	}
-	wantMatches(t,
+	wantMatches(e, t,
 		"Function  open  start.go:1",
 		"Interface Reader  other.go:1",
 	)
 }
 
 func TestEnterOnAWorkspaceSymbolOpensItsFile(t *testing.T) {
-	inDefinition(t, "func open() {}\n", 0, 0, map[string]string{"other.go": "package main\n\nfunc target() {}\n"})
+	e := state.New()
 
-	press(t, " sS")
-	pressKey(t, termbox.KeyCtrlN)
-	pressKey(t, termbox.KeyEnter)
+	inDefinition(e, t, "func open() {}\n", 0, 0, map[string]string{"other.go": "package main\n\nfunc target() {}\n"})
 
-	if got := filepath.Base(ed.SourceFile); got != "other.go" {
+	edtest.Press(t, e, " sS")
+	edtest.PressKey(t, e, termbox.KeyCtrlN)
+	edtest.PressKey(t, e, termbox.KeyEnter)
+
+	if got := filepath.Base(e.SourceFile); got != "other.go" {
 		t.Fatalf("editing %q, want other.go", got)
 	}
-	wantAt(t, 2, 5)
+	wantAt(e, t, 2, 5)
 }

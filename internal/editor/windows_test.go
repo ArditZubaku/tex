@@ -13,25 +13,10 @@ import (
 // singleWindow is the state the editor's own layout pass leaves behind for one
 // unsplit window filling the screen, which is what every test that draws or
 // scrolls assumes it starts from.
-func singleWindow(rows, cols int) {
-	view.Reset()
-	ed.ScreenRows, ed.ScreenCols = rows, cols
-	ed.Rows, ed.Cols = rows, cols
-	ed.WinRow, ed.WinCol = state.TabBarRows, 0
-}
-
-// The window moves are Ctrl-hjkl, which arrive as keys rather than runes and so
-// take the path every special key does.
-func pressKey(t *testing.T, key termbox.Key) {
+func wantWindowCount(e *state.Editor, t *testing.T, want int) {
 	t.Helper()
 
-	dispatchKey(termbox.Event{Key: key})
-}
-
-func wantWindowCount(t *testing.T, want int) {
-	t.Helper()
-
-	if got := len(view.List(ed)); got != want {
+	if got := len(view.List(e)); got != want {
 		t.Fatalf("%d windows, want %d", got, want)
 	}
 }
@@ -45,22 +30,24 @@ func wantRect(t *testing.T, w *view.Window, row, col, rows, cols int) {
 	}
 }
 
-func inWindows(t *testing.T, names ...string) []string {
+func inWindows(e *state.Editor, t *testing.T, names ...string) []string {
 	t.Helper()
 
-	paths := inBuffers(t, names...)
-	singleWindow(20, 80)
+	paths := inBuffers(e, t, names...)
+	edtest.SingleWindow(e, 20, 80)
 
 	return paths
 }
 
 func TestSplitStacksTwoWindowsAndTakesTheLowerOne(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":sp\n")
+	inWindows(e, t)
 
-	wantWindowCount(t, 2)
-	list := view.List(ed)
+	edtest.Press(t, e, ":sp\n")
+
+	wantWindowCount(e, t, 2)
+	list := view.List(e)
 	wantRect(t, list[0], state.TabBarRows, 0, 10, 80)
 	wantRect(t, list[1], state.TabBarRows+11, 0, 9, 80)
 	if view.Focused() != list[1] {
@@ -72,12 +59,14 @@ func TestSplitStacksTwoWindowsAndTakesTheLowerOne(t *testing.T) {
 }
 
 func TestVerticalSplitPutsTheWindowsSideBySideAndTakesTheRightOne(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":vs\n")
+	inWindows(e, t)
 
-	wantWindowCount(t, 2)
-	list := view.List(ed)
+	edtest.Press(t, e, ":vs\n")
+
+	wantWindowCount(e, t, 2)
+	list := view.List(e)
 	wantRect(t, list[0], state.TabBarRows, 0, 20, 40)
 	wantRect(t, list[1], state.TabBarRows, 41, 20, 39)
 	if view.Focused() != list[1] {
@@ -89,14 +78,16 @@ func TestVerticalSplitPutsTheWindowsSideBySideAndTakesTheRightOne(t *testing.T) 
 }
 
 func TestSplittingAgainTheSameWayShareTheRoomEqually(t *testing.T) {
-	inWindows(t)
-	singleWindow(20, 130)
+	e := state.New()
 
-	press(t, ":vs\n")
-	press(t, ":vs\n")
+	inWindows(e, t)
+	edtest.SingleWindow(e, 20, 130)
 
-	wantWindowCount(t, 3)
-	for _, w := range view.List(ed) {
+	edtest.Press(t, e, ":vs\n")
+	edtest.Press(t, e, ":vs\n")
+
+	wantWindowCount(e, t, 3)
+	for _, w := range view.List(e) {
 		if w.Rect.Cols < 42 || w.Rect.Cols > 43 {
 			t.Errorf("window %d columns wide, want a third of the 128 left by two separators", w.Rect.Cols)
 		}
@@ -104,25 +95,29 @@ func TestSplittingAgainTheSameWayShareTheRoomEqually(t *testing.T) {
 }
 
 func TestSplittingTheOtherWayNestsInsideTheWindowSplit(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":vs\n")
-	press(t, ":sp\n")
+	inWindows(e, t)
 
-	wantWindowCount(t, 3)
-	list := view.List(ed)
+	edtest.Press(t, e, ":vs\n")
+	edtest.Press(t, e, ":sp\n")
+
+	wantWindowCount(e, t, 3)
+	list := view.List(e)
 	wantRect(t, list[0], state.TabBarRows, 0, 20, 40)  // the left window, untouched
 	wantRect(t, list[1], state.TabBarRows, 41, 10, 39) // the right one, split in two
 	wantRect(t, list[2], state.TabBarRows+11, 41, 9, 39)
 }
 
 func TestASplitShowsTheSameBufferAtTheSamePlace(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, "jl")
-	press(t, ":sp\n")
+	inWindows(e, t)
 
-	list := view.List(ed)
+	edtest.Press(t, e, "jl")
+	edtest.Press(t, e, ":sp\n")
+
+	list := view.List(e)
 	if list[0].Entry != list[1].Entry {
 		t.Error("the split window shows another buffer")
 	}
@@ -133,70 +128,80 @@ func TestASplitShowsTheSameBufferAtTheSamePlace(t *testing.T) {
 }
 
 func TestEachWindowKeepsItsOwnCursor(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":sp\n")
-	press(t, "l") // only the lower window moves
-	pressKey(t, termbox.KeyCtrlK)
+	inWindows(e, t)
 
-	wantCursor(t, 0, 0)
+	edtest.Press(t, e, ":sp\n")
+	edtest.Press(t, e, "l") // only the lower window moves
+	edtest.PressKey(t, e, termbox.KeyCtrlK)
 
-	pressKey(t, termbox.KeyCtrlJ)
+	wantCursor(e, t, 0, 0)
 
-	wantCursor(t, 0, 1)
+	edtest.PressKey(t, e, termbox.KeyCtrlJ)
+
+	wantCursor(e, t, 0, 1)
 }
 
 func TestTheLayoutPassLeavesTheCursorWhereItIs(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, "l")
-	view.Layout(ed) // which every redraw runs before anything is drawn
+	inWindows(e, t)
 
-	wantCursor(t, 0, 1)
+	edtest.Press(t, e, "l")
+	view.Layout(e) // which every redraw runs before anything is drawn
+
+	wantCursor(e, t, 0, 1)
 }
 
 func TestCtrlJAndCtrlKMoveBetweenStackedWindows(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":sp\n")
+	inWindows(e, t)
+
+	edtest.Press(t, e, ":sp\n")
 	below := view.Focused()
 
-	pressKey(t, termbox.KeyCtrlK)
+	edtest.PressKey(t, e, termbox.KeyCtrlK)
 	if view.Focused() == below {
 		t.Fatal("Ctrl-K stayed in the lower window")
 	}
 
-	pressKey(t, termbox.KeyCtrlJ)
+	edtest.PressKey(t, e, termbox.KeyCtrlJ)
 	if view.Focused() != below {
 		t.Error("Ctrl-J did not come back down")
 	}
 }
 
 func TestCtrlHAndCtrlLMoveBetweenSideBySideWindows(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":vs\n")
+	inWindows(e, t)
+
+	edtest.Press(t, e, ":vs\n")
 	right := view.Focused()
 
-	pressKey(t, termbox.KeyCtrlH)
+	edtest.PressKey(t, e, termbox.KeyCtrlH)
 	if view.Focused() == right {
 		t.Fatal("Ctrl-H stayed in the right window")
 	}
 
-	pressKey(t, termbox.KeyCtrlL)
+	edtest.PressKey(t, e, termbox.KeyCtrlL)
 	if view.Focused() != right {
 		t.Error("Ctrl-L did not come back right")
 	}
 }
 
 func TestAMoveWithNoWindowThatWayStaysPut(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":sp\n")
+	inWindows(e, t)
+
+	edtest.Press(t, e, ":sp\n")
 	below := view.Focused()
 
-	pressKey(t, termbox.KeyCtrlJ)
-	pressKey(t, termbox.KeyCtrlH)
+	edtest.PressKey(t, e, termbox.KeyCtrlJ)
+	edtest.PressKey(t, e, termbox.KeyCtrlH)
 
 	if view.Focused() != below {
 		t.Error("a move with no window that way left the window")
@@ -204,52 +209,60 @@ func TestAMoveWithNoWindowThatWayStaysPut(t *testing.T) {
 }
 
 func TestCtrlHIsStillBackspaceWhileTyping(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":vs\n")
+	inWindows(e, t)
+
+	edtest.Press(t, e, ":vs\n")
 	right := view.Focused()
-	press(t, "lli")
-	pressKey(t, termbox.KeyCtrlH)
+	edtest.Press(t, e, "lli")
+	edtest.PressKey(t, e, termbox.KeyCtrlH)
 
 	if view.Focused() != right {
 		t.Error("Ctrl-H left the window while typing")
 	}
-	edtest.WantLines(t, ed.Buf, "frst")
+	edtest.WantLines(t, e.Buf, "frst")
 }
 
 func TestClosingAWindowGivesItsRoomBack(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":sp\n")
-	press(t, ":close\n")
+	inWindows(e, t)
 
-	wantWindowCount(t, 1)
-	wantRect(t, view.List(ed)[0], state.TabBarRows, 0, 20, 80)
+	edtest.Press(t, e, ":sp\n")
+	edtest.Press(t, e, ":close\n")
+
+	wantWindowCount(e, t, 1)
+	wantRect(t, view.List(e)[0], state.TabBarRows, 0, 20, 80)
 	if len(view.Separators()) != 0 {
 		t.Errorf("separators = %v, want none", view.Separators())
 	}
 }
 
 func TestTheLastWindowCannotBeClosed(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":close\n")
+	inWindows(e, t)
 
-	wantWindowCount(t, 1)
-	if ed.StatusMsg != "E444: Cannot close last window" {
-		t.Errorf("statusMsg = %q", ed.StatusMsg)
+	edtest.Press(t, e, ":close\n")
+
+	wantWindowCount(e, t, 1)
+	if e.StatusMsg != "E444: Cannot close last window" {
+		t.Errorf("statusMsg = %q", e.StatusMsg)
 	}
 }
 
 func TestOnlyClosesEveryOtherWindow(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":sp\n")
-	press(t, ":vs\n")
+	inWindows(e, t)
+
+	edtest.Press(t, e, ":sp\n")
+	edtest.Press(t, e, ":vs\n")
 	kept := view.Focused()
-	press(t, ":only\n")
+	edtest.Press(t, e, ":only\n")
 
-	wantWindowCount(t, 1)
+	wantWindowCount(e, t, 1)
 	if view.Focused() != kept {
 		t.Error("only left another window than the one it was run in")
 	}
@@ -257,29 +270,33 @@ func TestOnlyClosesEveryOtherWindow(t *testing.T) {
 }
 
 func TestQuitClosesTheWindowUntilItIsTheLastOne(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":sp\n")
-	press(t, ":q\n")
+	inWindows(e, t)
 
-	wantWindowCount(t, 1)
-	if ed.Quitting {
+	edtest.Press(t, e, ":sp\n")
+	edtest.Press(t, e, ":q\n")
+
+	wantWindowCount(e, t, 1)
+	if e.Quitting {
 		t.Fatal("quit the editor while a window was left")
 	}
 
-	press(t, ":q\n")
+	edtest.Press(t, e, ":q\n")
 
-	if !ed.Quitting {
+	if !e.Quitting {
 		t.Error("still running after :q in the last window")
 	}
 }
 
 func TestSplitWithANameOpensTheFileInTheNewWindowAlone(t *testing.T) {
-	paths := inWindows(t, "a.txt")
+	e := state.New()
 
-	press(t, ":sp "+paths[0]+"\n")
+	paths := inWindows(e, t, "a.txt")
 
-	list := view.List(ed)
+	edtest.Press(t, e, ":sp "+paths[0]+"\n")
+
+	list := view.List(e)
 	if got := filepath.Base(list[1].Entry.Path); got != "a.txt" {
 		t.Errorf("new window shows %q, want a.txt", got)
 	}
@@ -289,80 +306,90 @@ func TestSplitWithANameOpensTheFileInTheNewWindowAlone(t *testing.T) {
 }
 
 func TestSplitRefusesWhenThereIsNoRoomForIt(t *testing.T) {
-	inWindows(t)
-	singleWindow(4, 30)
+	e := state.New()
 
-	press(t, ":vs\n")
+	inWindows(e, t)
+	edtest.SingleWindow(e, 4, 30)
 
-	wantWindowCount(t, 1)
-	if ed.StatusMsg != "E36: Not enough room" {
-		t.Errorf("statusMsg = %q", ed.StatusMsg)
+	edtest.Press(t, e, ":vs\n")
+
+	wantWindowCount(e, t, 1)
+	if e.StatusMsg != "E36: Not enough room" {
+		t.Errorf("statusMsg = %q", e.StatusMsg)
 	}
 
-	press(t, ":sp\n")
+	edtest.Press(t, e, ":sp\n")
 
-	wantWindowCount(t, 1)
-	if ed.StatusMsg != "E36: Not enough room" {
-		t.Errorf("statusMsg = %q", ed.StatusMsg)
+	wantWindowCount(e, t, 1)
+	if e.StatusMsg != "E36: Not enough room" {
+		t.Errorf("statusMsg = %q", e.StatusMsg)
 	}
 }
 
 func TestLeaderSplitsAndClosesWindows(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, " sv")
-	wantWindowCount(t, 2)
+	inWindows(e, t)
+
+	edtest.Press(t, e, " sv")
+	wantWindowCount(e, t, 2)
 	if view.Separators()[0].Vertical {
 		t.Error("<leader>sv put the windows side by side")
 	}
 
-	press(t, " sh")
-	wantWindowCount(t, 3)
+	edtest.Press(t, e, " sh")
+	wantWindowCount(e, t, 3)
 	if !view.Separators()[len(view.Separators())-1].Vertical {
 		t.Error("<leader>sh stacked the windows")
 	}
 
-	press(t, " wd")
-	wantWindowCount(t, 2)
+	edtest.Press(t, e, " wd")
+	wantWindowCount(e, t, 2)
 
-	press(t, " wd")
-	wantWindowCount(t, 1)
+	edtest.Press(t, e, " wd")
+	wantWindowCount(e, t, 1)
 }
 
 func TestCtrlHLeavesTheExplorerForTheWindowBeside(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, ":vs\n")
+	inWindows(e, t)
+
+	edtest.Press(t, e, ":vs\n")
 	right := view.Focused()
-	press(t, " e")
-	pressKey(t, termbox.KeyCtrlH)
+	edtest.Press(t, e, " e")
+	edtest.PressKey(t, e, termbox.KeyCtrlH)
 
 	if view.Focused() == right {
 		t.Fatal("Ctrl-H stayed in the explorer's window")
 	}
-	if ed.ExplorerOpen || ed.Mode != state.ReadMode {
+	if e.ExplorerOpen || e.Mode != state.ReadMode {
 		t.Error("the explorer came along to the window moved to")
 	}
 }
 
 func TestAMoveOutOfTheExplorerWithNoWindowThatWayKeepsIt(t *testing.T) {
-	inWindows(t)
+	e := state.New()
 
-	press(t, " e")
-	pressKey(t, termbox.KeyCtrlL)
+	inWindows(e, t)
 
-	if !ed.ExplorerOpen || ed.Mode != state.ExplorerMode {
+	edtest.Press(t, e, " e")
+	edtest.PressKey(t, e, termbox.KeyCtrlL)
+
+	if !e.ExplorerOpen || e.Mode != state.ExplorerMode {
 		t.Error("the explorer closed on a move that had nowhere to go")
 	}
 }
 
 func TestClosingABufferLeavesNoWindowShowingIt(t *testing.T) {
-	paths := inWindows(t, "a.txt")
+	e := state.New()
 
-	press(t, ":sp "+paths[0]+"\n")
-	press(t, ":bd\n")
+	paths := inWindows(e, t, "a.txt")
 
-	for _, w := range view.List(ed) {
+	edtest.Press(t, e, ":sp "+paths[0]+"\n")
+	edtest.Press(t, e, ":bd\n")
+
+	for _, w := range view.List(e) {
 		if got := filepath.Base(w.Entry.Path); got != "f.txt" {
 			t.Errorf("window still shows %q", got)
 		}
