@@ -1,17 +1,19 @@
-package editor
+// Package gutter is the column of line numbers down the left of a window.
+package gutter
 
 import "fmt"
 
 const minGutterWidth = 4
 
-func gutterWidth(lineCount int) int {
+// Width is how many columns the gutter takes for a buffer of that many lines.
+func Width(lineCount int) int {
 	digits := len(fmt.Sprintf("%d", max(lineCount, 1)))
 	return max(digits+1, minGutterWidth)
 }
 
-// VIM's `number` + `relativenumber` pair: the cursor's own line shows its
+// Label is VIM's `number` + `relativenumber` pair: the cursor's own line shows its
 // absolute number, every other line its distance from the cursor.
-func lineNumberLabel(row, cursorRow, width int) string {
+func Label(row, cursorRow, width int) string {
 	if row == cursorRow {
 		return fmt.Sprintf("%-*d", width, row+1)
 	}

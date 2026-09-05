@@ -1,4 +1,4 @@
-package editor
+package gutter
 
 import "testing"
 
@@ -17,8 +17,8 @@ func TestGutterWidth(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := gutterWidth(tc.lines); got != tc.want {
-				t.Errorf("gutterWidth(%d) = %d, want %d", tc.lines, got, tc.want)
+			if got := Width(tc.lines); got != tc.want {
+				t.Errorf("Width(%d) = %d, want %d", tc.lines, got, tc.want)
 			}
 		})
 	}
@@ -40,9 +40,9 @@ func TestLineNumberLabel(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := lineNumberLabel(tc.row, tc.cursorRow, tc.width)
+			got := Label(tc.row, tc.cursorRow, tc.width)
 			if got != tc.want {
-				t.Errorf("lineNumberLabel(%d, %d, %d) = %q, want %q", tc.row, tc.cursorRow, tc.width, got, tc.want)
+				t.Errorf("Label(%d, %d, %d) = %q, want %q", tc.row, tc.cursorRow, tc.width, got, tc.want)
 			}
 		})
 	}
@@ -50,12 +50,12 @@ func TestLineNumberLabel(t *testing.T) {
 
 func TestLineNumberLabelFillsTheGutter(t *testing.T) {
 	for _, lines := range []int{1, 9, 10, 999, 1000, 202000} {
-		width := gutterWidth(lines)
+		width := Width(lines)
 
 		for _, row := range []int{0, lines / 2, lines - 1} {
 			for _, cursorRow := range []int{0, lines / 2, lines - 1} {
-				if got := len(lineNumberLabel(row, cursorRow, width)); got != width {
-					t.Errorf("len(lineNumberLabel(%d, %d, %d)) = %d, want %d", row, cursorRow, width, got, width)
+				if got := len(Label(row, cursorRow, width)); got != width {
+					t.Errorf("len(Label(%d, %d, %d)) = %d, want %d", row, cursorRow, width, got, width)
 				}
 			}
 		}

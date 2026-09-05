@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ArditZubaku/tex/internal/gutter"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
 )
@@ -19,8 +20,8 @@ func highlightRow(row int) {
 
 func displayTextBuffer() {
 	bufLen := buf.LineCount()
-	gutter := gutterWidth(bufLen)
-	textCols := COLS - gutter
+	gutterCols := gutter.Width(bufLen)
+	textCols := COLS - gutterCols
 	inBlock := blockStateBefore(offsetRow)
 	selected := visualSelection()
 
@@ -41,7 +42,7 @@ func displayTextBuffer() {
 			numberColor, background = active.CursorLineNumber, active.CursorLineBg
 			highlightRow(row)
 		}
-		printMessage(screenCol(0), screenRow(row), numberColor, background, lineNumberLabel(textBufRow, currentRow, gutter))
+		printMessage(screenCol(0), screenRow(row), numberColor, background, gutter.Label(textBufRow, currentRow, gutterCols))
 
 		line := buf.Line(textBufRow)
 		lineLen := len(line)
@@ -60,7 +61,7 @@ func displayTextBuffer() {
 
 			if textBufCol >= lineLen {
 				if inSelection {
-					termbox.SetCell(screenCol(gutter+col), screenRow(row), ' ', active.Plain, active.VisualBg)
+					termbox.SetCell(screenCol(gutterCols+col), screenRow(row), ' ', active.Plain, active.VisualBg)
 				}
 				continue
 			}
@@ -82,7 +83,7 @@ func displayTextBuffer() {
 			if inSelection {
 				cellBackground = active.VisualBg
 			}
-			termbox.SetCell(screenCol(gutter+col), screenRow(row), ch, foreground, cellBackground)
+			termbox.SetCell(screenCol(gutterCols+col), screenRow(row), ch, foreground, cellBackground)
 		}
 	}
 }
@@ -159,7 +160,7 @@ func printMessage(col, row int, fg, bg termbox.Attribute, msg string) {
 }
 
 func scrollTextBuffer() {
-	textCols := COLS - gutterWidth(buf.LineCount())
+	textCols := COLS - gutter.Width(buf.LineCount())
 
 	if currentRow < offsetRow {
 		offsetRow = currentRow

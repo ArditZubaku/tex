@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/gutter"
 	"github.com/ArditZubaku/tex/internal/syntax"
 	"github.com/nsf/termbox-go"
 )
@@ -59,7 +60,7 @@ func Run(args []string) {
 		case ExplorerMode:
 			termbox.SetCursor(screenCol(0), explorerCursorRow())
 		default:
-			termbox.SetCursor(screenCol(currentCol-offsetCol+gutterWidth(buf.LineCount())), screenRow(currentRow-offsetRow))
+			termbox.SetCursor(screenCol(currentCol-offsetCol+gutter.Width(buf.LineCount())), screenRow(currentRow-offsetRow))
 		}
 
 		if err := termbox.Flush(); err != nil {
