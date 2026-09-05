@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/ArditZubaku/tex/internal/editor/edit"
+	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
@@ -46,7 +47,7 @@ func displayTextBuffer() {
 
 		var colors []termbox.Attribute
 		colors, inBlock = lineColors(line, inBlock)
-		hits := lineHits(textBufRow)
+		hits := find.LineHits(ed, textBufRow)
 
 		// Render visible characters in current row
 		for col := range textCols {
@@ -72,7 +73,7 @@ func displayTextBuffer() {
 			if colors != nil {
 				foreground = colors[textBufCol]
 			}
-			if hits.covers(textBufCol) {
+			if hits.Covers(textBufCol) {
 				foreground, cellBackground = ed.Palette.MatchFg, ed.Palette.MatchBg
 			}
 			// the selection keeps the text's own colours and takes the

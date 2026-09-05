@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
@@ -157,8 +158,8 @@ func TestNohlsearchCommandClearsTheHighlight(t *testing.T) {
 	press(t, "/hit\n")
 	press(t, ":noh\n")
 
-	if hits := lineHits(0); len(hits.cols) != 0 {
-		t.Errorf("still highlighting %v after :noh", hits.cols)
+	if hits := find.LineHits(ed, 0); len(hits.Cols()) != 0 {
+		t.Errorf("still highlighting %v after :noh", hits.Cols())
 	}
 	press(t, "n")
 	wantCursor(t, 0, 0)

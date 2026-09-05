@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/ArditZubaku/tex/internal/editor/edit"
+	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
@@ -24,7 +25,7 @@ func dispatchKey(keyEvent termbox.Event) {
 	case ed.Mode == state.ExplorerMode:
 		handleExplorerKey(keyEvent)
 	case ed.Mode == state.PickerMode:
-		handlePickerKey(keyEvent)
+		find.PickerKey(ed, keyEvent)
 	case keyEvent.Key == termbox.KeyEsc:
 		esc()
 	case keyEvent.Ch != 0:
@@ -70,8 +71,8 @@ var readModeActions = map[rune]func(){
 	'u': ed.Undo,
 	'/': startSearchForward,
 	'?': startSearchBackward,
-	'n': nextMatch,
-	'N': prevMatch,
+	'n': bind(find.NextMatch),
+	'N': bind(find.PrevMatch),
 	':': startExPrompt,
 	'v': bind(edit.StartVisualChar),
 	'V': bind(edit.StartVisualLine),
@@ -108,8 +109,8 @@ var chordActions = chordKeys()
 func chordKeys() map[string]func() {
 	chords := map[string]func(){
 		"gg":  ed.GoToTop,
-		"gd":  goToDefinition,
-		"gr":  openReferences,
+		"gd":  bind(find.GoToDefinition),
+		"gr":  bind(find.OpenReferences),
 		"dd":  bind(edit.DeleteLine),
 		"dw":  bind(edit.DeleteWord),
 		"de":  bind(edit.DeleteToWordEnd),
@@ -129,10 +130,10 @@ func chordKeys() map[string]func() {
 		" br": bind(view.CloseBuffersRight),
 		" sh": bind(view.SplitRight),
 		" sv": bind(view.SplitBelow),
-		" ss": openSymbols,
-		" sS": openWorkspaceSymbols,
+		" ss": bind(find.OpenSymbols),
+		" sS": bind(find.OpenWorkspaceSymbols),
 		" wd": bind(view.CloseWindow),
-		"  ":  openPicker,
+		"  ":  bind(find.OpenFiles),
 	}
 
 	return chords
@@ -261,7 +262,7 @@ var specialKeyActions = map[termbox.Key]func(){
 	termbox.KeyPgup:       ed.PageUp,
 	termbox.KeyPgdn:       ed.PageDown,
 	termbox.KeyCtrlR:      ed.Redo,
-	termbox.KeyCtrlO:      jumpBack,
+	termbox.KeyCtrlO:      bind(find.JumpBack),
 }
 
 func handleSpecialKey(keyEvent termbox.Event) {

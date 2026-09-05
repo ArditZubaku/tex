@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/search"
 )
@@ -242,10 +243,10 @@ func TestMatchesAreHighlightedUntilEsc(t *testing.T) {
 
 	press(t, "/hit\n")
 
-	hits := lineHits(0)
+	hits := find.LineHits(ed, 0)
 	var lit []int
 	for col := range 11 {
-		if hits.covers(col) {
+		if hits.Covers(col) {
 			lit = append(lit, col)
 		}
 	}
@@ -254,8 +255,8 @@ func TestMatchesAreHighlightedUntilEsc(t *testing.T) {
 	}
 
 	esc()
-	if hits := lineHits(0); len(hits.cols) != 0 {
-		t.Errorf("still highlighting %v after Esc", hits.cols)
+	if hits := find.LineHits(ed, 0); len(hits.Cols()) != 0 {
+		t.Errorf("still highlighting %v after Esc", hits.Cols())
 	}
 
 	press(t, "n")

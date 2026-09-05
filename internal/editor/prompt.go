@@ -3,6 +3,7 @@ package editor
 import (
 	"slices"
 
+	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
@@ -15,6 +16,9 @@ var (
 	promptChar  rune
 	promptInput []rune
 )
+
+func startSearchForward()  { startPrompt('/') }
+func startSearchBackward() { startPrompt('?') }
 
 func startPrompt(delimiter rune) {
 	ed.Mode = state.PromptMode
@@ -64,7 +68,7 @@ func submitPrompt() {
 		runExCommand(string(input))
 		return
 	}
-	commitSearch(input, delimiter == '?')
+	find.CommitSearch(ed, input, delimiter == '?')
 }
 
 // endPrompt is what Esc reaches, so it leaves the explorer's listing as it was

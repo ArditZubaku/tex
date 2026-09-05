@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/gutter"
@@ -51,7 +52,7 @@ func Run(args []string) {
 
 		displayBufferLine()
 		displayWindows()
-		displayPicker()
+		find.DrawPicker(ed)
 		displayStatusBar()
 
 		switch ed.Mode {

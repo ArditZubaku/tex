@@ -1,4 +1,4 @@
-package editor
+package find
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/decl"
 	"github.com/ArditZubaku/tex/internal/editor/picker"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/project"
 )
 
@@ -18,35 +19,35 @@ import (
 // of keys.
 const maxReferences = 2000
 
-func openReferences() {
-	word, ok := wordUnderCursor()
+func OpenReferences(e *state.Editor) {
+	word, ok := wordUnderCursor(e)
 	if !ok {
-		ed.StatusMsg = "E349: No identifier under the cursor"
+		e.StatusMsg = "E349: No identifier under the cursor"
 		return
 	}
 
 	mentions, err := decl.Mentions(word)
 	if err != nil {
-		ed.StatusMsg = "E486: Pattern not found: " + word
+		e.StatusMsg = "E486: Pattern not found: " + word
 		return
 	}
 
-	entries := referencesInBuffer(mentions)
-	entries = append(entries, referencesInFiles(mentions)...)
+	entries := referencesInBuffer(e, mentions)
+	entries = append(entries, referencesInFiles(e, mentions)...)
 	if len(entries) == 0 {
-		ed.StatusMsg = "no references to " + word
+		e.StatusMsg = "no references to " + word
 		return
 	}
 
-	showPicker(fmt.Sprintf("%d references to %s", len(entries), word), entries)
+	showPicker(e, fmt.Sprintf("%d references to %s", len(entries), word), entries)
 }
 
-func referencesInBuffer(mentions *regexp.Regexp) []picker.Entry {
+func referencesInBuffer(e *state.Editor, mentions *regexp.Regexp) []picker.Entry {
 	entries := make([]picker.Entry, 0, 16)
-	for row := range ed.Buf.LineCount() {
-		line := ed.LineBytes(row)
+	for row := range e.Buf.LineCount() {
+		line := e.LineBytes(row)
 		for _, at := range mentions.FindAllIndex(line, -1) {
-			entries = append(entries, reference(ed.SourceFile, row, utf8.RuneCount(line[:at[0]]), string(line)))
+			entries = append(entries, reference(e.SourceFile, row, utf8.RuneCount(line[:at[0]]), string(line)))
 			if len(entries) >= maxReferences {
 				return entries
 			}
@@ -56,9 +57,9 @@ func referencesInBuffer(mentions *regexp.Regexp) []picker.Entry {
 	return entries
 }
 
-func referencesInFiles(mentions *regexp.Regexp) []picker.Entry {
+func referencesInFiles(e *state.Editor, mentions *regexp.Regexp) []picker.Entry {
 	entries := make([]picker.Entry, 0, 16)
-	for path, content := range project.Siblings(ed.SourceFile) {
+	for path, content := range project.Siblings(e.SourceFile) {
 		for row, line := range strings.Split(string(content), "\n") {
 			for _, at := range mentions.FindAllStringIndex(line, -1) {
 				entries = append(entries, reference(path, row, utf8.RuneCountInString(line[:at[0]]), line))
