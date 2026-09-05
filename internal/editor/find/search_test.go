@@ -1,4 +1,4 @@
-package editor
+package find_test
 
 import (
 	"slices"

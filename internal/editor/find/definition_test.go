@@ -1,4 +1,6 @@
-package editor
+// The tests sit outside the package because the harness they share with the
+// rest of the editor imports it.
+package find_test
 
 import (
 	"os"
