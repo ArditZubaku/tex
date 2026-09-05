@@ -59,6 +59,7 @@ func Run(args []string) {
 		render.BufferLine(ed)
 		render.Windows(ed)
 		find.DrawPicker(ed)
+		ed.Note.Draw(ed.ScreenArea(), &ed.Palette)
 		render.StatusBar(ed)
 
 		switch ed.Mode {

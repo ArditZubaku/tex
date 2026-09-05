@@ -9,6 +9,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/filetree"
 	"github.com/ArditZubaku/tex/internal/editor/history"
+	"github.com/ArditZubaku/tex/internal/editor/notify"
 	"github.com/ArditZubaku/tex/internal/editor/picker"
 	"github.com/ArditZubaku/tex/internal/editor/prompt"
 	"github.com/ArditZubaku/tex/internal/editor/register"
@@ -94,6 +95,7 @@ type Editor struct {
 	Clip register.Register
 
 	Prompt       prompt.Line
+	Note         notify.Note
 	Pick         picker.Picker
 	Exp          filetree.Tree
 	ExplorerOpen bool

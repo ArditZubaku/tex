@@ -310,6 +310,7 @@ func esc(e *state.Editor) {
 	}
 	e.Mode = state.ReadMode
 	e.PendingKeys, e.PendingCount, e.HlSearch = e.PendingKeys[:0], 0, false
+	e.Note.Clear()
 	e.EndChange()
 	e.ClampCol()
 	state.SetCursorShape(state.CursorDefault)
