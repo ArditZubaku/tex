@@ -174,6 +174,13 @@ func (e *Editor) StartPromptWith(delimiter rune, input string) {
 	e.Prompt.StartWith(delimiter, input)
 }
 
+// StartLabelledPrompt opens the prompt under a word rather than under its
+// delimiter, which is how the explorer's 'a' says what it is asking for.
+func (e *Editor) StartLabelledPrompt(delimiter rune, label, input string) {
+	e.Mode = PromptMode
+	e.Prompt.StartLabelled(delimiter, label, input)
+}
+
 // Close lets the editor's loop fall out and shut the terminal down on its way,
 // so quitting runs the same path whether it was 'q' or ':q' that asked.
 func (e *Editor) Close() { e.Quitting = true }
