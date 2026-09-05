@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/syntax"
 	"github.com/ArditZubaku/tex/internal/theme"
 )
@@ -137,7 +138,7 @@ func editFile(path string, force bool) bool {
 		buf, lang = buffer.Open(path), syntax.Detect(path)
 		currentRow, currentCol, offsetRow, offsetCol = 0, 0, 0, 0
 		modified = false
-		undoStack, redoStack, pendingChange = nil, nil, nil
+		hist = history.History{}
 		syncBuffer()
 	} else {
 		openInBuffer(path)

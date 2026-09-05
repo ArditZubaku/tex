@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/syntax"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
@@ -26,7 +27,7 @@ type bufferEntry struct {
 	row, col             int
 	offsetRow, offsetCol int
 	modified             bool
-	undoStack, redoStack []change
+	hist                 history.History
 }
 
 var (
@@ -60,7 +61,7 @@ func syncBuffer() {
 	entry.row, entry.col = currentRow, currentCol
 	entry.offsetRow, entry.offsetCol = offsetRow, offsetCol
 	entry.modified = modified
-	entry.undoStack, entry.redoStack = undoStack, redoStack
+	entry.hist = hist
 }
 
 func loadBuffer(index int) {
@@ -79,7 +80,8 @@ func loadBuffer(index int) {
 func applyEntry(entry *bufferEntry) {
 	buf, sourceFile, lang = entry.buf, entry.path, entry.lang
 	modified = entry.modified
-	undoStack, redoStack, pendingChange = entry.undoStack, entry.redoStack, nil
+	hist = entry.hist
+	hist.Abandon()
 }
 
 // switchBuffer wraps at both ends, the way LazyVim's buffer keys do.

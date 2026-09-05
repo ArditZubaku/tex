@@ -129,11 +129,11 @@ func displayStatusBar() {
 		copyStatus = " [Copy]"
 	}
 
-	if len(undoStack) > 0 {
+	if hist.CanUndo() {
 		undoStatus = " [Undo]"
 	}
 
-	if len(redoStack) > 0 {
+	if hist.CanRedo() {
 		redoStatus = " [Redo]"
 	}
 

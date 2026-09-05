@@ -86,8 +86,8 @@ func TestCenterViewIsNotUndoable(t *testing.T) {
 
 	press(t, "zz")
 
-	if len(undoStack) != 0 {
-		t.Errorf("undoStack holds %d changes, want none", len(undoStack))
+	if hist.CanUndo() {
+		t.Error("scrolling recorded a change")
 	}
 }
 

@@ -50,8 +50,8 @@ func TestUndoInsertSessionAsOneChange(t *testing.T) {
 
 	press(t, "u")
 	wantLines(t, b, "foo")
-	if len(undoStack) != 0 {
-		t.Errorf("undoStack holds %d changes, want the session undone in one", len(undoStack))
+	if hist.CanUndo() {
+		t.Error("the insert session left more than one change behind")
 	}
 
 	redo()
@@ -111,13 +111,13 @@ func TestNewEditClearsTheRedoStack(t *testing.T) {
 	b := inReadMode(t, "a\nb\n", 0, 0)
 
 	press(t, "ddu")
-	if len(redoStack) != 1 {
-		t.Fatalf("redoStack holds %d changes, want 1", len(redoStack))
+	if !hist.CanRedo() {
+		t.Fatal("the undone delete left nothing to redo")
 	}
 
 	press(t, "x")
-	if len(redoStack) != 0 {
-		t.Errorf("redoStack holds %d changes, want it cleared by the new edit", len(redoStack))
+	if hist.CanRedo() {
+		t.Error("the new edit left the redo stack standing")
 	}
 	wantLines(t, b, "", "b")
 }
