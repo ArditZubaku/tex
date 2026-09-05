@@ -1,0 +1,8 @@
+#!/bin/sh
+# Nothing reaches the remote with a red lint. Bypass with --no-verify only
+# when the push itself is the emergency.
+
+if ! make lint; then
+	echo "pre-push: make lint failed — push aborted" >&2
+	exit 1
+fi
