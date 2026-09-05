@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/search"
 	"github.com/ArditZubaku/tex/internal/theme"
 	"github.com/nsf/termbox-go"
 )
@@ -16,7 +17,7 @@ func inReadMode(t *testing.T, content string, row, col int) *buffer.Buffer {
 	pendingKeys, pendingCount, cmdCount = nil, 0, 1
 	undoStack, redoStack, pendingChange = nil, nil, nil
 	clipboard = register{}
-	searchPat, searchBack, hlSearch = pattern{}, false, false
+	searchPat, searchBack, hlSearch = search.Pattern{}, false, false
 	promptChar, promptInput, statusMsg = 0, nil, ""
 	quitting, active = false, theme.Default()
 	explorerOpen, explorerHidden, explorerFilter = false, false, ""

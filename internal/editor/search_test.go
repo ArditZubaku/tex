@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/search"
 )
 
 func wantCursor(t *testing.T, row, col int) {
@@ -289,7 +290,7 @@ func TestSearchOverBigFileMatchesFullDecode(t *testing.T) {
 	got := make([][2]int, 0, len(want))
 	row, col := 0, -1
 	for range want {
-		r, c, ok := findMatch(newPattern([]rune("ünïcödé")), row, col, false)
+		r, c, ok := search.Find(buf, search.New([]rune("ünïcödé")), row, col, false)
 		if !ok {
 			t.Fatalf("search stopped after %d of %d matches", len(got), len(want))
 		}
