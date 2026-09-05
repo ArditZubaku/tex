@@ -1,14 +1,18 @@
 package editor
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ArditZubaku/tex/internal/editor/state"
+)
 
 func TestCountRepeatsAMotion(t *testing.T) {
 	inReadMode(t, "a\nb\nc\nd\n", 0, 0)
 
 	press(t, "3j")
 
-	if currentRow != 3 {
-		t.Errorf("currentRow = %d, want 3", currentRow)
+	if ed.Row != 3 {
+		t.Errorf("currentRow = %d, want 3", ed.Row)
 	}
 }
 
@@ -18,7 +22,7 @@ func TestCountedDeleteRune(t *testing.T) {
 	press(t, "3x")
 
 	wantLines(t, b, "def")
-	if got := string(clipboard.Content()[0]); got != "abc" {
+	if got := string(ed.Clip.Content()[0]); got != "abc" {
 		t.Errorf("register holds %q, want %q", got, "abc")
 	}
 }
@@ -28,11 +32,11 @@ func TestCountIsSpentByTheCommandItPrefixes(t *testing.T) {
 
 	press(t, "2jj")
 
-	if currentRow != 3 {
-		t.Errorf("currentRow = %d, want 3", currentRow)
+	if ed.Row != 3 {
+		t.Errorf("currentRow = %d, want 3", ed.Row)
 	}
-	if pendingCount != 0 {
-		t.Errorf("pendingCount = %d, want it spent", pendingCount)
+	if ed.PendingCount != 0 {
+		t.Errorf("pendingCount = %d, want it spent", ed.PendingCount)
 	}
 }
 
@@ -41,8 +45,8 @@ func TestMultiDigitCountIsCapped(t *testing.T) {
 
 	press(t, "999999")
 
-	if pendingCount != maxCount {
-		t.Errorf("pendingCount = %d, want %d", pendingCount, maxCount)
+	if ed.PendingCount != state.MaxCount {
+		t.Errorf("pendingCount = %d, want %d", ed.PendingCount, state.MaxCount)
 	}
 }
 
@@ -51,8 +55,8 @@ func TestLeadingZeroDoesNotStartACount(t *testing.T) {
 
 	press(t, "0")
 
-	if pendingCount != 0 {
-		t.Errorf("pendingCount = %d, want 0", pendingCount)
+	if ed.PendingCount != 0 {
+		t.Errorf("pendingCount = %d, want 0", ed.PendingCount)
 	}
 }
 
@@ -63,7 +67,7 @@ func TestEscCancelsAPendingCount(t *testing.T) {
 	esc()
 	press(t, "j")
 
-	if currentRow != 1 {
-		t.Errorf("currentRow = %d, want 1", currentRow)
+	if ed.Row != 1 {
+		t.Errorf("currentRow = %d, want 1", ed.Row)
 	}
 }

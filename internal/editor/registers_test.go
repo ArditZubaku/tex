@@ -7,6 +7,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/register"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
 	"github.com/ArditZubaku/tex/internal/search"
 	"github.com/ArditZubaku/tex/internal/theme"
@@ -17,16 +18,16 @@ func inReadMode(t *testing.T, content string, row, col int) *buffer.Buffer {
 	t.Helper()
 
 	b := atCursor(t, content, row, col)
-	mode = ReadMode
-	pendingKeys, pendingCount, cmdCount = nil, 0, 1
-	hist = history.History{}
-	clipboard = register.Register{}
-	searchPat, searchBack, hlSearch = search.Pattern{}, false, false
-	promptChar, promptInput, statusMsg = 0, nil, ""
-	quitting, active = false, theme.Default()
-	explorerOpen, exp = false, explorer.Explorer{}
+	ed.Mode = state.ReadMode
+	ed.PendingKeys, ed.PendingCount, ed.CmdCount = nil, 0, 1
+	ed.Hist = history.History{}
+	ed.Clip = register.Register{}
+	ed.SearchPat, ed.SearchBack, ed.HlSearch = search.Pattern{}, false, false
+	promptChar, promptInput, ed.StatusMsg = 0, nil, ""
+	ed.Quitting, ed.Palette = false, theme.Default()
+	ed.ExplorerOpen, ed.Exp = false, explorer.Explorer{}
 	buffers, currentBuffer, tabs = nil, 0, tabbar.Bar{}
-	root, current, winRow, winCol = nil, nil, tabBarRows, 0
+	root, current, ed.WinRow, ed.WinCol = nil, nil, state.TabBarRows, 0
 
 	return b
 }
@@ -65,8 +66,8 @@ func TestYankLineAndPaste(t *testing.T) {
 	press(t, "yyp")
 
 	wantLines(t, b, "foo", "foo", "bar")
-	if currentRow != 1 || currentCol != 0 {
-		t.Errorf("cursor at %d,%d, want 1,0", currentRow, currentCol)
+	if ed.Row != 1 || ed.Col != 0 {
+		t.Errorf("cursor at %d,%d, want 1,0", ed.Row, ed.Col)
 	}
 }
 
@@ -76,8 +77,8 @@ func TestPasteBeforePutsTheLineAbove(t *testing.T) {
 	press(t, "yyP")
 
 	wantLines(t, b, "foo", "bar", "bar")
-	if currentRow != 1 {
-		t.Errorf("currentRow = %d, want 1", currentRow)
+	if ed.Row != 1 {
+		t.Errorf("currentRow = %d, want 1", ed.Row)
 	}
 }
 
@@ -103,8 +104,8 @@ func TestCharwiseYankAndPaste(t *testing.T) {
 	press(t, "ywp")
 
 	wantLines(t, b, "ffoo oo bar")
-	if currentCol != 4 {
-		t.Errorf("currentCol = %d, want 4", currentCol)
+	if ed.Col != 4 {
+		t.Errorf("currentCol = %d, want 4", ed.Col)
 	}
 }
 
@@ -130,7 +131,7 @@ func TestPasteWithAnEmptyRegisterDoesNothing(t *testing.T) {
 	press(t, "p")
 
 	wantLines(t, b, "foo")
-	if modified {
+	if ed.Modified {
 		t.Error("modified with nothing to paste")
 	}
 }

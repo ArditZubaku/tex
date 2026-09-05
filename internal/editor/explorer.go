@@ -6,41 +6,36 @@ import (
 	"time"
 
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
-	"github.com/ArditZubaku/tex/internal/layout"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
-)
-
-var (
-	explorerOpen bool
-	exp          explorer.Explorer
 )
 
 // openExplorer is '<leader>e', which toggles: the second press is what closes
 // the explorer again.
 func openExplorer() {
-	if explorerOpen {
+	if ed.ExplorerOpen {
 		closeExplorer()
 		return
 	}
 
-	dir, err := filepath.Abs(filepath.Dir(sourceFile))
+	dir, err := filepath.Abs(filepath.Dir(ed.SourceFile))
 	if err != nil {
 		dir = "."
 	}
 
-	if explorerGo(dir, filepath.Base(sourceFile)) {
-		explorerOpen, mode = true, ExplorerMode
+	if explorerGo(dir, filepath.Base(ed.SourceFile)) {
+		ed.ExplorerOpen, ed.Mode = true, state.ExplorerMode
 	}
 }
 
 func closeExplorer() {
-	explorerOpen, mode = false, ReadMode
-	clampCol()
+	ed.ExplorerOpen, ed.Mode = false, state.ReadMode
+	ed.ClampCol()
 }
 
 func explorerGo(dir, on string) bool {
-	if err := exp.Go(dir, on); err != nil {
-		statusMsg = "E484: Can't open file " + dir
+	if err := ed.Exp.Go(dir, on); err != nil {
+		ed.StatusMsg = "E484: Can't open file " + dir
 		return false
 	}
 
@@ -48,8 +43,8 @@ func explorerGo(dir, on string) bool {
 }
 
 func leaveDir() {
-	if err := exp.Leave(); err != nil {
-		statusMsg = "E484: Can't open file " + filepath.Dir(exp.Dir())
+	if err := ed.Exp.Leave(); err != nil {
+		ed.StatusMsg = "E484: Can't open file " + filepath.Dir(ed.Exp.Dir())
 	}
 }
 
@@ -57,12 +52,12 @@ func leaveDir() {
 // the buffer's search uses; what is typed there narrows the listing as it goes.
 func startExplorerSearch() { startPrompt('/') }
 
-func filterExplorer(filter string) { exp.Filter(filter) }
+func filterExplorer(filter string) { ed.Exp.Filter(filter) }
 
 // clearFilter is Esc: it drops the filter it finds, and closes the explorer
 // when there is none left to drop.
 func clearFilter() {
-	if exp.Filtered() == "" {
+	if ed.Exp.Filtered() == "" {
 		closeExplorer()
 		return
 	}
@@ -71,7 +66,7 @@ func clearFilter() {
 }
 
 func openSelected() {
-	entry, ok := exp.Selected()
+	entry, ok := ed.Exp.Selected()
 	if !ok {
 		return
 	}
@@ -82,7 +77,7 @@ func openSelected() {
 
 	// the entry's own flag is false for a symlink to a directory, so what to do
 	// with the one being opened is worth the single stat
-	path := exp.Path(entry.Name)
+	path := ed.Exp.Path(entry.Name)
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
 		explorerGo(path, "")
 		return
@@ -94,23 +89,23 @@ func openSelected() {
 }
 
 func toggleHidden() {
-	if err := exp.ToggleHidden(); err != nil {
-		statusMsg = "E484: Can't open file " + exp.Dir()
+	if err := ed.Exp.ToggleHidden(); err != nil {
+		ed.StatusMsg = "E484: Can't open file " + ed.Exp.Dir()
 	}
 }
 
-func explorerDown()     { exp.Move(1) }
-func explorerUp()       { exp.Move(-1) }
-func explorerGoTop()    { exp.Top() }
-func explorerGoBottom() { exp.Bottom() }
+func explorerDown()     { ed.Exp.Move(1) }
+func explorerUp()       { ed.Exp.Move(-1) }
+func explorerGoTop()    { ed.Exp.Top() }
+func explorerGoBottom() { ed.Exp.Bottom() }
 
 // A half screen of the listing, which is what Ctrl-D and Ctrl-U move by, the
 // same fraction of the window they move the buffer by.
-func explorerPageDown() { exp.Move(explorerPage()) }
-func explorerPageUp()   { exp.Move(-explorerPage()) }
+func explorerPageDown() { ed.Exp.Move(explorerPage()) }
+func explorerPageUp()   { ed.Exp.Move(-explorerPage()) }
 
 func explorerPage() int {
-	return max((ROWS-explorer.HeaderRows)/2, 1)
+	return max((ed.Rows-explorer.HeaderRows)/2, 1)
 }
 
 var explorerActions = map[rune]func(){
@@ -141,13 +136,13 @@ var explorerSpecialActions = map[termbox.Key]func(){
 
 func handleExplorerKey(event termbox.Event) {
 	if event.Key == termbox.KeySpace {
-		pendingKeys, pendingTime = append(pendingKeys[:0], ' '), time.Now()
+		ed.PendingKeys, ed.PendingTime = append(ed.PendingKeys[:0], ' '), time.Now()
 		return
 	}
 
 	if event.Ch != 0 {
-		leader := len(pendingKeys) > 0 && time.Since(pendingTime) < chordTimeout
-		pendingKeys = pendingKeys[:0]
+		leader := len(ed.PendingKeys) > 0 && time.Since(ed.PendingTime) < state.ChordTimeout
+		ed.PendingKeys = ed.PendingKeys[:0]
 
 		switch {
 		case leader && event.Ch == 'e':
@@ -161,7 +156,7 @@ func handleExplorerKey(event termbox.Event) {
 		return
 	}
 
-	pendingKeys = pendingKeys[:0]
+	ed.PendingKeys = ed.PendingKeys[:0]
 	if action, ok := windowMoveKeys[event.Key]; ok {
 		leaveExplorerFor(action)
 		return
@@ -182,11 +177,6 @@ func leaveExplorerFor(move func()) {
 	}
 }
 
-func displayExplorer()       { exp.Draw(windowArea(), &active) }
-func explorerCursorRow() int { return exp.CursorRow(windowArea()) }
-func explorerStatus() string { return exp.Status() }
-
-// windowArea is the room the window being drawn has to itself.
-func windowArea() layout.Rect {
-	return layout.Rect{Row: winRow, Col: winCol, Rows: ROWS, Cols: COLS}
-}
+func displayExplorer()       { ed.Exp.Draw(ed.WindowArea(), &ed.Palette) }
+func explorerCursorRow() int { return ed.Exp.CursorRow(ed.WindowArea()) }
+func explorerStatus() string { return ed.Exp.Status() }

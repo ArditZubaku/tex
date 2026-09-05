@@ -3,6 +3,7 @@ package editor
 import (
 	"slices"
 
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/layout"
 	"github.com/nsf/termbox-go"
 )
@@ -22,9 +23,6 @@ var (
 	root    *layout.Tree[*window]
 	current *window
 
-	screenRows, screenCols int // the area the windows share
-	winRow, winCol         int // where the window being drawn starts on screen
-
 	separators []layout.Separator
 )
 
@@ -36,20 +34,15 @@ const (
 	minWindowCols = 20
 )
 
-func screenRow(row int) int { return winRow + row }
-func screenCol(col int) int { return winCol + col }
-
-func statusRow() int { return screenRows + tabBarRows }
-
 // currentWindow adopts the whole area as one window when nothing has been split
 // yet, so that the editor always has a window without main having to seed one.
 func currentWindow() *window {
 	if current == nil {
 		current = &window{
 			entry:     currentEntry(),
-			cursorRow: currentRow, cursorCol: currentCol,
-			offsetRow: offsetRow, offsetCol: offsetCol,
-			rect: layout.Rect{Row: tabBarRows, Rows: ROWS, Cols: COLS},
+			cursorRow: ed.Row, cursorCol: ed.Col,
+			offsetRow: ed.OffsetRow, offsetCol: ed.OffsetCol,
+			rect: layout.Rect{Row: state.TabBarRows, Rows: ed.Rows, Cols: ed.Cols},
 		}
 		root = layout.Leaf(current)
 	}
@@ -62,8 +55,8 @@ func currentWindow() *window {
 func syncWindow() {
 	w := currentWindow()
 	w.entry = currentEntry()
-	w.cursorRow, w.cursorCol = currentRow, currentCol
-	w.offsetRow, w.offsetCol = offsetRow, offsetCol
+	w.cursorRow, w.cursorCol = ed.Row, ed.Col
+	w.offsetRow, w.offsetCol = ed.OffsetRow, ed.OffsetCol
 	syncBuffer()
 }
 
@@ -71,9 +64,9 @@ func syncWindow() {
 // which is what lets one pass draw every window through the same renderer. It
 // leaves the buffer's history alone: only the window being worked in owns that.
 func showWindow(w *window) {
-	buf, sourceFile, lang = w.entry.buf, w.entry.path, w.entry.lang
-	currentRow, currentCol = w.cursorRow, w.cursorCol
-	offsetRow, offsetCol = w.offsetRow, w.offsetCol
+	ed.Buf, ed.SourceFile, ed.Lang = w.entry.buf, w.entry.path, w.entry.lang
+	ed.Row, ed.Col = w.cursorRow, w.cursorCol
+	ed.OffsetRow, ed.OffsetCol = w.offsetRow, w.offsetCol
 	applyRect(w)
 }
 
@@ -81,19 +74,19 @@ func showWindow(w *window) {
 // room it has to draw in, which a resize changes under a window that is
 // otherwise untouched.
 func applyRect(w *window) {
-	winRow, winCol, ROWS, COLS = w.rect.Row, w.rect.Col, w.rect.Rows, w.rect.Cols
+	ed.WinRow, ed.WinCol, ed.Rows, ed.Cols = w.rect.Row, w.rect.Col, w.rect.Rows, w.rect.Cols
 }
 
 // applyWindow makes a window the one being worked in: it takes the buffer's
 // history with it, and drops a selection, which belonged to the window left.
 func applyWindow(w *window) {
-	if mode == VisualMode {
+	if ed.Mode == state.VisualMode {
 		exitVisual()
 	}
 	current, currentBuffer = w, max(slices.Index(buffers, w.entry), 0)
 	applyEntry(w.entry)
 	showWindow(w)
-	clampCol()
+	ed.ClampCol()
 }
 
 func focusWindow(w *window) {
@@ -123,7 +116,7 @@ func splitRight() { splitWindow(true) }
 func splitWindow(vertical bool) bool {
 	w := currentWindow()
 	if (vertical && w.rect.Cols <= 2*minWindowCols) || (!vertical && w.rect.Rows <= 2*minWindowRows) {
-		statusMsg = "E36: Not enough room"
+		ed.StatusMsg = "E36: Not enough room"
 		return false
 	}
 
@@ -145,7 +138,7 @@ func splitWindow(vertical bool) bool {
 func closeWindow() {
 	list := windowList()
 	if len(list) < 2 {
-		statusMsg = "E444: Cannot close last window"
+		ed.StatusMsg = "E444: Cannot close last window"
 		return
 	}
 
@@ -203,7 +196,7 @@ func focusDirection(dRow, dCol int) {
 func layoutWindows() {
 	currentWindow()
 	separators = root.Place(
-		layout.Rect{Row: tabBarRows, Rows: screenRows, Cols: screenCols},
+		layout.Rect{Row: state.TabBarRows, Rows: ed.ScreenRows, Cols: ed.ScreenCols},
 		separators[:0],
 		func(w *window, rect layout.Rect) { w.rect = rect },
 	)
@@ -215,27 +208,27 @@ func layoutWindows() {
 // current window's own state is put back at the end.
 func displayWindows() {
 	syncWindow()
-	live := mode
+	live := ed.Mode
 
 	for _, w := range windowList() {
 		// only the window being worked in draws its mode: a selection belongs
 		// to the window it was made in, not to every view of the buffer
-		mode = live
+		ed.Mode = live
 		if w != current {
-			mode = ReadMode
+			ed.Mode = state.ReadMode
 		}
 
 		showWindow(w)
-		if explorerOpen && w == current {
+		if ed.ExplorerOpen && w == current {
 			displayExplorer()
 			continue
 		}
 		scrollTextBuffer()
 		displayTextBuffer()
-		w.offsetRow, w.offsetCol = offsetRow, offsetCol
+		w.offsetRow, w.offsetCol = ed.OffsetRow, ed.OffsetCol
 	}
 
-	mode = live
+	ed.Mode = live
 	showWindow(current)
 	displaySeparators()
 }
@@ -253,7 +246,7 @@ func displaySeparators() {
 			} else {
 				col += i
 			}
-			termbox.SetCell(col, row, ch, active.Separator, active.Background)
+			termbox.SetCell(col, row, ch, ed.Palette.Separator, ed.Palette.Background)
 		}
 	}
 }

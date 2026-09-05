@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
@@ -15,8 +16,8 @@ func TestGrListsEveryMentionInTheFileAndTheOnesBesideIt(t *testing.T) {
 
 	press(t, "gr")
 
-	if mode != PickerMode {
-		t.Fatalf("mode = %v, want PickerMode", mode)
+	if ed.Mode != state.PickerMode {
+		t.Fatalf("mode = %v, want PickerMode", ed.Mode)
 	}
 	want := []string{"start.go:1: func target() {}", "start.go:3: target()", "other.go:1: target()"}
 	got := matchedLabels()
@@ -35,7 +36,7 @@ func TestGrTakesTheWholeWordOnly(t *testing.T) {
 
 	press(t, "gr")
 
-	if got := len(pick.Matched()); got != 1 {
+	if got := len(ed.Pick.Matched()); got != 1 {
 		t.Errorf("%d references, want 1: %v", got, matchedLabels())
 	}
 }
@@ -48,7 +49,7 @@ func TestEnterOnAReferenceGoesToIt(t *testing.T) {
 	pressKey(t, termbox.KeyEnter)
 
 	wantAt(t, 2, 8)
-	if pick.Open() {
+	if ed.Pick.Open() {
 		t.Error("the popup stayed open")
 	}
 }
@@ -60,7 +61,7 @@ func TestEnterOnAReferenceInAnotherFileOpensIt(t *testing.T) {
 	pressKey(t, termbox.KeyCtrlN)
 	pressKey(t, termbox.KeyEnter)
 
-	if got := filepath.Base(sourceFile); got != "other.go" {
+	if got := filepath.Base(ed.SourceFile); got != "other.go" {
 		t.Fatalf("editing %q, want other.go", got)
 	}
 	wantAt(t, 2, 4)
@@ -93,7 +94,7 @@ func TestGrSaysWhenTheCursorIsOnNoIdentifier(t *testing.T) {
 
 	press(t, "gr")
 
-	if statusMsg != "E349: No identifier under the cursor" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "E349: No identifier under the cursor" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
 func TestInsertLine(t *testing.T) {
@@ -207,35 +208,35 @@ func TestSplitLineAcrossBigFile(t *testing.T) {
 func TestEnter(t *testing.T) {
 	t.Run("splits in Edit mode", func(t *testing.T) {
 		b := atCursor(t, "abcd\nlast\n", 0, 2)
-		mode = EditMode
+		ed.Mode = state.EditMode
 
 		enter()
 		wantLines(t, b, "ab", "cd", "last")
-		if currentRow != 1 || currentCol != 0 || !modified {
-			t.Errorf("cursor at %d,%d, modified %v", currentRow, currentCol, modified)
+		if ed.Row != 1 || ed.Col != 0 || !ed.Modified {
+			t.Errorf("cursor at %d,%d, modified %v", ed.Row, ed.Col, ed.Modified)
 		}
 	})
 
 	t.Run("moves down in Read mode", func(t *testing.T) {
 		b := atCursor(t, "abcd\nlast\n", 0, 2)
-		mode = ReadMode
+		ed.Mode = state.ReadMode
 
 		enter()
 		wantLines(t, b, "abcd", "last")
-		if currentRow != 1 || modified {
-			t.Errorf("currentRow = %d, modified %v", currentRow, modified)
+		if ed.Row != 1 || ed.Modified {
+			t.Errorf("currentRow = %d, modified %v", ed.Row, ed.Modified)
 		}
 	})
 
 	t.Run("split then backspace is a round trip", func(t *testing.T) {
 		b := atCursor(t, "abcd\n", 0, 2)
-		mode = EditMode
+		ed.Mode = state.EditMode
 
 		enter()
 		backspace()
 		wantLines(t, b, "abcd")
-		if currentRow != 0 || currentCol != 2 {
-			t.Errorf("cursor at %d,%d, want 0,2", currentRow, currentCol)
+		if ed.Row != 0 || ed.Col != 2 {
+			t.Errorf("cursor at %d,%d, want 0,2", ed.Row, ed.Col)
 		}
 	})
 }
@@ -243,34 +244,34 @@ func TestEnter(t *testing.T) {
 func TestOpenLineOperators(t *testing.T) {
 	t.Run("o opens below", func(t *testing.T) {
 		b := atCursor(t, "a\nbb\n", 0, 1)
-		mode = ReadMode
+		ed.Mode = state.ReadMode
 
 		openLineBelow()
 		wantLines(t, b, "a", "", "bb")
-		if currentRow != 1 || currentCol != 0 || mode != EditMode || !modified {
-			t.Errorf("cursor at %d,%d, mode %v, modified %v", currentRow, currentCol, mode, modified)
+		if ed.Row != 1 || ed.Col != 0 || ed.Mode != state.EditMode || !ed.Modified {
+			t.Errorf("cursor at %d,%d, mode %v, modified %v", ed.Row, ed.Col, ed.Mode, ed.Modified)
 		}
 	})
 
 	t.Run("O opens above", func(t *testing.T) {
 		b := atCursor(t, "a\nbb\n", 1, 2)
-		mode = ReadMode
+		ed.Mode = state.ReadMode
 
 		openLineAbove()
 		wantLines(t, b, "a", "", "bb")
-		if currentRow != 1 || currentCol != 0 || mode != EditMode {
-			t.Errorf("cursor at %d,%d, mode %v", currentRow, currentCol, mode)
+		if ed.Row != 1 || ed.Col != 0 || ed.Mode != state.EditMode {
+			t.Errorf("cursor at %d,%d, mode %v", ed.Row, ed.Col, ed.Mode)
 		}
 	})
 
 	t.Run("o on the last line", func(t *testing.T) {
 		b := atCursor(t, "a\nbb\n", 1, 0)
-		mode = ReadMode
+		ed.Mode = state.ReadMode
 
 		openLineBelow()
 		wantLines(t, b, "a", "bb", "")
-		if currentRow != 2 {
-			t.Errorf("currentRow = %d, want 2", currentRow)
+		if ed.Row != 2 {
+			t.Errorf("currentRow = %d, want 2", ed.Row)
 		}
 	})
 }

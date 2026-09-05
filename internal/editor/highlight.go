@@ -7,7 +7,7 @@ import (
 // lineColors is the buffer's own line asked of the language in use, in the
 // palette in use.
 func lineColors(line []rune, inBlock bool) ([]termbox.Attribute, bool) {
-	return lang.LineColors(line, inBlock, &active)
+	return ed.Lang.LineColors(line, inBlock, &ed.Palette)
 }
 
 // A block comment opened above the window still colours the top of it, so the
@@ -17,13 +17,13 @@ func lineColors(line []rune, inBlock bool) ([]termbox.Attribute, bool) {
 const blockLookback = 64
 
 func blockStateBefore(row int) bool {
-	if !lang.HasBlockComments() {
+	if !ed.Lang.HasBlockComments() {
 		return false
 	}
 
 	inBlock := false
 	for i := max(row-blockLookback, 0); i < row; i++ {
-		inBlock = lang.Highlight(buf.Line(i), inBlock, nil, &active)
+		inBlock = ed.Lang.Highlight(ed.Buf.Line(i), inBlock, nil, &ed.Palette)
 	}
 
 	return inBlock

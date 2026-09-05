@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
@@ -12,8 +13,8 @@ func TestLeaderSsListsTheDeclarationsOfTheFile(t *testing.T) {
 
 	press(t, " ss")
 
-	if mode != PickerMode {
-		t.Fatalf("mode = %v, want PickerMode", mode)
+	if ed.Mode != state.PickerMode {
+		t.Fatalf("mode = %v, want PickerMode", ed.Mode)
 	}
 	wantMatches(t,
 		"Struct    Buffer",
@@ -62,7 +63,7 @@ func TestEnterOnASymbolGoesToItsName(t *testing.T) {
 	pressKey(t, termbox.KeyEnter)
 
 	wantAt(t, 2, 5)
-	if pick.Open() {
+	if ed.Pick.Open() {
 		t.Error("the popup stayed open")
 	}
 }
@@ -81,11 +82,11 @@ func TestLeaderSsSaysWhenTheFileDeclaresNothing(t *testing.T) {
 
 	press(t, " ss")
 
-	if mode == PickerMode {
+	if ed.Mode == state.PickerMode {
 		t.Fatalf("the popup opened on %v", matchedLabels())
 	}
-	if statusMsg != "no symbols in start.go" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "no symbols in start.go" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
 }
 
@@ -97,8 +98,8 @@ func TestLeaderShiftSListsTheSymbolsOfTheFilesBeside(t *testing.T) {
 
 	press(t, " sS")
 
-	if mode != PickerMode {
-		t.Fatalf("mode = %v, want PickerMode", mode)
+	if ed.Mode != state.PickerMode {
+		t.Fatalf("mode = %v, want PickerMode", ed.Mode)
 	}
 	wantMatches(t,
 		"Function  open  start.go:1",
@@ -113,7 +114,7 @@ func TestEnterOnAWorkspaceSymbolOpensItsFile(t *testing.T) {
 	pressKey(t, termbox.KeyCtrlN)
 	pressKey(t, termbox.KeyEnter)
 
-	if got := filepath.Base(sourceFile); got != "other.go" {
+	if got := filepath.Base(ed.SourceFile); got != "other.go" {
 		t.Fatalf("editing %q, want other.go", got)
 	}
 	wantAt(t, 2, 5)

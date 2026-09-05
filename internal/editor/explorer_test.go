@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
 func inExplorer(t *testing.T, names ...string) string {
@@ -27,15 +28,15 @@ func inExplorer(t *testing.T, names ...string) string {
 	}
 
 	inReadMode(t, "one\n", 0, 0)
-	sourceFile = filepath.Join(dir, "start.txt")
+	ed.SourceFile = filepath.Join(dir, "start.txt")
 	singleWindow(20, 80)
 
 	return dir
 }
 
 func entryNames() []string {
-	names := make([]string, 0, len(exp.Entries()))
-	for _, e := range exp.Entries() {
+	names := make([]string, 0, len(ed.Exp.Entries()))
+	for _, e := range ed.Exp.Entries() {
 		names = append(names, explorer.Label(e))
 	}
 
@@ -61,11 +62,11 @@ func TestLeaderEOpensTheExplorerOnTheFilesOwnDirectory(t *testing.T) {
 
 	press(t, " e")
 
-	if mode != ExplorerMode {
-		t.Fatalf("mode = %v, want ExplorerMode", mode)
+	if ed.Mode != state.ExplorerMode {
+		t.Fatalf("mode = %v, want ExplorerMode", ed.Mode)
 	}
-	if exp.Dir() != dir {
-		t.Errorf("explorerDir = %q, want %q", exp.Dir(), dir)
+	if ed.Exp.Dir() != dir {
+		t.Errorf("explorerDir = %q, want %q", ed.Exp.Dir(), dir)
 	}
 }
 
@@ -82,7 +83,7 @@ func TestExplorerSelectsTheFileItWasOpenedOn(t *testing.T) {
 
 	press(t, " e")
 
-	if got := entryNames()[exp.Selection()]; got != "start.txt" {
+	if got := entryNames()[ed.Exp.Selection()]; got != "start.txt" {
 		t.Errorf("selected %q, want start.txt", got)
 	}
 }
@@ -104,20 +105,20 @@ func TestExplorerMovementStopsAtBothEnds(t *testing.T) {
 	press(t, "g")
 	press(t, "kk")
 
-	if exp.Selection() != 0 {
-		t.Errorf("explorerSel = %d, want 0", exp.Selection())
+	if ed.Exp.Selection() != 0 {
+		t.Errorf("explorerSel = %d, want 0", ed.Exp.Selection())
 	}
 
 	press(t, "jjjjj")
 
-	if want := len(exp.Entries()) - 1; exp.Selection() != want {
-		t.Errorf("explorerSel = %d, want %d", exp.Selection(), want)
+	if want := len(ed.Exp.Entries()) - 1; ed.Exp.Selection() != want {
+		t.Errorf("explorerSel = %d, want %d", ed.Exp.Selection(), want)
 	}
 
 	press(t, "g")
 
-	if exp.Selection() != 0 {
-		t.Errorf("explorerSel = %d, want 0", exp.Selection())
+	if ed.Exp.Selection() != 0 {
+		t.Errorf("explorerSel = %d, want 0", ed.Exp.Selection())
 	}
 }
 
@@ -130,17 +131,17 @@ func TestExplorerDescendsIntoADirectoryAndBackOut(t *testing.T) {
 	press(t, " e")
 	press(t, "j\n")
 
-	if exp.Dir() != filepath.Join(dir, "sub") {
-		t.Fatalf("explorerDir = %q, want %q", exp.Dir(), filepath.Join(dir, "sub"))
+	if ed.Exp.Dir() != filepath.Join(dir, "sub") {
+		t.Fatalf("explorerDir = %q, want %q", ed.Exp.Dir(), filepath.Join(dir, "sub"))
 	}
 	wantEntries(t, "../", "deep.txt")
 
 	press(t, "-")
 
-	if exp.Dir() != dir {
-		t.Errorf("explorerDir = %q, want %q", exp.Dir(), dir)
+	if ed.Exp.Dir() != dir {
+		t.Errorf("explorerDir = %q, want %q", ed.Exp.Dir(), dir)
 	}
-	if got := entryNames()[exp.Selection()]; got != "sub/" {
+	if got := entryNames()[ed.Exp.Selection()]; got != "sub/" {
 		t.Errorf("selected %q, want sub/", got)
 	}
 }
@@ -151,31 +152,31 @@ func TestExplorerOpensAFileIntoTheBuffer(t *testing.T) {
 	press(t, " e")
 	press(t, "j\n")
 
-	if mode != ReadMode {
-		t.Fatalf("mode = %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Fatalf("mode = %v, want ReadMode", ed.Mode)
 	}
-	if explorerOpen {
+	if ed.ExplorerOpen {
 		t.Error("explorer still on screen after opening a file")
 	}
-	if want := filepath.Join(dir, "other.txt"); sourceFile != want {
-		t.Fatalf("sourceFile = %q, want %q", sourceFile, want)
+	if want := filepath.Join(dir, "other.txt"); ed.SourceFile != want {
+		t.Fatalf("sourceFile = %q, want %q", ed.SourceFile, want)
 	}
-	wantLines(t, buf, "in other.txt")
-	if currentRow != 0 || currentCol != 0 {
-		t.Errorf("cursor at %d,%d, want 0,0", currentRow, currentCol)
+	wantLines(t, ed.Buf, "in other.txt")
+	if ed.Row != 0 || ed.Col != 0 {
+		t.Errorf("cursor at %d,%d, want 0,0", ed.Row, ed.Col)
 	}
 }
 
 func TestExplorerLeavesUnsavedChangesInTheirOwnBuffer(t *testing.T) {
 	inExplorer(t, "other.txt")
-	started := sourceFile
-	modified = true
+	started := ed.SourceFile
+	ed.Modified = true
 
 	press(t, " e")
 	press(t, "j\n")
 
-	if mode != ReadMode {
-		t.Errorf("mode = %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
 	if len(buffers) != 2 {
 		t.Fatalf("%d buffers open, want 2", len(buffers))
@@ -183,10 +184,10 @@ func TestExplorerLeavesUnsavedChangesInTheirOwnBuffer(t *testing.T) {
 
 	press(t, "\t")
 
-	if sourceFile != started {
-		t.Errorf("sourceFile = %q, want %q", sourceFile, started)
+	if ed.SourceFile != started {
+		t.Errorf("sourceFile = %q, want %q", ed.SourceFile, started)
 	}
-	if !modified {
+	if !ed.Modified {
 		t.Error("the unsaved changes were lost")
 	}
 }
@@ -197,10 +198,10 @@ func TestQuitLeavesTheExplorerForTheBuffer(t *testing.T) {
 	press(t, " e")
 	press(t, "q")
 
-	if mode != ReadMode {
-		t.Errorf("mode = %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
-	if quitting {
+	if ed.Quitting {
 		t.Error("leaving the explorer quit the editor")
 	}
 }
@@ -216,11 +217,11 @@ func TestExplorerScrollsTheSelectionIntoView(t *testing.T) {
 	press(t, "G")
 	displayExplorer()
 
-	if row := explorerCursorRow(); row < screenRow(explorer.HeaderRows) || row >= statusRow() {
-		t.Errorf("cursor row = %d, want within [%d,%d)", row, screenRow(explorer.HeaderRows), statusRow())
+	if row := explorerCursorRow(); row < ed.ScreenRow(explorer.HeaderRows) || row >= ed.StatusRow() {
+		t.Errorf("cursor row = %d, want within [%d,%d)", row, ed.ScreenRow(explorer.HeaderRows), ed.StatusRow())
 	}
-	if want := exp.Selection() - (ROWS - explorer.HeaderRows) + 1; exp.Offset() != want {
-		t.Errorf("explorerOffset = %d, want %d", exp.Offset(), want)
+	if want := ed.Exp.Selection() - (ed.Rows - explorer.HeaderRows) + 1; ed.Exp.Offset() != want {
+		t.Errorf("explorerOffset = %d, want %d", ed.Exp.Offset(), want)
 	}
 }
 
@@ -234,14 +235,14 @@ func TestCtrlDAndCtrlUMoveTheSelectionHalfAScreen(t *testing.T) {
 	press(t, " e")
 	press(t, "\x04")
 
-	if want := explorerPage(); exp.Selection() != want {
-		t.Errorf("explorerSel = %d, want %d", exp.Selection(), want)
+	if want := explorerPage(); ed.Exp.Selection() != want {
+		t.Errorf("explorerSel = %d, want %d", ed.Exp.Selection(), want)
 	}
 
 	press(t, "\x15")
 
-	if exp.Selection() != 0 {
-		t.Errorf("explorerSel = %d, want 0", exp.Selection())
+	if ed.Exp.Selection() != 0 {
+		t.Errorf("explorerSel = %d, want 0", ed.Exp.Selection())
 	}
 }
 
@@ -251,8 +252,8 @@ func TestCtrlDStopsAtTheLastEntry(t *testing.T) {
 	press(t, " e")
 	press(t, "\x04\x04\x04\x04\x04")
 
-	if want := len(exp.Entries()) - 1; exp.Selection() != want {
-		t.Errorf("explorerSel = %d, want %d", exp.Selection(), want)
+	if want := len(ed.Exp.Entries()) - 1; ed.Exp.Selection() != want {
+		t.Errorf("explorerSel = %d, want %d", ed.Exp.Selection(), want)
 	}
 }
 
@@ -262,10 +263,10 @@ func TestLeaderEClosesTheExplorerItOpened(t *testing.T) {
 	press(t, " e")
 	press(t, " e")
 
-	if mode != ReadMode {
-		t.Errorf("mode = %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
-	if explorerOpen {
+	if ed.ExplorerOpen {
 		t.Error("explorer still open after the second <leader>e")
 	}
 }
@@ -277,8 +278,8 @@ func TestExplorerSearchNarrowsTheListingAsItIsTyped(t *testing.T) {
 	press(t, "/main")
 
 	wantEntries(t, "main.go", "main_test.go")
-	if mode != PromptMode {
-		t.Errorf("mode = %v, want PromptMode", mode)
+	if ed.Mode != state.PromptMode {
+		t.Errorf("mode = %v, want PromptMode", ed.Mode)
 	}
 
 	press(t, "_")
@@ -301,14 +302,14 @@ func TestEnterKeepsTheFilterAndReturnsToTheExplorer(t *testing.T) {
 	press(t, " e")
 	press(t, "/main\n")
 
-	if mode != ExplorerMode {
-		t.Fatalf("mode = %v, want ExplorerMode", mode)
+	if ed.Mode != state.ExplorerMode {
+		t.Fatalf("mode = %v, want ExplorerMode", ed.Mode)
 	}
-	if exp.Filtered() != "main" {
-		t.Errorf("explorerFilter = %q, want main", exp.Filtered())
+	if ed.Exp.Filtered() != "main" {
+		t.Errorf("explorerFilter = %q, want main", ed.Exp.Filtered())
 	}
 	wantEntries(t, "main.go")
-	if got := exp.SelectedName(); got != "main.go" {
+	if got := ed.Exp.SelectedName(); got != "main.go" {
 		t.Errorf("selected %q, want main.go", got)
 	}
 }
@@ -320,8 +321,8 @@ func TestEscOnTheSearchPromptPutsTheWholeListingBack(t *testing.T) {
 	press(t, "/main")
 	press(t, string(rune(27)))
 
-	if mode != ExplorerMode {
-		t.Fatalf("mode = %v, want ExplorerMode", mode)
+	if ed.Mode != state.ExplorerMode {
+		t.Fatalf("mode = %v, want ExplorerMode", ed.Mode)
 	}
 	wantEntries(t, "../", "README.md", "main.go")
 }
@@ -333,15 +334,15 @@ func TestEscDropsTheFilterBeforeItClosesTheExplorer(t *testing.T) {
 	press(t, "/main\n")
 	press(t, string(rune(27)))
 
-	if mode != ExplorerMode {
-		t.Fatalf("mode = %v, want ExplorerMode", mode)
+	if ed.Mode != state.ExplorerMode {
+		t.Fatalf("mode = %v, want ExplorerMode", ed.Mode)
 	}
 	wantEntries(t, "../", "README.md", "main.go")
 
 	press(t, string(rune(27)))
 
-	if mode != ReadMode {
-		t.Errorf("mode = %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
 }
 
@@ -352,13 +353,13 @@ func TestAFilteredFileStillOpens(t *testing.T) {
 	press(t, "/other\n")
 	press(t, "\n")
 
-	if explorerOpen {
+	if ed.ExplorerOpen {
 		t.Error("explorer still on screen after opening a filtered file")
 	}
-	if want := filepath.Join(dir, "other.txt"); sourceFile != want {
-		t.Fatalf("sourceFile = %q, want %q", sourceFile, want)
+	if want := filepath.Join(dir, "other.txt"); ed.SourceFile != want {
+		t.Fatalf("sourceFile = %q, want %q", ed.SourceFile, want)
 	}
-	wantLines(t, buf, "in other.txt")
+	wantLines(t, ed.Buf, "in other.txt")
 }
 
 func TestSteppingIntoADirectoryDropsTheFilter(t *testing.T) {
@@ -371,8 +372,8 @@ func TestSteppingIntoADirectoryDropsTheFilter(t *testing.T) {
 	press(t, "/sub\n")
 	press(t, "\n")
 
-	if exp.Filtered() != "" {
-		t.Errorf("explorerFilter = %q, want empty", exp.Filtered())
+	if ed.Exp.Filtered() != "" {
+		t.Errorf("explorerFilter = %q, want empty", ed.Exp.Filtered())
 	}
 	wantEntries(t, "../", "deep.txt")
 }
@@ -384,8 +385,8 @@ func TestTogglingDotfilesKeepsTheFilter(t *testing.T) {
 	press(t, "/main\n")
 	press(t, "H")
 
-	if exp.Filtered() != "main" {
-		t.Errorf("explorerFilter = %q, want main", exp.Filtered())
+	if ed.Exp.Filtered() != "main" {
+		t.Errorf("explorerFilter = %q, want main", ed.Exp.Filtered())
 	}
 	wantEntries(t, ".main.swp", "main.go")
 }

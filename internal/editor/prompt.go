@@ -3,6 +3,7 @@ package editor
 import (
 	"slices"
 
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
 )
@@ -13,11 +14,10 @@ import (
 var (
 	promptChar  rune
 	promptInput []rune
-	statusMsg   string
 )
 
 func startPrompt(delimiter rune) {
-	mode = PromptMode
+	ed.Mode = state.PromptMode
 	promptChar, promptInput = delimiter, promptInput[:0]
 }
 
@@ -46,7 +46,7 @@ func handlePromptKey(event termbox.Event) {
 
 	// the explorer's own '/' narrows its listing as the pattern is typed, so
 	// what is on screen is always what Enter would settle on
-	if explorerOpen && mode == PromptMode {
+	if ed.ExplorerOpen && ed.Mode == state.PromptMode {
 		filterExplorer(string(promptInput))
 	}
 }
@@ -55,7 +55,7 @@ func submitPrompt() {
 	input, delimiter := slices.Clone(promptInput), promptChar
 	endPrompt()
 
-	if explorerOpen {
+	if ed.ExplorerOpen {
 		filterExplorer(string(input))
 		return
 	}
@@ -70,9 +70,9 @@ func submitPrompt() {
 // endPrompt is what Esc reaches, so it leaves the explorer's listing as it was
 // before the '/' was pressed; submitPrompt puts the pattern back afterwards.
 func endPrompt() {
-	mode = ReadMode
-	if explorerOpen {
-		mode = ExplorerMode
+	ed.Mode = state.ReadMode
+	if ed.ExplorerOpen {
+		ed.Mode = state.ExplorerMode
 		filterExplorer("")
 	}
 	promptInput = promptInput[:0]
@@ -81,11 +81,11 @@ func endPrompt() {
 // promptStatus takes the status bar over while a line is being typed, and for
 // the one redraw after a command reported something.
 func promptStatus() (string, bool) {
-	if mode == PromptMode {
+	if ed.Mode == state.PromptMode {
 		return string(promptChar) + string(promptInput), true
 	}
 
-	return statusMsg, statusMsg != ""
+	return ed.StatusMsg, ed.StatusMsg != ""
 }
 
 func promptCol() int {

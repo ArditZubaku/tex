@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/gutter"
 	"github.com/ArditZubaku/tex/internal/syntax"
 	"github.com/nsf/termbox-go"
@@ -23,26 +24,26 @@ func Run(args []string) {
 	termbox.SetOutputMode(termbox.Output256)
 
 	if len(args) > 0 {
-		sourceFile = args[0]
-		buf = buffer.Open(sourceFile)
+		ed.SourceFile = args[0]
+		ed.Buf = buffer.Open(ed.SourceFile)
 	} else {
-		sourceFile = defaultFileName
-		buf = buffer.NewEmpty()
+		ed.SourceFile = state.DefaultFileName
+		ed.Buf = buffer.NewEmpty()
 	}
 
-	lang = syntax.Detect(sourceFile)
+	ed.Lang = syntax.Detect(ed.SourceFile)
 
-	for !quitting {
+	for !ed.Quitting {
 		// Fetch current screen dimensions
-		screenCols, screenRows = termbox.Size()
-		screenRows -= 1 + tabBarRows
+		ed.ScreenCols, ed.ScreenRows = termbox.Size()
+		ed.ScreenRows -= 1 + state.TabBarRows
 
-		if screenCols < 80 {
-			screenCols = 80
+		if ed.ScreenCols < 80 {
+			ed.ScreenCols = 80
 		}
 		layoutWindows()
 
-		if err := termbox.Clear(active.Plain, active.Background); err != nil {
+		if err := termbox.Clear(ed.Palette.Plain, ed.Palette.Background); err != nil {
 			slog.Error("Could not clear terminal", "error", err)
 			os.Exit(1) // TODO: Will think of something better in such a case
 		}
@@ -52,15 +53,15 @@ func Run(args []string) {
 		displayPicker()
 		displayStatusBar()
 
-		switch mode {
-		case PromptMode:
-			termbox.SetCursor(promptCol(), statusRow())
-		case PickerMode:
-			termbox.SetCursor(pick.CursorCol(screenArea()), pick.CursorRow(screenArea()))
-		case ExplorerMode:
-			termbox.SetCursor(screenCol(0), explorerCursorRow())
+		switch ed.Mode {
+		case state.PromptMode:
+			termbox.SetCursor(promptCol(), ed.StatusRow())
+		case state.PickerMode:
+			termbox.SetCursor(ed.Pick.CursorCol(ed.ScreenArea()), ed.Pick.CursorRow(ed.ScreenArea()))
+		case state.ExplorerMode:
+			termbox.SetCursor(ed.ScreenCol(0), explorerCursorRow())
 		default:
-			termbox.SetCursor(screenCol(currentCol-offsetCol+gutter.Width(buf.LineCount())), screenRow(currentRow-offsetRow))
+			termbox.SetCursor(ed.ScreenCol(ed.Col-ed.OffsetCol+gutter.Width(ed.Buf.LineCount())), ed.ScreenRow(ed.Row-ed.OffsetRow))
 		}
 
 		if err := termbox.Flush(); err != nil {

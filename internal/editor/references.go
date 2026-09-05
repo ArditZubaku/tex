@@ -21,20 +21,20 @@ const maxReferences = 2000
 func openReferences() {
 	word, ok := wordUnderCursor()
 	if !ok {
-		statusMsg = "E349: No identifier under the cursor"
+		ed.StatusMsg = "E349: No identifier under the cursor"
 		return
 	}
 
 	mentions, err := decl.Mentions(word)
 	if err != nil {
-		statusMsg = "E486: Pattern not found: " + word
+		ed.StatusMsg = "E486: Pattern not found: " + word
 		return
 	}
 
 	entries := referencesInBuffer(mentions)
 	entries = append(entries, referencesInFiles(mentions)...)
 	if len(entries) == 0 {
-		statusMsg = "no references to " + word
+		ed.StatusMsg = "no references to " + word
 		return
 	}
 
@@ -43,10 +43,10 @@ func openReferences() {
 
 func referencesInBuffer(mentions *regexp.Regexp) []picker.Entry {
 	entries := make([]picker.Entry, 0, 16)
-	for row := range buf.LineCount() {
-		line := lineBytes(row)
+	for row := range ed.Buf.LineCount() {
+		line := ed.LineBytes(row)
 		for _, at := range mentions.FindAllIndex(line, -1) {
-			entries = append(entries, reference(sourceFile, row, utf8.RuneCount(line[:at[0]]), string(line)))
+			entries = append(entries, reference(ed.SourceFile, row, utf8.RuneCount(line[:at[0]]), string(line)))
 			if len(entries) >= maxReferences {
 				return entries
 			}
@@ -58,7 +58,7 @@ func referencesInBuffer(mentions *regexp.Regexp) []picker.Entry {
 
 func referencesInFiles(mentions *regexp.Regexp) []picker.Entry {
 	entries := make([]picker.Entry, 0, 16)
-	for path, content := range project.Siblings(sourceFile) {
+	for path, content := range project.Siblings(ed.SourceFile) {
 		for row, line := range strings.Split(string(content), "\n") {
 			for _, at := range mentions.FindAllStringIndex(line, -1) {
 				entries = append(entries, reference(path, row, utf8.RuneCountInString(line[:at[0]]), line))

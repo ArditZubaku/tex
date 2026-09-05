@@ -18,20 +18,16 @@ type definition struct {
 	rank int
 }
 
-// jumps is what Ctrl-O steps back through: where the cursor was before a jump
-// took it somewhere else, the file it was in included.
-var jumps []definition
-
 func goToDefinition() {
 	word, ok := wordUnderCursor()
 	if !ok {
-		statusMsg = "E349: No identifier under the cursor"
+		ed.StatusMsg = "E349: No identifier under the cursor"
 		return
 	}
 
 	forms, err := decl.Forms(word)
 	if err != nil {
-		statusMsg = "E486: Pattern not found: " + word
+		ed.StatusMsg = "E486: Pattern not found: " + word
 		return
 	}
 
@@ -47,7 +43,7 @@ func goToDefinition() {
 
 	found, ok := definitionInFiles(forms)
 	if !ok {
-		statusMsg = "E388: Couldn't find definition of " + word
+		ed.StatusMsg = "E388: Couldn't find definition of " + word
 		return
 	}
 
@@ -55,55 +51,43 @@ func goToDefinition() {
 }
 
 func jumpTo(found definition) {
-	pushJump()
-	if found.path != sourceFile {
+	ed.PushJump()
+	if found.path != ed.SourceFile {
 		openInBuffer(found.path)
 	}
-	currentRow, currentCol = found.row, found.col
-	clampCol()
-	centerIfOffScreen()
+	ed.Row, ed.Col = found.row, found.col
+	ed.ClampCol()
+	ed.CenterIfOffScreen()
 }
 
 // jumpBack is Ctrl-O: the cursor goes back to where the last jump left from,
 // switching buffers when the jump crossed files.
 func jumpBack() {
-	if len(jumps) == 0 {
-		statusMsg = "E664: Jump list is empty"
+	back, ok := ed.PopJump()
+	if !ok {
+		ed.StatusMsg = "E664: Jump list is empty"
 		return
 	}
 
-	back := jumps[len(jumps)-1]
-	jumps = jumps[:len(jumps)-1]
-
-	if back.path != sourceFile {
-		openInBuffer(back.path)
+	if back.Path != ed.SourceFile {
+		openInBuffer(back.Path)
 	}
-	currentRow, currentCol = min(back.row, buf.LineCount()-1), back.col
-	clampCol()
-	centerIfOffScreen()
-}
-
-func pushJump() {
-	jumps = append(jumps, definition{path: sourceFile, row: currentRow, col: currentCol})
-}
-
-func centerIfOffScreen() {
-	if currentRow < offsetRow || currentRow >= offsetRow+ROWS {
-		centerView()
-	}
+	ed.Row, ed.Col = min(back.Row, ed.Buf.LineCount()-1), back.Col
+	ed.ClampCol()
+	ed.CenterIfOffScreen()
 }
 
 func wordUnderCursor() (string, bool) {
-	return decl.Under(buf.Line(currentRow), currentCol)
+	return decl.Under(ed.Buf.Line(ed.Row), ed.Col)
 }
 
 func definitionAbove(forms []*regexp.Regexp) (definition, bool) {
-	at, ok := decl.Above(bufLines(), forms, currentRow, currentCol)
+	at, ok := decl.Above(bufLines(), forms, ed.Row, ed.Col)
 	if !ok {
 		return definition{}, false
 	}
 
-	return definition{path: sourceFile, row: at.Row, col: at.Col, rank: at.Rank}, true
+	return definition{path: ed.SourceFile, row: at.Row, col: at.Col, rank: at.Rank}, true
 }
 
 func definitionInBuffer(forms []*regexp.Regexp) (definition, bool) {
@@ -111,18 +95,18 @@ func definitionInBuffer(forms []*regexp.Regexp) (definition, bool) {
 
 	// the first occurrence of the word is where the cursor already is often
 	// enough, and a jump to it is no jump at all
-	if !ok || (at.Row == currentRow && at.Rank == len(forms)-1) {
+	if !ok || (at.Row == ed.Row && at.Rank == len(forms)-1) {
 		return definition{}, false
 	}
 
-	return definition{path: sourceFile, row: at.Row, col: at.Col, rank: at.Rank}, true
+	return definition{path: ed.SourceFile, row: at.Row, col: at.Col, rank: at.Rank}, true
 }
 
 // definitionInFiles looks through the files beside the one being edited and
 // takes the strongest declaration any of them holds.
 func definitionInFiles(forms []*regexp.Regexp) (definition, bool) {
 	best := definition{rank: len(forms) - 1} // the plain occurrence is no reason to open a file
-	for path, content := range project.Siblings(sourceFile) {
+	for path, content := range project.Siblings(ed.SourceFile) {
 		if at, ok := decl.First(decl.Of(content), forms, best.rank); ok {
 			best = definition{path: path, row: at.Row, col: at.Col, rank: at.Rank}
 		}
@@ -136,15 +120,5 @@ func definitionInFiles(forms []*regexp.Regexp) (definition, bool) {
 }
 
 func bufLines() decl.Lines {
-	return decl.Lines{Count: buf.LineCount(), At: lineBytes}
-}
-
-// lineBytes is the line as it is held: the raw bytes of one still on disk, and
-// the runes of one the overlay has edited.
-func lineBytes(row int) []byte {
-	if line, ok := buf.EditedLine(row); ok {
-		return []byte(string(line))
-	}
-
-	return buf.Raw(row)
+	return decl.Lines{Count: ed.Buf.LineCount(), At: ed.LineBytes}
 }

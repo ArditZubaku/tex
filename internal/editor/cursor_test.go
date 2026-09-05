@@ -1,96 +1,100 @@
 package editor
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ArditZubaku/tex/internal/editor/state"
+)
 
 func TestReadModeStopsOnTheLastRune(t *testing.T) {
 	atCursor(t, "package main\n", 0, 0)
-	mode = ReadMode
+	ed.Mode = state.ReadMode
 
 	for range 20 {
-		right()
+		ed.Right()
 	}
 
-	if currentRow != 0 || currentCol != 11 {
-		t.Errorf("cursor at %d,%d, want 0,11", currentRow, currentCol)
+	if ed.Row != 0 || ed.Col != 11 {
+		t.Errorf("cursor at %d,%d, want 0,11", ed.Row, ed.Col)
 	}
 }
 
 func TestEditModeReachesTheGapAfterTheLastRune(t *testing.T) {
 	atCursor(t, "package main\n", 0, 0)
-	mode = EditMode
+	ed.Mode = state.EditMode
 
 	for range 20 {
-		right()
+		ed.Right()
 	}
 
-	if currentRow != 0 || currentCol != 12 {
-		t.Errorf("cursor at %d,%d, want 0,12", currentRow, currentCol)
+	if ed.Row != 0 || ed.Col != 12 {
+		t.Errorf("cursor at %d,%d, want 0,12", ed.Row, ed.Col)
 	}
 }
 
 func TestEmptyLineClampsToColumnZero(t *testing.T) {
 	atCursor(t, "package main\n\n", 0, 11)
-	mode = ReadMode
+	ed.Mode = state.ReadMode
 
-	down()
-	clampCol()
+	ed.Down()
+	ed.ClampCol()
 
-	if currentRow != 1 || currentCol != 0 {
-		t.Errorf("cursor at %d,%d, want 1,0", currentRow, currentCol)
+	if ed.Row != 1 || ed.Col != 0 {
+		t.Errorf("cursor at %d,%d, want 1,0", ed.Row, ed.Col)
 	}
 }
 
 func TestEscStepsOffTheGap(t *testing.T) {
 	atCursor(t, "package main\n", 0, 12)
-	mode = EditMode
+	ed.Mode = state.EditMode
 
 	esc()
 
-	if mode != ReadMode || currentCol != 11 {
-		t.Errorf("mode %v, currentCol = %d, want ReadMode, 11", mode, currentCol)
+	if ed.Mode != state.ReadMode || ed.Col != 11 {
+		t.Errorf("mode %v, currentCol = %d, want ReadMode, 11", ed.Mode, ed.Col)
 	}
 }
 
 func TestReadModeDoesNotWrapBetweenLines(t *testing.T) {
 	atCursor(t, "package main\nfoo\n", 1, 0)
-	mode = ReadMode
+	ed.Mode = state.ReadMode
 
-	left()
-	if currentRow != 1 || currentCol != 0 {
-		t.Errorf("left: cursor at %d,%d, want 1,0", currentRow, currentCol)
+	ed.Left()
+	if ed.Row != 1 || ed.Col != 0 {
+		t.Errorf("left: cursor at %d,%d, want 1,0", ed.Row, ed.Col)
 	}
 
-	currentRow, currentCol = 0, 11
-	right()
-	if currentRow != 0 || currentCol != 11 {
-		t.Errorf("right: cursor at %d,%d, want 0,11", currentRow, currentCol)
+	ed.Row, ed.Col = 0, 11
+	ed.Right()
+	if ed.Row != 0 || ed.Col != 11 {
+		t.Errorf("right: cursor at %d,%d, want 0,11", ed.Row, ed.Col)
 	}
 }
 
 func TestEditModeWrapsBetweenLines(t *testing.T) {
 	atCursor(t, "package main\nfoo\n", 1, 0)
-	mode = EditMode
+	ed.Mode = state.EditMode
 
-	left()
-	if currentRow != 0 || currentCol != 12 {
-		t.Errorf("left: cursor at %d,%d, want 0,12", currentRow, currentCol)
+	ed.Left()
+	if ed.Row != 0 || ed.Col != 12 {
+		t.Errorf("left: cursor at %d,%d, want 0,12", ed.Row, ed.Col)
 	}
 
-	right()
-	if currentRow != 1 || currentCol != 0 {
-		t.Errorf("right: cursor at %d,%d, want 1,0", currentRow, currentCol)
+	ed.Right()
+	if ed.Row != 1 || ed.Col != 0 {
+		t.Errorf("right: cursor at %d,%d, want 1,0", ed.Row, ed.Col)
 	}
 }
 
 func TestDeletingTheLastRunePullsTheCursorBack(t *testing.T) {
 	b := atCursor(t, "abc\n", 0, 2)
-	mode = ReadMode
+	ed.Mode = state.ReadMode
 
 	deleteRune()
-	clampCol()
+	ed.ClampCol()
 
 	wantLines(t, b, "ab")
-	if currentCol != 1 {
-		t.Errorf("currentCol = %d, want 1", currentCol)
+	if ed.Col != 1 {
+		t.Errorf("currentCol = %d, want 1", ed.Col)
 	}
 }

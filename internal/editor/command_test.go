@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
 func readFile(t *testing.T, path string) string {
@@ -19,7 +21,7 @@ func readFile(t *testing.T, path string) string {
 
 func TestWriteCommandSavesTheBuffer(t *testing.T) {
 	inReadMode(t, "one\ntwo\n", 0, 0)
-	path := sourceFile
+	path := ed.SourceFile
 
 	press(t, "x")
 	press(t, ":w\n")
@@ -27,22 +29,22 @@ func TestWriteCommandSavesTheBuffer(t *testing.T) {
 	if got := readFile(t, path); got != "ne\ntwo\n" {
 		t.Errorf("file = %q, want %q", got, "ne\ntwo\n")
 	}
-	if modified {
+	if ed.Modified {
 		t.Error("buffer still marked modified after :w")
 	}
 }
 
 func TestWriteCommandWithANameContinuesEditingIt(t *testing.T) {
 	inReadMode(t, "one\n", 0, 0)
-	other := filepath.Join(filepath.Dir(sourceFile), "other.txt")
+	other := filepath.Join(filepath.Dir(ed.SourceFile), "other.txt")
 
 	press(t, ":w "+other+"\n")
 
 	if got := readFile(t, other); got != "one\n" {
 		t.Errorf("%s = %q, want %q", other, got, "one\n")
 	}
-	if sourceFile != other {
-		t.Errorf("sourceFile = %q, want %q", sourceFile, other)
+	if ed.SourceFile != other {
+		t.Errorf("sourceFile = %q, want %q", ed.SourceFile, other)
 	}
 }
 
@@ -52,22 +54,22 @@ func TestQuitCommandRefusesToDropChanges(t *testing.T) {
 	press(t, "x")
 	press(t, ":q\n")
 
-	if quitting {
+	if ed.Quitting {
 		t.Error("quit with unsaved changes")
 	}
-	if statusMsg != "E37: No write since last change (add ! to override)" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "E37: No write since last change (add ! to override)" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
 }
 
 func TestForcedQuitCommandDropsChanges(t *testing.T) {
 	inReadMode(t, "one\n", 0, 0)
-	path := sourceFile
+	path := ed.SourceFile
 
 	press(t, "x")
 	press(t, ":q!\n")
 
-	if !quitting {
+	if !ed.Quitting {
 		t.Error("still running after :q!")
 	}
 	if got := readFile(t, path); got != "one\n" {
@@ -80,14 +82,14 @@ func TestQuitCommandOnASavedBuffer(t *testing.T) {
 
 	press(t, ":q\n")
 
-	if !quitting {
+	if !ed.Quitting {
 		t.Error("still running after :q on an unmodified buffer")
 	}
 }
 
 func TestWriteQuitCommandDoesBoth(t *testing.T) {
 	inReadMode(t, "one\ntwo\n", 0, 0)
-	path := sourceFile
+	path := ed.SourceFile
 
 	press(t, "dd")
 	press(t, ":wq\n")
@@ -95,7 +97,7 @@ func TestWriteQuitCommandDoesBoth(t *testing.T) {
 	if got := readFile(t, path); got != "two\n" {
 		t.Errorf("file = %q, want %q", got, "two\n")
 	}
-	if !quitting {
+	if !ed.Quitting {
 		t.Error("still running after :wq")
 	}
 }
@@ -105,7 +107,7 @@ func TestWriteQuitAliasX(t *testing.T) {
 
 	press(t, ":x\n")
 
-	if !quitting {
+	if !ed.Quitting {
 		t.Error("still running after :x")
 	}
 }
@@ -141,10 +143,10 @@ func TestUnknownCommandIsReported(t *testing.T) {
 
 	press(t, ":bogus\n")
 
-	if statusMsg != "E492: Not an editor command: bogus" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "E492: Not an editor command: bogus" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
-	if quitting {
+	if ed.Quitting {
 		t.Error("quit on an unknown command")
 	}
 }
@@ -168,11 +170,11 @@ func TestEscLeavesTheCommandPromptWithoutRunningIt(t *testing.T) {
 	press(t, ":q")
 	press(t, string(rune(27)))
 
-	if quitting {
+	if ed.Quitting {
 		t.Error("ran the command the prompt was cancelled on")
 	}
-	if mode != ReadMode {
-		t.Errorf("mode = %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
 }
 
@@ -191,7 +193,7 @@ func TestEmptyCommandDoesNothing(t *testing.T) {
 
 	press(t, ":\n")
 
-	if statusMsg != "" || quitting {
-		t.Errorf("statusMsg = %q, quitting = %v", statusMsg, quitting)
+	if ed.StatusMsg != "" || ed.Quitting {
+		t.Errorf("statusMsg = %q, quitting = %v", ed.StatusMsg, ed.Quitting)
 	}
 }

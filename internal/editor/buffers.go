@@ -9,6 +9,7 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/history"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
 	"github.com/ArditZubaku/tex/internal/syntax"
 )
@@ -35,16 +36,12 @@ var (
 	altPath       string // the buffer '<leader>bb' goes back to
 )
 
-// The buffer line takes the first row of the window; everything the buffer and
-// the explorer draw sits below it.
-const tabBarRows = 1
-
 // currentEntry adopts the buffer the editor started with when the list is still
 // empty, so that the list always has the file being edited in it without main
 // having to seed it.
 func currentEntry() *bufferEntry {
 	if len(buffers) == 0 {
-		buffers, currentBuffer = []*bufferEntry{{buf: buf, path: sourceFile, lang: lang}}, 0
+		buffers, currentBuffer = []*bufferEntry{{buf: ed.Buf, path: ed.SourceFile, lang: ed.Lang}}, 0
 	}
 
 	return buffers[currentBuffer]
@@ -54,31 +51,31 @@ func currentEntry() *bufferEntry {
 // so that the list is what the buffer line and ':ls' read.
 func syncBuffer() {
 	entry := currentEntry()
-	entry.buf, entry.path, entry.lang = buf, sourceFile, lang
-	entry.row, entry.col = currentRow, currentCol
-	entry.offsetRow, entry.offsetCol = offsetRow, offsetCol
-	entry.modified = modified
-	entry.hist = hist
+	entry.buf, entry.path, entry.lang = ed.Buf, ed.SourceFile, ed.Lang
+	entry.row, entry.col = ed.Row, ed.Col
+	entry.offsetRow, entry.offsetCol = ed.OffsetRow, ed.OffsetCol
+	entry.modified = ed.Modified
+	entry.hist = ed.Hist
 }
 
 func loadBuffer(index int) {
-	altPath, currentBuffer = sourceFile, index
+	altPath, currentBuffer = ed.SourceFile, index
 	entry := buffers[index]
 
 	applyEntry(entry)
-	currentRow, currentCol = entry.row, entry.col
-	offsetRow, offsetCol = entry.offsetRow, entry.offsetCol
+	ed.Row, ed.Col = entry.row, entry.col
+	ed.OffsetRow, ed.OffsetCol = entry.offsetRow, entry.offsetCol
 	currentWindow().entry = entry
-	clampCol()
+	ed.ClampCol()
 }
 
 // applyEntry makes a buffer the one being worked on, history and all; where the
 // cursor and the viewport are in it belongs to the window showing it.
 func applyEntry(entry *bufferEntry) {
-	buf, sourceFile, lang = entry.buf, entry.path, entry.lang
-	modified = entry.modified
-	hist = entry.hist
-	hist.Abandon()
+	ed.Buf, ed.SourceFile, ed.Lang = entry.buf, entry.path, entry.lang
+	ed.Modified = entry.modified
+	ed.Hist = entry.hist
+	ed.Hist.Abandon()
 }
 
 // switchBuffer wraps at both ends, the way LazyVim's buffer keys do.
@@ -87,7 +84,7 @@ func switchBuffer(index int) {
 		return
 	}
 
-	if mode == VisualMode {
+	if ed.Mode == state.VisualMode {
 		exitVisual()
 	}
 	syncWindow()
@@ -105,7 +102,7 @@ func alternateBuffer() {
 		switchBuffer(i)
 		return
 	}
-	statusMsg = "E23: No alternate file"
+	ed.StatusMsg = "E23: No alternate file"
 }
 
 // openInBuffer is what ':e' and the explorer do with a file: one already in the
@@ -119,7 +116,7 @@ func openInBuffer(path string) {
 		return
 	}
 
-	if mode == VisualMode {
+	if ed.Mode == state.VisualMode {
 		exitVisual()
 	}
 	buffers = append(buffers, &bufferEntry{buf: buffer.Open(path), path: path, lang: syntax.Detect(path)})
@@ -133,24 +130,24 @@ func closeCurrentBuffer() { closeBuffer(false) }
 // closeBuffer is ':bd': the buffer is dropped and the editor lands on the one
 // after it, or on an empty buffer when it was the last one open.
 func closeBuffer(force bool) {
-	if modified && !force {
-		statusMsg = noWriteSinceChange
+	if ed.Modified && !force {
+		ed.StatusMsg = state.NoWriteSinceChange
 		return
 	}
 
 	syncWindow()
 	gone := buffers[currentBuffer]
-	buf.Close()
+	ed.Buf.Close()
 	buffers = slices.Delete(buffers, currentBuffer, currentBuffer+1)
 	if len(buffers) == 0 {
 		buffers = append(buffers, &bufferEntry{
 			buf:  buffer.NewEmpty(),
-			path: defaultFileName,
-			lang: syntax.Detect(defaultFileName),
+			path: state.DefaultFileName,
+			lang: syntax.Detect(state.DefaultFileName),
 		})
 	}
 
-	if mode == VisualMode {
+	if ed.Mode == state.VisualMode {
 		exitVisual()
 	}
 	index := min(currentBuffer, len(buffers)-1)
@@ -182,14 +179,14 @@ func closeBuffersWhere(what string, drop func(int) bool) {
 			continue
 		}
 		if entry.modified {
-			statusMsg = unwritten(entry)
+			ed.StatusMsg = unwritten(entry)
 			return
 		}
 		doomed = append(doomed, entry)
 	}
 
 	if len(doomed) == 0 {
-		statusMsg = "no " + what + " to close"
+		ed.StatusMsg = "no " + what + " to close"
 		return
 	}
 
@@ -206,9 +203,9 @@ func closeBuffersWhere(what string, drop func(int) bool) {
 	for _, entry := range doomed {
 		showBufferInstead(entry, live)
 	}
-	statusMsg = fmt.Sprintf("%d buffers closed", len(doomed))
+	ed.StatusMsg = fmt.Sprintf("%d buffers closed", len(doomed))
 	if len(doomed) == 1 {
-		statusMsg = "1 buffer closed"
+		ed.StatusMsg = "1 buffer closed"
 	}
 }
 
@@ -279,13 +276,13 @@ func listBuffers() {
 		labels = append(labels, label)
 	}
 
-	statusMsg = strings.Join(labels, "  ")
+	ed.StatusMsg = strings.Join(labels, "  ")
 }
 
 var tabs tabbar.Bar
 
 func displayBufferLine() {
-	tabs.Draw(0, screenCols, openTabs(), currentBuffer, &active)
+	tabs.Draw(0, ed.ScreenCols, openTabs(), currentBuffer, &ed.Palette)
 }
 
 func openTabs() []tabbar.Tab {

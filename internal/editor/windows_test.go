@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
@@ -12,9 +13,9 @@ import (
 // scrolls assumes it starts from.
 func singleWindow(rows, cols int) {
 	root, current = nil, nil
-	screenRows, screenCols = rows, cols
-	ROWS, COLS = rows, cols
-	winRow, winCol = tabBarRows, 0
+	ed.ScreenRows, ed.ScreenCols = rows, cols
+	ed.Rows, ed.Cols = rows, cols
+	ed.WinRow, ed.WinCol = state.TabBarRows, 0
 }
 
 // The window moves are Ctrl-hjkl, which arrive as keys rather than runes and so
@@ -58,8 +59,8 @@ func TestSplitStacksTwoWindowsAndTakesTheLowerOne(t *testing.T) {
 
 	wantWindowCount(t, 2)
 	list := windowList()
-	wantRect(t, list[0], tabBarRows, 0, 10, 80)
-	wantRect(t, list[1], tabBarRows+11, 0, 9, 80)
+	wantRect(t, list[0], state.TabBarRows, 0, 10, 80)
+	wantRect(t, list[1], state.TabBarRows+11, 0, 9, 80)
 	if current != list[1] {
 		t.Error("the cursor stayed above the split")
 	}
@@ -75,8 +76,8 @@ func TestVerticalSplitPutsTheWindowsSideBySideAndTakesTheRightOne(t *testing.T) 
 
 	wantWindowCount(t, 2)
 	list := windowList()
-	wantRect(t, list[0], tabBarRows, 0, 20, 40)
-	wantRect(t, list[1], tabBarRows, 41, 20, 39)
+	wantRect(t, list[0], state.TabBarRows, 0, 20, 40)
+	wantRect(t, list[1], state.TabBarRows, 41, 20, 39)
 	if current != list[1] {
 		t.Error("the cursor stayed left of the split")
 	}
@@ -108,9 +109,9 @@ func TestSplittingTheOtherWayNestsInsideTheWindowSplit(t *testing.T) {
 
 	wantWindowCount(t, 3)
 	list := windowList()
-	wantRect(t, list[0], tabBarRows, 0, 20, 40)  // the left window, untouched
-	wantRect(t, list[1], tabBarRows, 41, 10, 39) // the right one, split in two
-	wantRect(t, list[2], tabBarRows+11, 41, 9, 39)
+	wantRect(t, list[0], state.TabBarRows, 0, 20, 40)  // the left window, untouched
+	wantRect(t, list[1], state.TabBarRows, 41, 10, 39) // the right one, split in two
+	wantRect(t, list[2], state.TabBarRows+11, 41, 9, 39)
 }
 
 func TestASplitShowsTheSameBufferAtTheSamePlace(t *testing.T) {
@@ -211,7 +212,7 @@ func TestCtrlHIsStillBackspaceWhileTyping(t *testing.T) {
 	if current != right {
 		t.Error("Ctrl-H left the window while typing")
 	}
-	wantLines(t, buf, "frst")
+	wantLines(t, ed.Buf, "frst")
 }
 
 func TestClosingAWindowGivesItsRoomBack(t *testing.T) {
@@ -221,7 +222,7 @@ func TestClosingAWindowGivesItsRoomBack(t *testing.T) {
 	press(t, ":close\n")
 
 	wantWindowCount(t, 1)
-	wantRect(t, windowList()[0], tabBarRows, 0, 20, 80)
+	wantRect(t, windowList()[0], state.TabBarRows, 0, 20, 80)
 	if len(separators) != 0 {
 		t.Errorf("separators = %v, want none", separators)
 	}
@@ -233,8 +234,8 @@ func TestTheLastWindowCannotBeClosed(t *testing.T) {
 	press(t, ":close\n")
 
 	wantWindowCount(t, 1)
-	if statusMsg != "E444: Cannot close last window" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "E444: Cannot close last window" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
 }
 
@@ -250,7 +251,7 @@ func TestOnlyClosesEveryOtherWindow(t *testing.T) {
 	if current != kept {
 		t.Error("only left another window than the one it was run in")
 	}
-	wantRect(t, current, tabBarRows, 0, 20, 80)
+	wantRect(t, current, state.TabBarRows, 0, 20, 80)
 }
 
 func TestQuitClosesTheWindowUntilItIsTheLastOne(t *testing.T) {
@@ -260,13 +261,13 @@ func TestQuitClosesTheWindowUntilItIsTheLastOne(t *testing.T) {
 	press(t, ":q\n")
 
 	wantWindowCount(t, 1)
-	if quitting {
+	if ed.Quitting {
 		t.Fatal("quit the editor while a window was left")
 	}
 
 	press(t, ":q\n")
 
-	if !quitting {
+	if !ed.Quitting {
 		t.Error("still running after :q in the last window")
 	}
 }
@@ -292,15 +293,15 @@ func TestSplitRefusesWhenThereIsNoRoomForIt(t *testing.T) {
 	press(t, ":vs\n")
 
 	wantWindowCount(t, 1)
-	if statusMsg != "E36: Not enough room" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "E36: Not enough room" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
 
 	press(t, ":sp\n")
 
 	wantWindowCount(t, 1)
-	if statusMsg != "E36: Not enough room" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "E36: Not enough room" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
 }
 
@@ -337,7 +338,7 @@ func TestCtrlHLeavesTheExplorerForTheWindowBeside(t *testing.T) {
 	if current == right {
 		t.Fatal("Ctrl-H stayed in the explorer's window")
 	}
-	if explorerOpen || mode != ReadMode {
+	if ed.ExplorerOpen || ed.Mode != state.ReadMode {
 		t.Error("the explorer came along to the window moved to")
 	}
 }
@@ -348,7 +349,7 @@ func TestAMoveOutOfTheExplorerWithNoWindowThatWayKeepsIt(t *testing.T) {
 	press(t, " e")
 	pressKey(t, termbox.KeyCtrlL)
 
-	if !explorerOpen || mode != ExplorerMode {
+	if !ed.ExplorerOpen || ed.Mode != state.ExplorerMode {
 		t.Error("the explorer closed on a move that had nowhere to go")
 	}
 }

@@ -4,24 +4,24 @@ import (
 	"time"
 
 	"github.com/ArditZubaku/tex/internal/editor/screen"
-	"github.com/ArditZubaku/tex/internal/motion"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
 func processKeyPress() {
 	keyEvent := screen.Key()
-	statusMsg = "" // whatever the last command reported has had its redraw
+	ed.StatusMsg = "" // whatever the last command reported has had its redraw
 
 	dispatchKey(keyEvent)
 }
 
 func dispatchKey(keyEvent termbox.Event) {
 	switch {
-	case mode == PromptMode:
+	case ed.Mode == state.PromptMode:
 		handlePromptKey(keyEvent)
-	case mode == ExplorerMode:
+	case ed.Mode == state.ExplorerMode:
 		handleExplorerKey(keyEvent)
-	case mode == PickerMode:
+	case ed.Mode == state.PickerMode:
 		handlePickerKey(keyEvent)
 	case keyEvent.Key == termbox.KeyEsc:
 		esc()
@@ -32,58 +32,40 @@ func dispatchKey(keyEvent termbox.Event) {
 	}
 }
 
-// maxCol is the rightmost column the cursor may occupy on a row. Outside Edit
-// mode the cursor sits *on* a rune, the way VIM's normal mode does, so it stops
-// one short of the gap past the last one that Edit mode needs in order to
-// append.
-func maxCol(row int) int {
-	lineLen := buf.RuneLen(row)
-	if mode != EditMode && lineLen > 0 {
-		return lineLen - 1
-	}
-	return lineLen
-}
-
-func clampCol() {
-	if m := maxCol(currentRow); currentCol > m {
-		currentCol = m
-	}
-}
-
 func handleCharKey(keyEvent termbox.Event) {
-	switch mode {
-	case EditMode:
+	switch ed.Mode {
+	case state.EditMode:
 		insertRune(keyEvent)
-	case ReadMode, VisualMode:
+	case state.ReadMode, state.VisualMode:
 		handleReadModeChar(keyEvent)
-		clampCol()
+		ed.ClampCol()
 	}
 }
 
 // readModeActions dispatches the single-key vim motions; keys that start a
 // chord are held pending instead, see chordActions.
 var readModeActions = map[rune]func(){
-	'G': goToBottom,
+	'G': ed.GoToBottom,
 	'H': prevBuffer,
 	'L': nextBuffer,
-	'I': goToStartOfLine,
-	'A': goToEndOfLine,
-	'a': editAfterWord,
-	'h': left,
-	'j': down,
-	'k': up,
-	'l': right,
-	'w': nextWord,
-	'b': prevWord,
-	'e': endOfWord,
+	'I': ed.GoToStartOfLine,
+	'A': ed.GoToEndOfLine,
+	'a': ed.EditAfterWord,
+	'h': ed.Left,
+	'j': ed.Down,
+	'k': ed.Up,
+	'l': ed.Right,
+	'w': ed.NextWord,
+	'b': ed.PrevWord,
+	'e': ed.EndOfWord,
 	'q': closeEditor,
-	'i': editBeforeWord,
+	'i': ed.EditBeforeWord,
 	'x': deleteRune,
 	'o': openLineBelow,
 	'O': openLineAbove,
 	'p': pasteAfter,
 	'P': pasteBefore,
-	'u': undo,
+	'u': ed.Undo,
 	'/': startSearchForward,
 	'?': startSearchBackward,
 	'n': nextMatch,
@@ -123,7 +105,7 @@ var chordActions = chordKeys()
 
 func chordKeys() map[string]func() {
 	chords := map[string]func(){
-		"gg":  goToTop,
+		"gg":  ed.GoToTop,
 		"gd":  goToDefinition,
 		"gr":  openReferences,
 		"dd":  deleteLine,
@@ -134,7 +116,7 @@ func chordKeys() map[string]func() {
 		"yw":  yankWord,
 		"ye":  yankToWordEnd,
 		"yb":  yankToPrevWord,
-		"zz":  centerView,
+		"zz":  ed.CenterView,
 		" e":  openExplorer,
 		" bb": alternateBuffer,
 		" bd": closeCurrentBuffer,
@@ -155,8 +137,8 @@ func chordKeys() map[string]func() {
 }
 
 var visualChords = map[string]func(){
-	"gg": goToTop,
-	"zz": centerView,
+	"gg": ed.GoToTop,
+	"zz": ed.CenterView,
 }
 
 // A chord's own prefixes do nothing on their own; they wait for the keys that
@@ -191,33 +173,33 @@ func handleReadModeChar(keyEvent termbox.Event) {
 	ch := keyEvent.Ch
 
 	// a leading '0' is VIM's jump to column 0, not the start of a count
-	if (ch >= '1' && ch <= '9') || (ch == '0' && pendingCount > 0) {
-		pendingCount = min(pendingCount*10+int(ch-'0'), maxCount)
+	if (ch >= '1' && ch <= '9') || (ch == '0' && ed.PendingCount > 0) {
+		ed.PendingCount = min(ed.PendingCount*10+int(ch-'0'), state.MaxCount)
 		return
 	}
 
 	keys, chords, prefixes := readModeActions, chordActions, chordPrefixes
-	if mode == VisualMode {
+	if ed.Mode == state.VisualMode {
 		keys, chords, prefixes = visualActions, visualChords, visualChordPrefixes
 	}
 
-	if time.Since(pendingTime) >= chordTimeout {
-		pendingKeys = pendingKeys[:0]
+	if time.Since(ed.PendingTime) >= state.ChordTimeout {
+		ed.PendingKeys = ed.PendingKeys[:0]
 	}
 
-	if len(pendingKeys) > 0 {
-		chord := string(pendingKeys) + string(ch)
+	if len(ed.PendingKeys) > 0 {
+		chord := string(ed.PendingKeys) + string(ch)
 		if action, ok := chords[chord]; ok {
-			pendingKeys = pendingKeys[:0]
+			ed.PendingKeys = ed.PendingKeys[:0]
 			runCommand(action, countAwareChords[chord])
 			return
 		}
 		if prefixes[chord] {
-			pendingKeys, pendingTime = append(pendingKeys, ch), time.Now()
+			ed.PendingKeys, ed.PendingTime = append(ed.PendingKeys, ch), time.Now()
 			return
 		}
 	}
-	pendingKeys = pendingKeys[:0]
+	ed.PendingKeys = ed.PendingKeys[:0]
 
 	// the direct keys come first, so that Visual mode's 'd' and 'y' are
 	// operators in their own right rather than the halves of a chord they are
@@ -228,23 +210,23 @@ func handleReadModeChar(keyEvent termbox.Event) {
 	}
 
 	if prefixes[string(ch)] {
-		pendingKeys, pendingTime = append(pendingKeys, ch), time.Now()
+		ed.PendingKeys, ed.PendingTime = append(ed.PendingKeys, ch), time.Now()
 	}
 }
 
 func runCommand(action func(), countAware bool) {
-	cmdCount, hadCount, pendingCount = max(pendingCount, 1), pendingCount > 0, 0
-	defer func() { cmdCount, hadCount = 1, false }()
+	ed.CmdCount, ed.HadCount, ed.PendingCount = max(ed.PendingCount, 1), ed.PendingCount > 0, 0
+	defer func() { ed.CmdCount, ed.HadCount = 1, false }()
 
-	beginChange()
+	ed.BeginChange()
 	if countAware {
 		action()
 	} else {
-		for range cmdCount {
+		for range ed.CmdCount {
 			action()
 		}
 	}
-	endChange()
+	ed.EndChange()
 }
 
 // Ctrl-hjkl move between windows, which is all it takes to leave one. Only
@@ -262,36 +244,36 @@ var specialKeyActions = map[termbox.Key]func(){
 	termbox.KeyEnter:      enter,
 	termbox.KeyBackspace:  backspace,
 	termbox.KeyBackspace2: backspace,
-	termbox.KeyArrowUp:    up,
-	termbox.KeyCtrlU:      pageUp,
-	termbox.KeyArrowDown:  down,
-	termbox.KeyCtrlD:      pageDown, // this is a vim motion actually, but it far easier to handle it like this
-	termbox.KeyArrowLeft:  left,
-	termbox.KeyArrowRight: right,
-	termbox.KeyPgup:       pageUp,
-	termbox.KeyPgdn:       pageDown,
-	termbox.KeyCtrlR:      redo,
+	termbox.KeyArrowUp:    ed.Up,
+	termbox.KeyCtrlU:      ed.PageUp,
+	termbox.KeyArrowDown:  ed.Down,
+	termbox.KeyCtrlD:      ed.PageDown, // this is a vim motion actually, but it far easier to handle it like this
+	termbox.KeyArrowLeft:  ed.Left,
+	termbox.KeyArrowRight: ed.Right,
+	termbox.KeyPgup:       ed.PageUp,
+	termbox.KeyPgdn:       ed.PageDown,
+	termbox.KeyCtrlR:      ed.Redo,
 	termbox.KeyCtrlO:      jumpBack,
 }
 
 func handleSpecialKey(keyEvent termbox.Event) {
 	// Space is the leader outside Edit mode, so it has to reach the chord table
 	// rather than cancel what is pending there like every other special key.
-	if keyEvent.Key == termbox.KeySpace && mode != EditMode {
+	if keyEvent.Key == termbox.KeySpace && ed.Mode != state.EditMode {
 		handleReadModeChar(termbox.Event{Ch: ' '})
 		return
 	}
 
-	pendingKeys, pendingCount = pendingKeys[:0], 0 // any special key cancels a pending chord or count
+	ed.PendingKeys, ed.PendingCount = ed.PendingKeys[:0], 0 // any special key cancels a pending chord or count
 
-	if action, ok := windowMoveKeys[keyEvent.Key]; ok && mode != EditMode {
+	if action, ok := windowMoveKeys[keyEvent.Key]; ok && ed.Mode != state.EditMode {
 		action()
 		return
 	}
 
 	switch keyEvent.Key {
 	case termbox.KeyTab:
-		if mode == EditMode {
+		if ed.Mode == state.EditMode {
 			insertRuneNTimes(keyEvent, 4)
 			break
 		}
@@ -299,20 +281,20 @@ func handleSpecialKey(keyEvent termbox.Event) {
 	case termbox.KeySpace:
 		insertRuneNTimes(keyEvent, 1)
 	case termbox.KeyHome:
-		currentCol = 0
+		ed.Col = 0
 	case termbox.KeyEnd:
-		currentCol = maxCol(currentRow)
+		ed.Col = ed.MaxCol(ed.Row)
 	default:
 		if action, ok := specialKeyActions[keyEvent.Key]; ok {
 			action()
 		}
 	}
 
-	clampCol()
+	ed.ClampCol()
 }
 
 func insertRuneNTimes(keyEvent termbox.Event, n int) {
-	if mode != EditMode {
+	if ed.Mode != state.EditMode {
 		return
 	}
 	for range n {
@@ -322,113 +304,14 @@ func insertRuneNTimes(keyEvent termbox.Event, n int) {
 
 func esc() {
 	// leaving Edit mode steps back off the gap the cursor was typing into
-	if mode == EditMode && currentCol > 0 {
-		currentCol--
+	if ed.Mode == state.EditMode && ed.Col > 0 {
+		ed.Col--
 	}
-	mode = ReadMode
-	pendingKeys, pendingCount, hlSearch = pendingKeys[:0], 0, false
-	endChange()
-	clampCol()
-	setCursorShape(CursorDefault)
-}
-
-func up() {
-	if currentRow != 0 {
-		currentRow--
-	}
-}
-
-func down() {
-	if currentRow < buf.LineCount()-1 {
-		currentRow++
-	}
-}
-
-// left and right stay on their line in Read mode, the way VIM's h and l do.
-// Only Edit mode wraps, so that typing can run off one line onto the next.
-func left() {
-	if currentCol != 0 {
-		currentCol--
-		return
-	}
-	if mode == EditMode && currentRow > 0 {
-		currentRow--
-		currentCol = maxCol(currentRow)
-	}
-}
-
-func right() {
-	if currentCol < maxCol(currentRow) {
-		currentCol++
-		return
-	}
-	if mode == EditMode && currentRow < buf.LineCount()-1 {
-		currentRow++
-		currentCol = 0
-	}
-}
-
-func pageUp() {
-	if (currentRow - ROWS/2) > 0 {
-		currentRow -= ROWS / 2
-	} else {
-		currentRow = 0
-	}
-}
-
-func pageDown() {
-	if (currentRow + ROWS/2) < buf.LineCount()-1 {
-		currentRow += ROWS / 2
-	} else {
-		currentRow = buf.LineCount() - 1
-	}
-}
-
-// centerView is VIM's zz: the cursor's line is redrawn in the middle of the
-// window, keeping its column. A count names the line to centre on instead.
-// Near the bottom of the buffer the window is left hanging past the last line,
-// the way VIM does rather than pinning the last line to the bottom row.
-func centerView() {
-	if hadCount {
-		currentRow = min(count()-1, buf.LineCount()-1)
-		clampCol()
-	}
-	offsetRow = max(currentRow-ROWS/2, 0)
-}
-
-func goToTop() {
-	currentRow = 0
-	currentCol = 0
-}
-
-func goToBottom() {
-	currentRow = buf.LineCount() - 1
-	currentCol = 0
-}
-
-func goToEndOfLine() {
-	currentCol = buf.RuneLen(currentRow)
-	enterEditMode()
-}
-
-func goToStartOfLine() {
-	currentCol = 0
-	enterEditMode()
-}
-
-func editAfterWord() {
-	currentCol++
-	enterEditMode()
-}
-
-func editBeforeWord() {
-	enterEditMode()
-}
-
-func enterEditMode() {
-	beginChange()
-	mode = EditMode
-	setCursorShape(CursorBlinkingBar)
+	ed.Mode = state.ReadMode
+	ed.PendingKeys, ed.PendingCount, ed.HlSearch = ed.PendingKeys[:0], 0, false
+	ed.EndChange()
+	ed.ClampCol()
+	state.SetCursorShape(state.CursorDefault)
 }
 
 func startExPrompt() { startPrompt(':') }
@@ -436,17 +319,5 @@ func startExPrompt() { startPrompt(':') }
 // closeEditor lets the editor's loop fall out and shut the terminal down on its
 // way, so quitting runs the same path whether it was 'q' or ':q' that asked.
 func closeEditor() {
-	quitting = true
-}
-
-func nextWord() {
-	currentRow, currentCol = motion.NextWordFrom(buf, currentRow, currentCol)
-}
-
-func endOfWord() {
-	currentRow, currentCol = motion.EndOfWordFrom(buf, currentRow, currentCol)
-}
-
-func prevWord() {
-	currentRow, currentCol = motion.PrevWordFrom(buf, currentRow, currentCol)
+	ed.Quitting = true
 }

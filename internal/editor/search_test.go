@@ -6,14 +6,15 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/search"
 )
 
 func wantCursor(t *testing.T, row, col int) {
 	t.Helper()
 
-	if currentRow != row || currentCol != col {
-		t.Errorf("cursor at %d,%d, want %d,%d", currentRow, currentCol, row, col)
+	if ed.Row != row || ed.Col != col {
+		t.Errorf("cursor at %d,%d, want %d,%d", ed.Row, ed.Col, row, col)
 	}
 }
 
@@ -103,8 +104,8 @@ func TestSearchWithNoMatchLeavesTheCursorAndReports(t *testing.T) {
 	press(t, "/three\n")
 
 	wantCursor(t, 1, 1)
-	if statusMsg != "Pattern not found: three" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "Pattern not found: three" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
 }
 
@@ -152,7 +153,7 @@ func TestSearchSeesLinesEditedInTheOverlay(t *testing.T) {
 func TestSearchReachesPastTheReadWindow(t *testing.T) {
 	filler := strings.Repeat("filler line\n", buffer.WindowBytes/6)
 	inReadMode(t, filler+"the needle\n", 0, 0)
-	want := buf.LineCount() - 1
+	want := ed.Buf.LineCount() - 1
 
 	press(t, "/needle\n")
 
@@ -183,8 +184,8 @@ func TestEscCancelsTheSearchPrompt(t *testing.T) {
 	press(t, "/needle")
 	press(t, string(rune(27)))
 
-	if mode != ReadMode {
-		t.Errorf("mode = %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
 	wantCursor(t, 0, 1)
 }
@@ -194,8 +195,8 @@ func TestBackspaceOnAnEmptyPromptCancelsTheSearch(t *testing.T) {
 
 	press(t, "/a\b\b")
 
-	if mode != ReadMode {
-		t.Errorf("mode = %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
 	wantCursor(t, 0, 1)
 }
@@ -231,8 +232,8 @@ func TestNextMatchWithoutASearchDoesNothing(t *testing.T) {
 	press(t, "nN")
 
 	wantCursor(t, 0, 1)
-	if statusMsg != "" {
-		t.Errorf("statusMsg = %q, want empty", statusMsg)
+	if ed.StatusMsg != "" {
+		t.Errorf("statusMsg = %q, want empty", ed.StatusMsg)
 	}
 }
 
@@ -285,12 +286,12 @@ func TestSearchOverBigFileMatchesFullDecode(t *testing.T) {
 
 	b := buffer.Open(path)
 	t.Cleanup(b.Close)
-	buf = b
+	ed.Buf = b
 
 	got := make([][2]int, 0, len(want))
 	row, col := 0, -1
 	for range want {
-		r, c, ok := search.Find(buf, search.New([]rune("ünïcödé")), row, col, false)
+		r, c, ok := search.Find(ed.Buf, search.New([]rune("ünïcödé")), row, col, false)
 		if !ok {
 			t.Fatalf("search stopped after %d of %d matches", len(got), len(want))
 		}

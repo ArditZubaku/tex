@@ -19,15 +19,15 @@ func inDefinition(t *testing.T, content string, row, col int, others map[string]
 	}
 
 	inReadMode(t, content, row, col)
-	sourceFile = filepath.Join(dir, "start.go")
+	ed.SourceFile = filepath.Join(dir, "start.go")
 	singleWindow(20, 80)
 }
 
 func wantAt(t *testing.T, row, col int) {
 	t.Helper()
 
-	if currentRow != row || currentCol != col {
-		t.Errorf("cursor at %d,%d, want %d,%d", currentRow, currentCol, row, col)
+	if ed.Row != row || ed.Col != col {
+		t.Errorf("cursor at %d,%d, want %d,%d", ed.Row, ed.Col, row, col)
 	}
 }
 
@@ -71,7 +71,7 @@ func TestGdFindsTheDefinitionInAnotherFileOfTheSameKind(t *testing.T) {
 
 	press(t, "gd")
 
-	if got := filepath.Base(sourceFile); got != "other.go" {
+	if got := filepath.Base(ed.SourceFile); got != "other.go" {
 		t.Fatalf("editing %q, want other.go", got)
 	}
 	wantAt(t, 2, 5)
@@ -82,8 +82,8 @@ func TestGdSaysWhenThereIsNoDefinitionToFind(t *testing.T) {
 
 	press(t, "gd")
 
-	if statusMsg != "E388: Couldn't find definition of missing" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "E388: Couldn't find definition of missing" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
 	wantAt(t, 0, 0)
 }
@@ -93,8 +93,8 @@ func TestGdSaysWhenThereIsNoWordUnderTheCursor(t *testing.T) {
 
 	press(t, "gd")
 
-	if statusMsg != "E349: No identifier under the cursor" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "E349: No identifier under the cursor" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
 }
 
@@ -113,7 +113,7 @@ func TestCtrlOComesBackAcrossFiles(t *testing.T) {
 	press(t, "gd")
 	pressKey(t, termbox.KeyCtrlO)
 
-	if got := filepath.Base(sourceFile); got != "start.go" {
+	if got := filepath.Base(ed.SourceFile); got != "start.go" {
 		t.Errorf("editing %q, want start.go", got)
 	}
 	wantAt(t, 0, 0)

@@ -6,38 +6,39 @@ import (
 	"strconv"
 
 	"github.com/ArditZubaku/tex/internal/editor/screen"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/gutter"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
 )
 
 func displayTextBuffer() {
-	bufLen := buf.LineCount()
+	bufLen := ed.Buf.LineCount()
 	gutterCols := gutter.Width(bufLen)
-	textCols := COLS - gutterCols
-	inBlock := blockStateBefore(offsetRow)
+	textCols := ed.Cols - gutterCols
+	inBlock := blockStateBefore(ed.OffsetRow)
 	selected := visualSelection()
 
-	for row := 0; row < ROWS; row++ {
-		textBufRow := row + offsetRow
+	for row := 0; row < ed.Rows; row++ {
+		textBufRow := row + ed.OffsetRow
 
 		// Past end of buffer: draw line indicator once per row
 		if textBufRow >= bufLen {
-			termbox.SetCell(screenCol(0), screenRow(row), '*', active.EndOfBuffer, active.Background)
+			termbox.SetCell(ed.ScreenCol(0), ed.ScreenRow(row), '*', ed.Palette.EndOfBuffer, ed.Palette.Background)
 			continue
 		}
 		if textBufRow < 0 {
 			continue
 		}
 
-		numberColor, background := active.LineNumber, active.Background
-		if textBufRow == currentRow {
-			numberColor, background = active.CursorLineNumber, active.CursorLineBg
-			screen.Fill(screenCol(0), screenRow(row), COLS, active.Plain, active.CursorLineBg)
+		numberColor, background := ed.Palette.LineNumber, ed.Palette.Background
+		if textBufRow == ed.Row {
+			numberColor, background = ed.Palette.CursorLineNumber, ed.Palette.CursorLineBg
+			screen.Fill(ed.ScreenCol(0), ed.ScreenRow(row), ed.Cols, ed.Palette.Plain, ed.Palette.CursorLineBg)
 		}
-		screen.Print(screenCol(0), screenRow(row), numberColor, background, gutter.Label(textBufRow, currentRow, gutterCols))
+		screen.Print(ed.ScreenCol(0), ed.ScreenRow(row), numberColor, background, gutter.Label(textBufRow, ed.Row, gutterCols))
 
-		line := buf.Line(textBufRow)
+		line := ed.Buf.Line(textBufRow)
 		lineLen := len(line)
 
 		var colors []termbox.Attribute
@@ -46,7 +47,7 @@ func displayTextBuffer() {
 
 		// Render visible characters in current row
 		for col := range textCols {
-			textBufCol := col + offsetCol
+			textBufCol := col + ed.OffsetCol
 			if textBufCol < 0 {
 				continue
 			}
@@ -54,7 +55,7 @@ func displayTextBuffer() {
 
 			if textBufCol >= lineLen {
 				if inSelection {
-					termbox.SetCell(screenCol(gutterCols+col), screenRow(row), ' ', active.Plain, active.VisualBg)
+					termbox.SetCell(ed.ScreenCol(gutterCols+col), ed.ScreenRow(row), ' ', ed.Palette.Plain, ed.Palette.VisualBg)
 				}
 				continue
 			}
@@ -64,42 +65,42 @@ func displayTextBuffer() {
 				ch = ' '
 			}
 
-			foreground, cellBackground := active.Plain, background
+			foreground, cellBackground := ed.Palette.Plain, background
 			if colors != nil {
 				foreground = colors[textBufCol]
 			}
 			if hits.covers(textBufCol) {
-				foreground, cellBackground = active.MatchFg, active.MatchBg
+				foreground, cellBackground = ed.Palette.MatchFg, ed.Palette.MatchBg
 			}
 			// the selection keeps the text's own colours and takes the
 			// background, which is what makes it read as a band over them
 			if inSelection {
-				cellBackground = active.VisualBg
+				cellBackground = ed.Palette.VisualBg
 			}
-			termbox.SetCell(screenCol(gutterCols+col), screenRow(row), ch, foreground, cellBackground)
+			termbox.SetCell(ed.ScreenCol(gutterCols+col), ed.ScreenRow(row), ch, foreground, cellBackground)
 		}
 	}
 }
 
 func displayStatusBar() {
 	if txt, ok := promptStatus(); ok {
-		screen.Print(0, statusRow(), active.StatusFg, active.StatusBg, screen.Pad(txt, screenCols))
+		screen.Print(0, ed.StatusRow(), ed.Palette.StatusFg, ed.Palette.StatusBg, screen.Pad(txt, ed.ScreenCols))
 		return
 	}
 
-	if explorerOpen {
-		screen.Print(0, statusRow(), active.StatusFg, active.StatusBg, screen.Pad(explorerStatus(), screenCols))
+	if ed.ExplorerOpen {
+		screen.Print(0, ed.StatusRow(), ed.Palette.StatusFg, ed.Palette.StatusBg, screen.Pad(explorerStatus(), ed.ScreenCols))
 		return
 	}
 
 	var modeStatus, copyStatus, undoStatus, redoStatus, countStatus, fileStatus, cursorStatus string
 
 	switch {
-	case mode == EditMode:
+	case ed.Mode == state.EditMode:
 		modeStatus = " EDIT: "
-	case mode == VisualMode && visualLine:
+	case ed.Mode == state.VisualMode && ed.VisualLine:
 		modeStatus = " V-LINE: "
-	case mode == VisualMode:
+	case ed.Mode == state.VisualMode:
 		modeStatus = " VISUAL: "
 	default:
 		modeStatus = " VIEW: "
@@ -107,56 +108,56 @@ func displayStatusBar() {
 
 	// the name alone: a file opened by the picker or by 'gd' carries the whole
 	// path it was found at, which says nothing the buffer line does not
-	name := filepath.Base(sourceFile)
+	name := filepath.Base(ed.SourceFile)
 	fileNameLen := min(len(name), 16)
 
 	status := "saved"
-	if modified {
+	if ed.Modified {
 		status = "modified"
 	}
-	fileStatus = fmt.Sprintf("%s - %d lines %s", name[:fileNameLen], buf.LineCount(), status)
+	fileStatus = fmt.Sprintf("%s - %d lines %s", name[:fileNameLen], ed.Buf.LineCount(), status)
 
-	cursorStatus = fmt.Sprintf("Row %s, Col %s ", strconv.Itoa(currentRow+1), strconv.Itoa(currentCol+1))
+	cursorStatus = fmt.Sprintf("Row %s, Col %s ", strconv.Itoa(ed.Row+1), strconv.Itoa(ed.Col+1))
 
-	if !clipboard.Empty() {
+	if !ed.Clip.Empty() {
 		copyStatus = " [Copy]"
 	}
 
-	if hist.CanUndo() {
+	if ed.Hist.CanUndo() {
 		undoStatus = " [Undo]"
 	}
 
-	if hist.CanRedo() {
+	if ed.Hist.CanRedo() {
 		redoStatus = " [Redo]"
 	}
 
-	if pendingCount > 0 {
-		countStatus = strconv.Itoa(pendingCount) + " "
+	if ed.PendingCount > 0 {
+		countStatus = strconv.Itoa(ed.PendingCount) + " "
 	}
 
 	leftStatus := modeStatus + fileStatus + copyStatus + undoStatus + redoStatus
 	rightStatus := countStatus + cursorStatus
-	txt := screen.Pad(leftStatus, screenCols-runewidth.StringWidth(rightStatus)) + rightStatus
+	txt := screen.Pad(leftStatus, ed.ScreenCols-runewidth.StringWidth(rightStatus)) + rightStatus
 
-	screen.Print(0, statusRow(), active.StatusFg, active.StatusBg, txt)
+	screen.Print(0, ed.StatusRow(), ed.Palette.StatusFg, ed.Palette.StatusBg, txt)
 }
 
 func scrollTextBuffer() {
-	textCols := COLS - gutter.Width(buf.LineCount())
+	textCols := ed.Cols - gutter.Width(ed.Buf.LineCount())
 
-	if currentRow < offsetRow {
-		offsetRow = currentRow
+	if ed.Row < ed.OffsetRow {
+		ed.OffsetRow = ed.Row
 	}
 
-	if currentCol < offsetCol {
-		offsetCol = currentCol
+	if ed.Col < ed.OffsetCol {
+		ed.OffsetCol = ed.Col
 	}
 
-	if currentRow >= offsetRow+ROWS {
-		offsetRow = currentRow - ROWS + 1
+	if ed.Row >= ed.OffsetRow+ed.Rows {
+		ed.OffsetRow = ed.Row - ed.Rows + 1
 	}
 
-	if currentCol >= offsetCol+textCols {
-		offsetCol = currentCol - textCols + 1
+	if ed.Col >= ed.OffsetCol+textCols {
+		ed.OffsetCol = ed.Col - textCols + 1
 	}
 }

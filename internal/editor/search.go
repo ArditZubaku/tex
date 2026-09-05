@@ -2,12 +2,7 @@ package editor
 
 import "github.com/ArditZubaku/tex/internal/search"
 
-var (
-	searchPat  search.Pattern // the search.Pattern n and N repeat
-	searchBack bool           // the direction it was last run in
-	hlSearch   bool
-	hitCols    []int // scratch for the matches drawn on one line
-)
+var hitCols []int // scratch for the matches drawn on one line
 
 func startSearchForward()  { startPrompt('/') }
 func startSearchBackward() { startPrompt('?') }
@@ -16,29 +11,29 @@ func startSearchBackward() { startPrompt('?') }
 // repeats a search from the prompt; the delimiter still says which way to go.
 func commitSearch(input []rune, back bool) {
 	if len(input) > 0 {
-		searchPat = search.New(input)
+		ed.SearchPat = search.New(input)
 	}
-	searchBack = back
+	ed.SearchBack = back
 
-	jumpToMatch(searchBack)
+	jumpToMatch(ed.SearchBack)
 }
 
-func nextMatch() { jumpToMatch(searchBack) }
-func prevMatch() { jumpToMatch(!searchBack) }
+func nextMatch() { jumpToMatch(ed.SearchBack) }
+func prevMatch() { jumpToMatch(!ed.SearchBack) }
 
 func jumpToMatch(back bool) {
-	if searchPat.Empty() {
+	if ed.SearchPat.Empty() {
 		return
 	}
-	hlSearch = true
+	ed.HlSearch = true
 
-	row, col, ok := search.Find(buf, searchPat, currentRow, currentCol, back)
+	row, col, ok := search.Find(ed.Buf, ed.SearchPat, ed.Row, ed.Col, back)
 	if !ok {
-		statusMsg = "Pattern not found: " + string(searchPat.Runes())
+		ed.StatusMsg = "Pattern not found: " + string(ed.SearchPat.Runes())
 		return
 	}
 
-	currentRow, currentCol = row, col
+	ed.Row, ed.Col = row, col
 }
 
 // hitScan tells the renderer which columns of a line fall inside a match.
@@ -51,12 +46,12 @@ type hitScan struct {
 }
 
 func lineHits(row int) hitScan {
-	if !hlSearch || searchPat.Empty() {
+	if !ed.HlSearch || ed.SearchPat.Empty() {
 		return hitScan{}
 	}
-	hitCols = searchPat.MatchesIn(buf, row, hitCols[:0])
+	hitCols = ed.SearchPat.MatchesIn(ed.Buf, row, hitCols[:0])
 
-	return hitScan{cols: hitCols, width: len(searchPat.Runes())}
+	return hitScan{cols: hitCols, width: len(ed.SearchPat.Runes())}
 }
 
 func (h *hitScan) covers(col int) bool {

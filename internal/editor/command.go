@@ -9,11 +9,10 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/history"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/syntax"
 	"github.com/ArditZubaku/tex/internal/theme"
 )
-
-const noWriteSinceChange = "E37: No write since last change (add ! to override)"
 
 // runExCommand runs one ':' command. Only the handful a VIM user reaches for
 // reflexively is here; anything else is reported rather than guessed at.
@@ -24,8 +23,8 @@ func runExCommand(line string) {
 	}
 
 	if row, ok := lineAddress(line); ok {
-		currentRow, currentCol = row, 0
-		clampCol()
+		ed.Row, ed.Col = row, 0
+		ed.ClampCol()
 		return
 	}
 
@@ -41,7 +40,7 @@ func runExCommand(line string) {
 
 	run, ok := exCommands[name]
 	if !ok {
-		statusMsg = "E492: Not an editor command: " + line
+		ed.StatusMsg = "E492: Not an editor command: " + line
 		return
 	}
 
@@ -56,7 +55,7 @@ var exCommands = exCommandTable()
 func exCommandTable() map[string]func(arg string, force bool) {
 	commands := map[string]func(arg string, force bool){
 		"w write": func(arg string, _ bool) { writeFile(arg) },
-		"e edit":  func(arg string, force bool) { editFile(cmp.Or(arg, sourceFile), force) },
+		"e edit":  func(arg string, force bool) { editFile(cmp.Or(arg, ed.SourceFile), force) },
 		"wq x xit": func(arg string, _ bool) {
 			if writeFile(arg) {
 				quitWindow(true)
@@ -71,7 +70,7 @@ func exCommandTable() map[string]func(arg string, force bool) {
 		"vs vsp vsplit vnew":     func(arg string, force bool) { splitInto(arg, true, force) },
 		"clo close":              func(string, bool) { closeWindow() },
 		"on only":                func(string, bool) { onlyWindow() },
-		"noh nohl nohlsearch":    func(string, bool) { hlSearch = false },
+		"noh nohl nohlsearch":    func(string, bool) { ed.HlSearch = false },
 		"theme colorscheme colo": func(arg string, _ bool) { setTheme(arg) },
 	}
 
@@ -89,7 +88,7 @@ func exCommandTable() map[string]func(arg string, force bool) {
 // own rather than a range in front of a command.
 func lineAddress(line string) (int, bool) {
 	if line == "$" {
-		return buf.LineCount() - 1, true
+		return ed.Buf.LineCount() - 1, true
 	}
 
 	row, err := strconv.Atoi(line)
@@ -97,7 +96,7 @@ func lineAddress(line string) (int, bool) {
 		return 0, false
 	}
 
-	return min(max(row-1, 0), buf.LineCount()-1), true
+	return min(max(row-1, 0), ed.Buf.LineCount()-1), true
 }
 
 // writeFile is ':w'. Given a name it writes there and carries on editing that
@@ -105,17 +104,17 @@ func lineAddress(line string) (int, bool) {
 // whatever was written.
 func writeFile(path string) bool {
 	if path == "" {
-		path = sourceFile
+		path = ed.SourceFile
 	}
 
-	if err := buf.Save(path); err != nil {
+	if err := ed.Buf.Save(path); err != nil {
 		slog.Error("Failed to save file", "path", path, "error", err)
-		statusMsg = "E212: Can't open file for writing: " + path
+		ed.StatusMsg = "E212: Can't open file for writing: " + path
 		return false
 	}
 
-	sourceFile, modified = path, false
-	statusMsg = fmt.Sprintf("%q %dL written", path, buf.LineCount())
+	ed.SourceFile, ed.Modified = path, false
+	ed.StatusMsg = fmt.Sprintf("%q %dL written", path, ed.Buf.LineCount())
 
 	return true
 }
@@ -128,22 +127,22 @@ func editFile(path string, force bool) bool {
 	syncBuffer()
 	rereading := bufferIndex(path) == currentBuffer
 
-	if rereading && modified && !force {
-		statusMsg = noWriteSinceChange
+	if rereading && ed.Modified && !force {
+		ed.StatusMsg = state.NoWriteSinceChange
 		return false
 	}
 
 	if rereading {
-		buf.Close()
-		buf, lang = buffer.Open(path), syntax.Detect(path)
-		currentRow, currentCol, offsetRow, offsetCol = 0, 0, 0, 0
-		modified = false
-		hist = history.History{}
+		ed.Buf.Close()
+		ed.Buf, ed.Lang = buffer.Open(path), syntax.Detect(path)
+		ed.Row, ed.Col, ed.OffsetRow, ed.OffsetCol = 0, 0, 0, 0
+		ed.Modified = false
+		ed.Hist = history.History{}
 		syncBuffer()
 	} else {
 		openInBuffer(path)
 	}
-	statusMsg = fmt.Sprintf("%q %dL", path, buf.LineCount())
+	ed.StatusMsg = fmt.Sprintf("%q %dL", path, ed.Buf.LineCount())
 
 	return true
 }
@@ -152,23 +151,23 @@ func editFile(path string, force bool) bool {
 // the ones it could be swapped for.
 func setTheme(arg string) {
 	if arg == "" {
-		statusMsg = "theme=" + strconv.Itoa(themeIndex()) + " (" + strings.Join(themeNames(), ", ") + ")"
+		ed.StatusMsg = "theme=" + strconv.Itoa(themeIndex()) + " (" + strings.Join(themeNames(), ", ") + ")"
 		return
 	}
 
 	n, err := strconv.Atoi(arg)
 	if err != nil || n < 1 || n > len(theme.Themes) {
-		statusMsg = "E474: Invalid argument: theme=" + arg
+		ed.StatusMsg = "E474: Invalid argument: theme=" + arg
 		return
 	}
 
-	active = theme.Themes[n-1]
-	statusMsg = "theme=" + arg + " (" + active.Name + ")"
+	ed.Palette = theme.Themes[n-1]
+	ed.StatusMsg = "theme=" + arg + " (" + ed.Palette.Name + ")"
 }
 
 func themeIndex() int {
 	for i, t := range theme.Themes {
-		if t.Name == active.Name {
+		if t.Name == ed.Palette.Name {
 			return i + 1
 		}
 	}
@@ -209,12 +208,12 @@ func quitWindow(force bool) {
 func quit(force bool) {
 	switch {
 	case force:
-	case modified:
-		statusMsg = noWriteSinceChange
+	case ed.Modified:
+		ed.StatusMsg = state.NoWriteSinceChange
 		return
 	default:
 		if entry := modifiedBuffer(); entry != nil {
-			statusMsg = unwritten(entry)
+			ed.StatusMsg = unwritten(entry)
 			return
 		}
 	}

@@ -1,6 +1,10 @@
 package editor
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ArditZubaku/tex/internal/editor/state"
+)
 
 func TestVisualDeleteRunesOnOneLine(t *testing.T) {
 	b := inReadMode(t, "abcdef\n", 0, 0)
@@ -8,11 +12,11 @@ func TestVisualDeleteRunesOnOneLine(t *testing.T) {
 	press(t, "vlld")
 
 	wantLines(t, b, "def")
-	if mode != ReadMode {
-		t.Errorf("mode = %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
-	if currentCol != 0 {
-		t.Errorf("currentCol = %d, want 0", currentCol)
+	if ed.Col != 0 {
+		t.Errorf("currentCol = %d, want 0", ed.Col)
 	}
 }
 
@@ -22,8 +26,8 @@ func TestVisualDeleteAcrossLinesJoinsWhatIsLeft(t *testing.T) {
 	press(t, "vjld")
 
 	wantLines(t, b, "f", "baz")
-	if currentRow != 0 || currentCol != 0 {
-		t.Errorf("cursor at %d,%d, want 0,0", currentRow, currentCol)
+	if ed.Row != 0 || ed.Col != 0 {
+		t.Errorf("cursor at %d,%d, want 0,0", ed.Row, ed.Col)
 	}
 }
 
@@ -60,10 +64,10 @@ func TestVisualYankLeavesTheCursorAtTheStart(t *testing.T) {
 	press(t, "vhhy")
 
 	wantLines(t, b, "foo bar")
-	if currentCol != 2 {
-		t.Errorf("currentCol = %d, want 2", currentCol)
+	if ed.Col != 2 {
+		t.Errorf("currentCol = %d, want 2", ed.Col)
 	}
-	if got := string(clipboard.Content()[0]); got != "o b" {
+	if got := string(ed.Clip.Content()[0]); got != "o b" {
 		t.Errorf("register = %q, want %q", got, "o b")
 	}
 }
@@ -99,23 +103,23 @@ func TestVisualKeysSwitchAndLeaveTheMode(t *testing.T) {
 	inReadMode(t, "abc\n", 0, 0)
 
 	press(t, "v")
-	if mode != VisualMode || visualLine {
-		t.Fatalf("v gave mode %v, linewise %v", mode, visualLine)
+	if ed.Mode != state.VisualMode || ed.VisualLine {
+		t.Fatalf("v gave mode %v, linewise %v", ed.Mode, ed.VisualLine)
 	}
 
 	press(t, "V")
-	if mode != VisualMode || !visualLine {
-		t.Fatalf("V gave mode %v, linewise %v", mode, visualLine)
+	if ed.Mode != state.VisualMode || !ed.VisualLine {
+		t.Fatalf("V gave mode %v, linewise %v", ed.Mode, ed.VisualLine)
 	}
 
 	press(t, "V")
-	if mode != ReadMode {
-		t.Errorf("V again gave mode %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("V again gave mode %v, want ReadMode", ed.Mode)
 	}
 
 	press(t, "vv")
-	if mode != ReadMode {
-		t.Errorf("vv gave mode %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("vv gave mode %v, want ReadMode", ed.Mode)
 	}
 }
 
@@ -125,8 +129,8 @@ func TestEscLeavesVisualMode(t *testing.T) {
 	press(t, "vl")
 	esc()
 
-	if mode != ReadMode {
-		t.Errorf("mode = %v, want ReadMode", mode)
+	if ed.Mode != state.ReadMode {
+		t.Errorf("mode = %v, want ReadMode", ed.Mode)
 	}
 	press(t, "d")
 	wantLines(t, b, "abc")
@@ -146,8 +150,8 @@ func TestVisualChangeReplacesTheRunes(t *testing.T) {
 	typeIn(t, "vllcBAZ")
 
 	wantLines(t, b, "BAZ bar")
-	if mode != EditMode {
-		t.Errorf("mode = %v, want EditMode", mode)
+	if ed.Mode != state.EditMode {
+		t.Errorf("mode = %v, want EditMode", ed.Mode)
 	}
 }
 
@@ -185,8 +189,8 @@ func TestSelectingAnEmptyLineYanksNothingToPutBack(t *testing.T) {
 	press(t, "vyjp")
 
 	wantLines(t, b, "", "foo")
-	if currentCol != 0 {
-		t.Errorf("currentCol = %d, want 0", currentCol)
+	if ed.Col != 0 {
+		t.Errorf("currentCol = %d, want 0", ed.Col)
 	}
 }
 

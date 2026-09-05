@@ -4,18 +4,16 @@ import (
 	"path/filepath"
 
 	"github.com/ArditZubaku/tex/internal/editor/picker"
-	"github.com/ArditZubaku/tex/internal/layout"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/project"
 	"github.com/nsf/termbox-go"
 )
 
-var pick picker.Picker
-
 func openPicker() {
-	root := project.Root(sourceFile)
+	root := project.Root(ed.SourceFile)
 	files, err := project.List(root)
 	if err != nil {
-		statusMsg = "E484: Can't open file " + root
+		ed.StatusMsg = "E484: Can't open file " + root
 		return
 	}
 
@@ -28,36 +26,36 @@ func openPicker() {
 }
 
 func showPicker(title string, entries []picker.Entry) {
-	mode = PickerMode
-	pick.Show(title, entries)
+	ed.Mode = state.PickerMode
+	ed.Pick.Show(title, entries)
 }
 
 func closePicker() {
-	mode = ReadMode
-	pick.Close()
-	clampCol()
+	ed.Mode = state.ReadMode
+	ed.Pick.Close()
+	ed.ClampCol()
 }
 
 func openPicked() {
-	entry, ok := pick.Selected()
+	entry, ok := ed.Pick.Selected()
 	if !ok {
 		return
 	}
 
 	closePicker()
-	pushJump()
-	if !project.Same(entry.Path, sourceFile) {
+	ed.PushJump()
+	if !project.Same(entry.Path, ed.SourceFile) {
 		openInBuffer(entry.Path)
 	}
 	if entry.Row >= 0 {
-		currentRow, currentCol = min(entry.Row, buf.LineCount()-1), entry.Col
-		clampCol()
-		centerIfOffScreen()
+		ed.Row, ed.Col = min(entry.Row, ed.Buf.LineCount()-1), entry.Col
+		ed.ClampCol()
+		ed.CenterIfOffScreen()
 	}
 }
 
 func handlePickerKey(event termbox.Event) {
-	switch pick.Key(event) {
+	switch ed.Pick.Key(event) {
 	case picker.Closed:
 		closePicker()
 	case picker.Chosen:
@@ -65,10 +63,4 @@ func handlePickerKey(event termbox.Event) {
 	}
 }
 
-func displayPicker() { pick.Draw(screenArea(), &active) }
-
-// screenArea is everything below the buffer line: what the popup centres in,
-// which is the screen rather than the window being worked in.
-func screenArea() layout.Rect {
-	return layout.Rect{Row: tabBarRows, Rows: screenRows, Cols: screenCols}
-}
+func displayPicker() { ed.Pick.Draw(ed.ScreenArea(), &ed.Palette) }

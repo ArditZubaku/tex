@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
 func inBuffers(t *testing.T, names ...string) []string {
@@ -59,7 +61,7 @@ func wantBuffers(t *testing.T, want ...string) {
 func wantCurrent(t *testing.T, want string) {
 	t.Helper()
 
-	if got := filepath.Base(sourceFile); got != want {
+	if got := filepath.Base(ed.SourceFile); got != want {
 		t.Errorf("editing %q, want %q", got, want)
 	}
 }
@@ -91,7 +93,7 @@ func TestTabIsStillAnIndentInEditMode(t *testing.T) {
 	press(t, "i\t")
 
 	wantCurrent(t, "a.txt")
-	wantLines(t, buf, "    in a.txt")
+	wantLines(t, ed.Buf, "    in a.txt")
 }
 
 func TestShiftHAndShiftLTakeTheBufferBeforeAndAfter(t *testing.T) {
@@ -126,20 +128,20 @@ func TestSwitchingBuffersKeepsUnsavedChangesAndTheirUndoHistory(t *testing.T) {
 	openPaths(t, paths...)
 	press(t, "\t")
 
-	if !modified {
+	if !ed.Modified {
 		t.Error("the buffer came back saved")
 	}
-	wantLines(t, buf, "irst")
+	wantLines(t, ed.Buf, "irst")
 
 	press(t, "u")
 
-	wantLines(t, buf, "first")
+	wantLines(t, ed.Buf, "first")
 }
 
 func TestEditingAnOpenFileSwitchesToItRatherThanOpeningItTwice(t *testing.T) {
 	paths := inBuffers(t, "a.txt")
 	openPaths(t, paths...)
-	first := sourceFile
+	first := ed.SourceFile
 
 	press(t, "\t")
 	press(t, ":e "+first+"\n")
@@ -154,14 +156,14 @@ func TestRereadingTheCurrentFileStillRefusesToDropChanges(t *testing.T) {
 	press(t, "x")
 	press(t, ":e\n")
 
-	if statusMsg != noWriteSinceChange {
-		t.Errorf("statusMsg = %q, want %q", statusMsg, noWriteSinceChange)
+	if ed.StatusMsg != state.NoWriteSinceChange {
+		t.Errorf("statusMsg = %q, want %q", ed.StatusMsg, state.NoWriteSinceChange)
 	}
-	wantLines(t, buf, "irst")
+	wantLines(t, ed.Buf, "irst")
 
 	press(t, ":e!\n")
 
-	wantLines(t, buf, "first")
+	wantLines(t, ed.Buf, "first")
 	if len(buffers) != 1 {
 		t.Errorf("%d buffers open, want 1", len(buffers))
 	}
@@ -197,8 +199,8 @@ func TestLeaderBdLeavesUnsavedChangesAlone(t *testing.T) {
 	press(t, " bd")
 
 	wantBuffers(t, "f.txt", "a.txt")
-	if statusMsg != noWriteSinceChange {
-		t.Errorf("statusMsg = %q, want %q", statusMsg, noWriteSinceChange)
+	if ed.StatusMsg != state.NoWriteSinceChange {
+		t.Errorf("statusMsg = %q, want %q", ed.StatusMsg, state.NoWriteSinceChange)
 	}
 }
 
@@ -256,8 +258,8 @@ func TestClosingASideOfTheListRefusesWhenOneOfThemIsUnsaved(t *testing.T) {
 	press(t, " bl")
 
 	wantBuffers(t, "f.txt", "a.txt")
-	if want := unwritten(buffers[0]); statusMsg != want {
-		t.Errorf("statusMsg = %q, want %q", statusMsg, want)
+	if want := unwritten(buffers[0]); ed.StatusMsg != want {
+		t.Errorf("statusMsg = %q, want %q", ed.StatusMsg, want)
 	}
 }
 
@@ -266,8 +268,8 @@ func TestClosingASideOfTheListSaysWhenThereIsNoSide(t *testing.T) {
 
 	press(t, " bl")
 
-	if statusMsg != "no buffers to the left to close" {
-		t.Errorf("statusMsg = %q", statusMsg)
+	if ed.StatusMsg != "no buffers to the left to close" {
+		t.Errorf("statusMsg = %q", ed.StatusMsg)
 	}
 }
 
@@ -278,8 +280,8 @@ func TestBufferDeleteRefusesToDropUnsavedChanges(t *testing.T) {
 	press(t, "x")
 	press(t, ":bd\n")
 
-	if statusMsg != noWriteSinceChange {
-		t.Errorf("statusMsg = %q, want %q", statusMsg, noWriteSinceChange)
+	if ed.StatusMsg != state.NoWriteSinceChange {
+		t.Errorf("statusMsg = %q, want %q", ed.StatusMsg, state.NoWriteSinceChange)
 	}
 	wantBuffers(t, "f.txt", "a.txt")
 
@@ -294,9 +296,9 @@ func TestDeletingTheLastBufferLeavesAnEmptyOne(t *testing.T) {
 
 	press(t, ":bd\n")
 
-	wantBuffers(t, defaultFileName)
-	if buf.LineCount() != 1 {
-		t.Errorf("%d lines, want the one of an empty buffer", buf.LineCount())
+	wantBuffers(t, state.DefaultFileName)
+	if ed.Buf.LineCount() != 1 {
+		t.Errorf("%d lines, want the one of an empty buffer", ed.Buf.LineCount())
 	}
 }
 
@@ -307,16 +309,16 @@ func TestQuitRefusesWhileAnotherBufferHasUnsavedChanges(t *testing.T) {
 	openPaths(t, paths...)
 	press(t, ":q\n")
 
-	if quitting {
+	if ed.Quitting {
 		t.Error("quit with another buffer unsaved")
 	}
-	if want := `E162: No write since last change for buffer "` + buffers[0].path + `"`; statusMsg != want {
-		t.Errorf("statusMsg = %q, want %q", statusMsg, want)
+	if want := `E162: No write since last change for buffer "` + buffers[0].path + `"`; ed.StatusMsg != want {
+		t.Errorf("statusMsg = %q, want %q", ed.StatusMsg, want)
 	}
 
 	press(t, ":q!\n")
 
-	if !quitting {
+	if !ed.Quitting {
 		t.Error("still running after :q!")
 	}
 }
@@ -328,8 +330,8 @@ func TestBufferListNamesThemMarkingTheCurrentAndTheUnsaved(t *testing.T) {
 	openPaths(t, paths...)
 	press(t, ":ls\n")
 
-	if want := " 1 f.txt ●  %2 a.txt"; statusMsg != want {
-		t.Errorf("statusMsg = %q, want %q", statusMsg, want)
+	if want := " 1 f.txt ●  %2 a.txt"; ed.StatusMsg != want {
+		t.Errorf("statusMsg = %q, want %q", ed.StatusMsg, want)
 	}
 }
 

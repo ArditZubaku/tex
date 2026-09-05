@@ -22,11 +22,11 @@ func TestUndoRedoDeleteLine(t *testing.T) {
 
 	press(t, "u")
 	wantLines(t, b, "foo", "bar")
-	if currentRow != 0 || currentCol != 0 {
-		t.Errorf("cursor at %d,%d, want 0,0", currentRow, currentCol)
+	if ed.Row != 0 || ed.Col != 0 {
+		t.Errorf("cursor at %d,%d, want 0,0", ed.Row, ed.Col)
 	}
 
-	redo()
+	ed.Redo()
 	wantLines(t, b, "bar")
 }
 
@@ -50,11 +50,11 @@ func TestUndoInsertSessionAsOneChange(t *testing.T) {
 
 	press(t, "u")
 	wantLines(t, b, "foo")
-	if hist.CanUndo() {
+	if ed.Hist.CanUndo() {
 		t.Error("the insert session left more than one change behind")
 	}
 
-	redo()
+	ed.Redo()
 	wantLines(t, b, "abcfoo")
 }
 
@@ -81,7 +81,7 @@ func TestUndoSplit(t *testing.T) {
 	press(t, "u")
 	wantLines(t, b, "foobar")
 
-	redo()
+	ed.Redo()
 	wantLines(t, b, "foo", "bar")
 }
 
@@ -111,12 +111,12 @@ func TestNewEditClearsTheRedoStack(t *testing.T) {
 	b := inReadMode(t, "a\nb\n", 0, 0)
 
 	press(t, "ddu")
-	if !hist.CanRedo() {
+	if !ed.Hist.CanRedo() {
 		t.Fatal("the undone delete left nothing to redo")
 	}
 
 	press(t, "x")
-	if hist.CanRedo() {
+	if ed.Hist.CanRedo() {
 		t.Error("the new edit left the redo stack standing")
 	}
 	wantLines(t, b, "", "b")
@@ -141,7 +141,7 @@ func TestUndoDeleteWord(t *testing.T) {
 	press(t, "u")
 	wantLines(t, b, "foo bar baz")
 
-	redo()
+	ed.Redo()
 	wantLines(t, b, "bar baz")
 }
 

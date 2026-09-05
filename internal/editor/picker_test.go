@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
@@ -23,12 +24,12 @@ func inPicker(t *testing.T, names ...string) {
 	}
 
 	inReadMode(t, "first\n", 0, 0)
-	sourceFile = filepath.Join(dir, "start.txt")
+	ed.SourceFile = filepath.Join(dir, "start.txt")
 	singleWindow(20, 80)
 }
 
 func matchedLabels() []string {
-	matched := pick.Matched()
+	matched := ed.Pick.Matched()
 	paths := make([]string, 0, len(matched))
 	for _, entry := range matched {
 		paths = append(paths, entry.Label)
@@ -56,8 +57,8 @@ func TestLeaderLeaderOpensThePickerOnEveryFileUnderTheRoot(t *testing.T) {
 
 	press(t, "  ")
 
-	if mode != PickerMode {
-		t.Fatalf("mode = %v, want PickerMode", mode)
+	if ed.Mode != state.PickerMode {
+		t.Fatalf("mode = %v, want PickerMode", ed.Mode)
 	}
 	wantMatches(t, "one.go", filepath.Join("sub", "three.go"), "two.go")
 }
@@ -104,7 +105,7 @@ func TestEnterOpensThePickedFileAsABuffer(t *testing.T) {
 	press(t, "two")
 	pressKey(t, termbox.KeyEnter)
 
-	if pick.Open() {
+	if ed.Pick.Open() {
 		t.Error("the picker stayed open")
 	}
 	wantCurrent(t, "two.go")
@@ -128,8 +129,8 @@ func TestEscClosesThePickerAndLeavesTheBufferAlone(t *testing.T) {
 	press(t, "  ")
 	pressKey(t, termbox.KeyEsc)
 
-	if pick.Open() || mode != ReadMode {
-		t.Errorf("picker open = %v, mode = %v", pick.Open(), mode)
+	if ed.Pick.Open() || ed.Mode != state.ReadMode {
+		t.Errorf("picker open = %v, mode = %v", ed.Pick.Open(), ed.Mode)
 	}
 	wantCurrent(t, "start.txt")
 }
@@ -142,7 +143,7 @@ func TestBackspacingOffAnEmptyQueryClosesThePicker(t *testing.T) {
 	pressKey(t, termbox.KeyBackspace2)
 	pressKey(t, termbox.KeyBackspace2)
 
-	if pick.Open() {
+	if ed.Pick.Open() {
 		t.Error("the picker stayed open")
 	}
 }

@@ -20,11 +20,11 @@ const maxSymbols = 2000
 func openSymbols() {
 	entries := bufferSymbols()
 	if len(entries) == 0 {
-		statusMsg = "no symbols in " + filepath.Base(sourceFile)
+		ed.StatusMsg = "no symbols in " + filepath.Base(ed.SourceFile)
 		return
 	}
 
-	showPicker("Symbols in "+filepath.Base(sourceFile), entries)
+	showPicker("Symbols in "+filepath.Base(ed.SourceFile), entries)
 }
 
 // '<leader>sS' is the same listing widened to the project: the file being
@@ -34,7 +34,7 @@ func openWorkspaceSymbols() {
 	entries := bufferSymbols()
 	entries = append(entries, symbolsInFiles(maxSymbols-len(entries))...)
 	if len(entries) == 0 {
-		statusMsg = "no symbols under " + filepath.Base(project.Root(sourceFile))
+		ed.StatusMsg = "no symbols under " + filepath.Base(project.Root(ed.SourceFile))
 		return
 	}
 
@@ -44,16 +44,16 @@ func openWorkspaceSymbols() {
 		entries[at].Label = fmt.Sprintf("%s  %s:%d", entry.Label, filepath.Base(entry.Path), entry.Row+1)
 	}
 
-	showPicker("Symbols under "+filepath.Base(project.Root(sourceFile)), entries)
+	showPicker("Symbols under "+filepath.Base(project.Root(ed.SourceFile)), entries)
 }
 
 func bufferSymbols() []picker.Entry {
-	return symbolEntries(sourceFile, decl.Symbols(bufLines(), maxSymbols))
+	return symbolEntries(ed.SourceFile, decl.Symbols(bufLines(), maxSymbols))
 }
 
 func symbolsInFiles(limit int) []picker.Entry {
 	entries := make([]picker.Entry, 0, 64)
-	for path, content := range project.Siblings(sourceFile) {
+	for path, content := range project.Siblings(ed.SourceFile) {
 		entries = append(entries, symbolEntries(path, decl.Symbols(decl.Of(content), limit-len(entries)))...)
 		if len(entries) >= limit {
 			break

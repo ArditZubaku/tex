@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
 func lines(t *testing.T, b *buffer.Buffer) []string {
@@ -234,7 +235,7 @@ func atCursor(t *testing.T, content string, row, col int) *buffer.Buffer {
 	path := writeTemp(t, content)
 	b := buffer.Open(path)
 	t.Cleanup(b.Close)
-	buf, sourceFile, currentRow, currentCol, modified = b, path, row, col, false
+	ed.Buf, ed.SourceFile, ed.Row, ed.Col, ed.Modified = b, path, row, col, false
 
 	return b
 }
@@ -265,8 +266,8 @@ func TestOperators(t *testing.T) {
 
 			tc.op()
 			wantLines(t, b, tc.want, "last")
-			if modified != (tc.want != "foo bar baz") {
-				t.Errorf("modified = %v after a %s", modified, tc.name)
+			if ed.Modified != (tc.want != "foo bar baz") {
+				t.Errorf("modified = %v after a %s", ed.Modified, tc.name)
 			}
 		})
 	}
@@ -292,8 +293,8 @@ func TestDeleteToPrevWord(t *testing.T) {
 
 			deleteToPrevWord()
 			wantLines(t, b, tc.want, "last")
-			if currentCol != tc.col2 {
-				t.Errorf("currentCol = %d, want %d", currentCol, tc.col2)
+			if ed.Col != tc.col2 {
+				t.Errorf("currentCol = %d, want %d", ed.Col, tc.col2)
 			}
 		})
 	}
@@ -305,7 +306,7 @@ func TestDeleteToPrevWordStopsAtTheLineStart(t *testing.T) {
 
 	deleteToPrevWord()
 	wantLines(t, b, "foo", "bar")
-	if modified {
+	if ed.Modified {
 		t.Error("db at the start of a line reported a modification")
 	}
 }
@@ -326,49 +327,49 @@ func TestJoinLine(t *testing.T) {
 
 func TestBackspace(t *testing.T) {
 	b := atCursor(t, "foo\nbar\n", 0, 2)
-	mode = EditMode
+	ed.Mode = state.EditMode
 
 	backspace()
 	wantLines(t, b, "fo", "bar")
-	if currentCol != 1 {
-		t.Fatalf("currentCol = %d, want 1", currentCol)
+	if ed.Col != 1 {
+		t.Fatalf("currentCol = %d, want 1", ed.Col)
 	}
 }
 
 func TestBackspaceAtColumnZeroJoins(t *testing.T) {
 	b := atCursor(t, "foo\nbar\nbaz\n", 1, 0)
-	mode = EditMode
+	ed.Mode = state.EditMode
 
 	backspace()
 	wantLines(t, b, "foobar", "baz")
-	if currentRow != 0 || currentCol != 3 {
-		t.Fatalf("cursor at %d,%d, want 0,3", currentRow, currentCol)
+	if ed.Row != 0 || ed.Col != 3 {
+		t.Fatalf("cursor at %d,%d, want 0,3", ed.Row, ed.Col)
 	}
 
 	// typing must continue where the join left off
-	buf.InsertRune(currentRow, currentCol, 'X')
+	ed.Buf.InsertRune(ed.Row, ed.Col, 'X')
 	wantLines(t, b, "fooXbar", "baz")
 }
 
 func TestBackspaceAtTheStartOfTheBuffer(t *testing.T) {
 	b := atCursor(t, "foo\n", 0, 0)
-	mode = EditMode
+	ed.Mode = state.EditMode
 
 	backspace()
 	wantLines(t, b, "foo")
-	if currentRow != 0 || currentCol != 0 || modified {
-		t.Errorf("cursor at %d,%d, modified = %v", currentRow, currentCol, modified)
+	if ed.Row != 0 || ed.Col != 0 || ed.Modified {
+		t.Errorf("cursor at %d,%d, modified = %v", ed.Row, ed.Col, ed.Modified)
 	}
 }
 
 func TestBackspaceInReadModeJustMoves(t *testing.T) {
 	b := atCursor(t, "foo\n", 0, 2)
-	mode = ReadMode
+	ed.Mode = state.ReadMode
 
 	backspace()
 	wantLines(t, b, "foo")
-	if currentCol != 1 || modified {
-		t.Errorf("currentCol = %d, modified = %v", currentCol, modified)
+	if ed.Col != 1 || ed.Modified {
+		t.Errorf("currentCol = %d, modified = %v", ed.Col, ed.Modified)
 	}
 }
 
@@ -376,8 +377,8 @@ func TestDeleteLineKeepsCursorInBuffer(t *testing.T) {
 	b := atCursor(t, "a\nbb\nccc\n", 2, 2)
 
 	deleteLine()
-	if currentRow != 1 {
-		t.Errorf("currentRow = %d, want 1", currentRow)
+	if ed.Row != 1 {
+		t.Errorf("currentRow = %d, want 1", ed.Row)
 	}
 	wantLines(t, b, "a", "bb")
 }

@@ -9,8 +9,8 @@ import (
 )
 
 func TestLineColorsWithoutSyntax(t *testing.T) {
-	lang = nil
-	defer func() { lang = nil }()
+	ed.Lang = nil
+	defer func() { ed.Lang = nil }()
 
 	got, open := lineColors([]rune("var x int"), true)
 	if got != nil || open {
@@ -19,11 +19,11 @@ func TestLineColorsWithoutSyntax(t *testing.T) {
 }
 
 func TestBlockStateBefore(t *testing.T) {
-	lang = syntax.Detect("x.go")
-	defer func() { lang = nil }()
+	ed.Lang = syntax.Detect("x.go")
+	defer func() { ed.Lang = nil }()
 
-	buf = buffer.Open(writeTemp(t, "a\n/* open\nstill\n*/ b\nc\n"))
-	defer buf.Close()
+	ed.Buf = buffer.Open(writeTemp(t, "a\n/* open\nstill\n*/ b\nc\n"))
+	defer ed.Buf.Close()
 
 	cases := []struct {
 		name string
@@ -48,12 +48,12 @@ func TestBlockStateBefore(t *testing.T) {
 // Past the look-back bound the window is assumed to start outside a comment,
 // which is what keeps a redraw from lexing the whole file.
 func TestBlockStateBeforeIsBounded(t *testing.T) {
-	lang = syntax.Detect("x.go")
-	defer func() { lang = nil }()
+	ed.Lang = syntax.Detect("x.go")
+	defer func() { ed.Lang = nil }()
 
 	lines := "/* open\n" + strings.Repeat("still\n", blockLookback+10)
-	buf = buffer.Open(writeTemp(t, lines))
-	defer buf.Close()
+	ed.Buf = buffer.Open(writeTemp(t, lines))
+	defer ed.Buf.Close()
 
 	if !blockStateBefore(blockLookback) {
 		t.Error("blockStateBefore within the bound = false, want true")
