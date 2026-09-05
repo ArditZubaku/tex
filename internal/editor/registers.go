@@ -1,6 +1,10 @@
 package editor
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/ArditZubaku/tex/internal/motion"
+)
 
 // clipboard is VIM's unnamed register: whatever was last yanked or deleted,
 // held either as whole lines (yy, dd, V) or as a run of runes (yw, x, v), which
@@ -38,12 +42,12 @@ func yankChars(row, from, to int) {
 // delete operators they stop at the end of the line, and like VIM they leave
 // the cursor at the start of what was yanked.
 func yankWord() {
-	row, col := nextWordFrom(currentRow, currentCol)
+	row, col := motion.NextWordFrom(buf, currentRow, currentCol)
 	yankForwardTo(row, col)
 }
 
 func yankToWordEnd() {
-	row, col := endOfWordFrom(currentRow, currentCol)
+	row, col := motion.EndOfWordFrom(buf, currentRow, currentCol)
 	yankForwardTo(row, col+1)
 }
 
@@ -58,7 +62,7 @@ func yankForwardTo(row, col int) {
 }
 
 func yankToPrevWord() {
-	row, col := prevWordFrom(currentRow, currentCol)
+	row, col := motion.PrevWordFrom(buf, currentRow, currentCol)
 	if row != currentRow {
 		col = 0
 	}

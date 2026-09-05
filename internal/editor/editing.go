@@ -1,6 +1,9 @@
 package editor
 
-import "github.com/nsf/termbox-go"
+import (
+	"github.com/ArditZubaku/tex/internal/motion"
+	"github.com/nsf/termbox-go"
+)
 
 func insertRune(event termbox.Event) {
 	ch := event.Ch
@@ -33,19 +36,19 @@ func deleteRune() {
 // line even when the motion itself would carry on to the next one, which is
 // what VIM does: an operator never eats the line break.
 func deleteWord() {
-	row, col := nextWordFrom(currentRow, currentCol)
+	row, col := motion.NextWordFrom(buf, currentRow, currentCol)
 	deleteTo(row, col)
 }
 
 func deleteToWordEnd() {
-	row, col := endOfWordFrom(currentRow, currentCol)
+	row, col := motion.EndOfWordFrom(buf, currentRow, currentCol)
 	deleteTo(row, col+1)
 }
 
 // deleteToPrevWord is 'db': unlike dw/de it deletes behind the cursor, so the
 // cursor follows the text back.
 func deleteToPrevWord() {
-	row, col := prevWordFrom(currentRow, currentCol)
+	row, col := motion.PrevWordFrom(buf, currentRow, currentCol)
 	if row != currentRow {
 		col = 0
 	}

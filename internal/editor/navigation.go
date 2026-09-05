@@ -3,7 +3,7 @@ package editor
 import (
 	"time"
 
-	"github.com/ArditZubaku/tex/internal/chars"
+	"github.com/ArditZubaku/tex/internal/motion"
 	"github.com/nsf/termbox-go"
 )
 
@@ -438,118 +438,14 @@ func closeEditor() {
 	quitting = true
 }
 
-// charAt treats past-end-of-line as whitespace, so word motions see line
-// breaks as word boundaries without special-casing them separately.
-func charAt(row, col int) rune {
-	ch, ok := buf.Rune(row, col)
-	if !ok {
-		return ' '
-	}
-	return ch
-}
-
-func stepForward(row, col int) (int, int) {
-	if col < buf.RuneLen(row) {
-		return row, col + 1
-	}
-	if row < buf.LineCount()-1 {
-		return row + 1, 0
-	}
-	return row, col
-}
-
 func nextWord() {
-	currentRow, currentCol = nextWordFrom(currentRow, currentCol)
-}
-
-func nextWordFrom(row, col int) (int, int) {
-	startClass := chars.ClassOf(charAt(row, col))
-
-	if startClass != chars.Space {
-		for chars.ClassOf(charAt(row, col)) == startClass {
-			nr, nc := stepForward(row, col)
-			if nr == row && nc == col {
-				break
-			}
-			row, col = nr, nc
-		}
-	}
-
-	for chars.ClassOf(charAt(row, col)) == chars.Space {
-		nr, nc := stepForward(row, col)
-		if nr == row && nc == col {
-			break
-		}
-		row, col = nr, nc
-	}
-
-	return row, col
+	currentRow, currentCol = motion.NextWordFrom(buf, currentRow, currentCol)
 }
 
 func endOfWord() {
-	currentRow, currentCol = endOfWordFrom(currentRow, currentCol)
-}
-
-func endOfWordFrom(row, col int) (int, int) {
-	// always advance at least one position, so pressing 'e' at the end of
-	// a word moves to the end of the next one instead of staying put
-	row, col = stepForward(row, col)
-
-	for chars.ClassOf(charAt(row, col)) == chars.Space {
-		nr, nc := stepForward(row, col)
-		if nr == row && nc == col {
-			break
-		}
-		row, col = nr, nc
-	}
-
-	wordClass := chars.ClassOf(charAt(row, col))
-	for {
-		nr, nc := stepForward(row, col)
-		if (nr == row && nc == col) || chars.ClassOf(charAt(nr, nc)) != wordClass {
-			break
-		}
-		row, col = nr, nc
-	}
-
-	return row, col
-}
-
-func stepBackward(row, col int) (int, int) {
-	if col > 0 {
-		return row, col - 1
-	}
-	if row > 0 {
-		return row - 1, buf.RuneLen(row - 1)
-	}
-	return row, col
+	currentRow, currentCol = motion.EndOfWordFrom(buf, currentRow, currentCol)
 }
 
 func prevWord() {
-	currentRow, currentCol = prevWordFrom(currentRow, currentCol)
-}
-
-func prevWordFrom(row, col int) (int, int) {
-	// step off the current word first, so pressing 'b' from a word-start
-	// lands on the previous word instead of itself
-	row, col = stepBackward(row, col)
-
-	for chars.ClassOf(charAt(row, col)) == chars.Space {
-		nr, nc := stepBackward(row, col)
-		if nr == row && nc == col {
-			break
-		}
-		row, col = nr, nc
-	}
-
-	wordClass := chars.ClassOf(charAt(row, col))
-	for {
-		pr, pc := stepBackward(row, col)
-		if (pr == row && pc == col) || chars.ClassOf(charAt(pr, pc)) != wordClass {
-			break
-		}
-		row, col = pr, pc
-	}
-
-	return row, col
+	currentRow, currentCol = motion.PrevWordFrom(buf, currentRow, currentCol)
 }
