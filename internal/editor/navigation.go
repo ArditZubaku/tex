@@ -5,6 +5,7 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/editor/command"
 	"github.com/ArditZubaku/tex/internal/editor/edit"
+	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
@@ -24,7 +25,7 @@ func dispatchKey(keyEvent termbox.Event) {
 	case ed.Mode == state.PromptMode:
 		handlePromptKey(keyEvent)
 	case ed.Mode == state.ExplorerMode:
-		handleExplorerKey(keyEvent)
+		explorer.Key(ed, keyEvent)
 	case ed.Mode == state.PickerMode:
 		find.PickerKey(ed, keyEvent)
 	case keyEvent.Key == termbox.KeyEsc:
@@ -121,7 +122,7 @@ func chordKeys() map[string]func() {
 		"ye":  bind(edit.YankToWordEnd),
 		"yb":  bind(edit.YankToPrevWord),
 		"zz":  ed.CenterView,
-		" e":  openExplorer,
+		" e":  bind(explorer.Open),
 		" bb": bind(view.AlternateBuffer),
 		" bd": bind(view.CloseCurrentBuffer),
 		" bn": bind(view.NextBuffer),
@@ -239,16 +240,6 @@ func runCommand(action func(), countAware bool) {
 	ed.EndChange()
 }
 
-// Ctrl-hjkl move between windows, which is all it takes to leave one. Only
-// outside Edit mode: Ctrl-H is also the Backspace that terminals sending 0x08
-// rather than 0x7F give, and typing has first call on it.
-var windowMoveKeys = map[termbox.Key]func(){
-	termbox.KeyCtrlH: bind(view.FocusLeft),
-	termbox.KeyCtrlJ: bind(view.FocusDown),
-	termbox.KeyCtrlK: bind(view.FocusUp),
-	termbox.KeyCtrlL: bind(view.FocusRight),
-}
-
 var specialKeyActions = map[termbox.Key]func(){
 	termbox.KeyCtrlS:      bind(command.Save),
 	termbox.KeyEnter:      bind(edit.Enter),
@@ -276,8 +267,8 @@ func handleSpecialKey(keyEvent termbox.Event) {
 
 	ed.PendingKeys, ed.PendingCount = ed.PendingKeys[:0], 0 // any special key cancels a pending chord or count
 
-	if action, ok := windowMoveKeys[keyEvent.Key]; ok && ed.Mode != state.EditMode {
-		action()
+	if action, ok := view.MoveKeys[keyEvent.Key]; ok && ed.Mode != state.EditMode {
+		action(ed)
 		return
 	}
 
@@ -324,4 +315,4 @@ func esc() {
 	state.SetCursorShape(state.CursorDefault)
 }
 
-func startExPrompt() { startPrompt(':') }
+func startExPrompt() { ed.StartPrompt(':') }

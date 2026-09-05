@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
-	"github.com/ArditZubaku/tex/internal/editor/explorer"
+	"github.com/ArditZubaku/tex/internal/editor/filetree"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/picker"
 	"github.com/ArditZubaku/tex/internal/editor/prompt"
@@ -95,7 +95,7 @@ type Editor struct {
 
 	Prompt       prompt.Line
 	Pick         picker.Picker
-	Exp          explorer.Explorer
+	Exp          filetree.Tree
 	ExplorerOpen bool
 
 	Jumps []Jump
@@ -167,6 +167,11 @@ func (e *Editor) ScreenArea() layout.Rect {
 
 // Close lets the editor's loop fall out and shut the terminal down on its way,
 // so quitting runs the same path whether it was 'q' or ':q' that asked.
+func (e *Editor) StartPrompt(delimiter rune) {
+	e.Mode = PromptMode
+	e.Prompt.Start(delimiter)
+}
+
 func (e *Editor) Close() { e.Quitting = true }
 
 func (e *Editor) PushJump() {

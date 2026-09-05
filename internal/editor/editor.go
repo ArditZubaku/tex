@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
@@ -61,7 +62,7 @@ func Run(args []string) {
 		case state.PickerMode:
 			termbox.SetCursor(ed.Pick.CursorCol(ed.ScreenArea()), ed.Pick.CursorRow(ed.ScreenArea()))
 		case state.ExplorerMode:
-			termbox.SetCursor(ed.ScreenCol(0), explorerCursorRow())
+			termbox.SetCursor(ed.ScreenCol(0), explorer.CursorRow(ed))
 		default:
 			termbox.SetCursor(ed.ScreenCol(ed.Col-ed.OffsetCol+gutter.Width(ed.Buf.LineCount())), ed.ScreenRow(ed.Row-ed.OffsetRow))
 		}

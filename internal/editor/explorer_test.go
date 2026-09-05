@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
+	"github.com/ArditZubaku/tex/internal/editor/filetree"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 )
@@ -38,7 +39,7 @@ func inExplorer(t *testing.T, names ...string) string {
 func entryNames() []string {
 	names := make([]string, 0, len(ed.Exp.Entries()))
 	for _, e := range ed.Exp.Entries() {
-		names = append(names, explorer.Label(e))
+		names = append(names, filetree.Label(e))
 	}
 
 	return names
@@ -216,12 +217,12 @@ func TestExplorerScrollsTheSelectionIntoView(t *testing.T) {
 
 	press(t, " e")
 	press(t, "G")
-	displayExplorer()
+	explorer.Draw(ed)
 
-	if row := explorerCursorRow(); row < ed.ScreenRow(explorer.HeaderRows) || row >= ed.StatusRow() {
-		t.Errorf("cursor row = %d, want within [%d,%d)", row, ed.ScreenRow(explorer.HeaderRows), ed.StatusRow())
+	if row := explorer.CursorRow(ed); row < ed.ScreenRow(filetree.HeaderRows) || row >= ed.StatusRow() {
+		t.Errorf("cursor row = %d, want within [%d,%d)", row, ed.ScreenRow(filetree.HeaderRows), ed.StatusRow())
 	}
-	if want := ed.Exp.Selection() - (ed.Rows - explorer.HeaderRows) + 1; ed.Exp.Offset() != want {
+	if want := ed.Exp.Selection() - (ed.Rows - filetree.HeaderRows) + 1; ed.Exp.Offset() != want {
 		t.Errorf("explorerOffset = %d, want %d", ed.Exp.Offset(), want)
 	}
 }
@@ -236,7 +237,7 @@ func TestCtrlDAndCtrlUMoveTheSelectionHalfAScreen(t *testing.T) {
 	press(t, " e")
 	press(t, "\x04")
 
-	if want := explorerPage(); ed.Exp.Selection() != want {
+	if want := explorer.Page(ed); ed.Exp.Selection() != want {
 		t.Errorf("explorerSel = %d, want %d", ed.Exp.Selection(), want)
 	}
 

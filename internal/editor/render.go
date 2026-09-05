@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/ArditZubaku/tex/internal/editor/edit"
+	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
@@ -93,7 +94,7 @@ func displayStatusBar() {
 	}
 
 	if ed.ExplorerOpen {
-		screen.Print(0, ed.StatusRow(), ed.Palette.StatusFg, ed.Palette.StatusBg, screen.Pad(explorerStatus(), ed.ScreenCols))
+		screen.Print(0, ed.StatusRow(), ed.Palette.StatusFg, ed.Palette.StatusBg, screen.Pad(explorer.Status(ed), ed.ScreenCols))
 		return
 	}
 
@@ -185,7 +186,7 @@ func displayWindows() {
 
 		view.ShowWindow(ed, w)
 		if ed.ExplorerOpen && w == view.Focused() {
-			displayExplorer()
+			explorer.Draw(ed)
 			continue
 		}
 		scrollTextBuffer()

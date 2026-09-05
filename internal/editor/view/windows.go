@@ -6,6 +6,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/layout"
+	"github.com/nsf/termbox-go"
 )
 
 // A Window is one view of a buffer: which buffer it shows, where its cursor and
@@ -169,6 +170,16 @@ func OnlyWindow(e *state.Editor) {
 	root = layout.Leaf(current)
 	Layout(e)
 	applyWindow(e, current)
+}
+
+// MoveKeys are Ctrl-hjkl, which is all it takes to leave a window. Only outside
+// Edit mode: Ctrl-H is also the Backspace that terminals sending 0x08 rather
+// than 0x7F give, and typing has first call on it.
+var MoveKeys = map[termbox.Key]func(*state.Editor){
+	termbox.KeyCtrlH: FocusLeft,
+	termbox.KeyCtrlJ: FocusDown,
+	termbox.KeyCtrlK: FocusUp,
+	termbox.KeyCtrlL: FocusRight,
 }
 
 func FocusLeft(e *state.Editor)  { focusDirection(e, 0, -1) }

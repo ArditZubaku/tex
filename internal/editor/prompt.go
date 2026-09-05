@@ -4,19 +4,15 @@ import (
 	"slices"
 
 	"github.com/ArditZubaku/tex/internal/editor/command"
+	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/prompt"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
 )
 
-func startSearchForward()  { startPrompt('/') }
-func startSearchBackward() { startPrompt('?') }
-
-func startPrompt(delimiter rune) {
-	ed.Mode = state.PromptMode
-	ed.Prompt.Start(delimiter)
-}
+func startSearchForward()  { ed.StartPrompt('/') }
+func startSearchBackward() { ed.StartPrompt('?') }
 
 func handlePromptKey(event termbox.Event) {
 	switch ed.Prompt.Key(event) {
@@ -31,7 +27,7 @@ func handlePromptKey(event termbox.Event) {
 	// the explorer's own '/' narrows its listing as the pattern is typed, so
 	// what is on screen is always what Enter would settle on
 	if ed.ExplorerOpen {
-		filterExplorer(string(ed.Prompt.Input()))
+		explorer.Filter(ed, string(ed.Prompt.Input()))
 	}
 }
 
@@ -40,7 +36,7 @@ func submitPrompt() {
 	endPrompt()
 
 	if ed.ExplorerOpen {
-		filterExplorer(string(input))
+		explorer.Filter(ed, string(input))
 		return
 	}
 
@@ -57,7 +53,7 @@ func endPrompt() {
 	ed.Mode = state.ReadMode
 	if ed.ExplorerOpen {
 		ed.Mode = state.ExplorerMode
-		filterExplorer("")
+		explorer.Filter(ed, "")
 	}
 	ed.Prompt.Clear()
 }

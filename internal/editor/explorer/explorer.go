@@ -1,239 +1,186 @@
-// Package explorer is netrw as this editor needs it: one directory drawn over
-// the whole window, with the buffer left where it is until a file is chosen.
+// Package explorer is the file tree as the editor drives it: what '<leader>e'
+// opens, the keys it reads while it is up, and the file it hands to ':e'.
 package explorer
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
+	"time"
 
-	"github.com/ArditZubaku/tex/internal/editor/screen"
-	"github.com/ArditZubaku/tex/internal/layout"
-	"github.com/ArditZubaku/tex/internal/theme"
+	"github.com/ArditZubaku/tex/internal/editor/command"
+	"github.com/ArditZubaku/tex/internal/editor/filetree"
+	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/view"
+	"github.com/nsf/termbox-go"
 )
 
-type Entry struct {
-	Name  string
-	IsDir bool
-}
-
-// ParentDir is the entry every listing but the root's opens with.
-const ParentDir = ".."
-
-// HeaderRows is the first row, which the directory being listed takes, so that
-// it is on screen however far down the entries the selection has scrolled.
-const HeaderRows = 1
-
-// all is everything the directory holds; entries is what the filter has left of
-// it, which is what the selection indexes and the screen shows.
-type Explorer struct {
-	dir     string
-	all     []Entry
-	entries []Entry
-	filter  string
-	sel     int
-	offset  int
-	hidden  bool
-}
-
-func (e *Explorer) Dir() string      { return e.dir }
-func (e *Explorer) Filtered() string { return e.filter }
-
-func (e *Explorer) Path(name string) string { return filepath.Join(e.dir, name) }
-
-// Go is Enter for the moves that leave a directory behind, which drop the
-// filter with it; rereading the same directory keeps it.
-func (e *Explorer) Go(dir, on string) error {
-	e.filter = ""
-
-	return e.Enter(dir, on)
-}
-
-// Enter lists dir and puts the selection on the entry named by on, so that
-// stepping out of a directory leaves the cursor on the one just left.
-func (e *Explorer) Enter(dir, on string) error {
-	entries, err := e.readDir(dir)
-	if err != nil {
-		return err
-	}
-
-	e.dir, e.all = dir, entries
-	e.selectEntry(on)
-
-	return nil
-}
-
-func (e *Explorer) Leave() error {
-	parent := filepath.Dir(e.dir)
-	if parent == e.dir {
-		return nil
-	}
-
-	return e.Go(parent, filepath.Base(e.dir))
-}
-
-func (e *Explorer) Filter(text string) {
-	on := e.SelectedName()
-	e.filter = text
-	e.selectEntry(on)
-}
-
-func (e *Explorer) ToggleHidden() error {
-	e.hidden = !e.hidden
-
-	return e.Enter(e.dir, e.SelectedName())
-}
-
-// selectEntry re-runs the filter over the directory and puts the selection back
-// on the entry named, or on the first one when it has been filtered away.
-func (e *Explorer) selectEntry(name string) {
-	e.entries = matching(e.all, e.filter)
-	e.sel, e.offset = 0, 0
-	if i := slices.IndexFunc(e.entries, func(one Entry) bool { return one.Name == name }); i >= 0 {
-		e.sel = i
-	}
-}
-
-func matching(entries []Entry, filter string) []Entry {
-	if filter == "" {
-		return entries
-	}
-
-	needle := strings.ToLower(filter)
-	out := make([]Entry, 0, len(entries))
-	for _, one := range entries {
-		if strings.Contains(strings.ToLower(one.Name), needle) {
-			out = append(out, one)
-		}
-	}
-
-	return out
-}
-
-// Entries is what the filter has left, Selection which of them is on, and
-// Offset the first one on screen.
-func (e *Explorer) Entries() []Entry { return e.entries }
-func (e *Explorer) Selection() int   { return e.sel }
-func (e *Explorer) Offset() int      { return e.offset }
-
-func (e *Explorer) Selected() (Entry, bool) {
-	if e.sel >= len(e.entries) {
-		return Entry{}, false
-	}
-
-	return e.entries[e.sel], true
-}
-
-func (e *Explorer) SelectedName() string {
-	entry, ok := e.Selected()
-	if !ok {
-		return ""
-	}
-
-	return entry.Name
-}
-
-func (e *Explorer) Move(delta int) {
-	e.sel = max(min(e.sel+delta, len(e.entries)-1), 0)
-}
-
-func (e *Explorer) Top()    { e.sel = 0 }
-func (e *Explorer) Bottom() { e.sel = max(len(e.entries)-1, 0) }
-
-func (e *Explorer) readDir(dir string) ([]Entry, error) {
-	listing, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	entries := make([]Entry, 0, len(listing)+1)
-	if parent := filepath.Dir(dir); parent != dir {
-		entries = append(entries, Entry{Name: ParentDir, IsDir: true})
-	}
-
-	files := make([]Entry, 0, len(listing))
-	for _, one := range listing {
-		if !e.hidden && strings.HasPrefix(one.Name(), ".") {
-			continue
-		}
-		files = append(files, Entry{Name: one.Name(), IsDir: one.IsDir()})
-	}
-
-	// os.ReadDir sorts by name, so sorting directories to the front stably
-	// keeps that order inside each of the two groups
-	slices.SortStableFunc(files, func(a, b Entry) int {
-		switch {
-		case a.IsDir == b.IsDir:
-			return 0
-		case a.IsDir:
-			return -1
-		default:
-			return 1
-		}
-	})
-
-	return append(entries, files...), nil
-}
-
-func (e *Explorer) Draw(within layout.Rect, palette *theme.Palette) {
-	e.scroll(within.Rows)
-	screen.Print(within.Col, within.Row, palette.CursorLineNumber, palette.Background,
-		screen.Pad(e.dir, within.Cols))
-
-	for row := HeaderRows; row < within.Rows; row++ {
-		at := row - HeaderRows + e.offset
-		if at >= len(e.entries) {
-			break
-		}
-
-		entry := e.entries[at]
-		foreground, background := palette.Plain, palette.Background
-		if entry.IsDir {
-			foreground = palette.Function
-		}
-		if at == e.sel {
-			background = palette.CursorLineBg
-			screen.Fill(within.Col, within.Row+row, within.Cols, palette.Plain, palette.CursorLineBg)
-		}
-
-		screen.Print(within.Col, within.Row+row, foreground, background,
-			screen.Pad(" "+Label(entry), within.Cols))
-	}
-}
-
-func Label(e Entry) string {
-	if e.IsDir {
-		return e.Name + "/"
-	}
-
-	return e.Name
-}
-
-func (e *Explorer) scroll(rows int) {
-	rows -= HeaderRows
-	if rows < 1 {
+// Open is '<leader>e', which toggles: the second press is what closes
+// the explorer again.
+func Open(e *state.Editor) {
+	if e.ExplorerOpen {
+		Close(e)
 		return
 	}
 
-	if e.sel < e.offset {
-		e.offset = e.sel
+	dir, err := filepath.Abs(filepath.Dir(e.SourceFile))
+	if err != nil {
+		dir = "."
 	}
-	if e.sel >= e.offset+rows {
-		e.offset = e.sel - rows + 1
+
+	if goTo(e, dir, filepath.Base(e.SourceFile)) {
+		e.ExplorerOpen, e.Mode = true, state.ExplorerMode
 	}
 }
 
-func (e *Explorer) CursorRow(within layout.Rect) int {
-	return within.Row + e.sel - e.offset + HeaderRows
+func Close(e *state.Editor) {
+	e.ExplorerOpen, e.Mode = false, state.ReadMode
+	e.ClampCol()
 }
 
-func (e *Explorer) Status() string {
-	if e.filter != "" {
-		return fmt.Sprintf(" EXPLORE: %s - %d/%d entries matching %q",
-			filepath.Base(e.dir), len(e.entries), len(e.all), e.filter)
+func goTo(e *state.Editor, dir, on string) bool {
+	if err := e.Exp.Go(dir, on); err != nil {
+		e.StatusMsg = "E484: Can't open file " + dir
+		return false
 	}
 
-	return fmt.Sprintf(" EXPLORE: %s - %d entries", filepath.Base(e.dir), len(e.all))
+	return true
 }
+
+func leaveDir(e *state.Editor) {
+	if err := e.Exp.Leave(); err != nil {
+		e.StatusMsg = "E484: Can't open file " + filepath.Dir(e.Exp.Dir())
+	}
+}
+
+// startSearch is '/', which hands the status line to the same prompt
+// the buffer's search uses; what is typed there narrows the listing as it goes.
+func startSearch(e *state.Editor) { e.StartPrompt('/') }
+
+func Filter(e *state.Editor, filter string) { e.Exp.Filter(filter) }
+
+// clearFilter is Esc: it drops the filter it finds, and closes the explorer
+// when there is none left to drop.
+func clearFilter(e *state.Editor) {
+	if e.Exp.Filtered() == "" {
+		Close(e)
+		return
+	}
+
+	Filter(e, "")
+}
+
+func openSelected(e *state.Editor) {
+	entry, ok := e.Exp.Selected()
+	if !ok {
+		return
+	}
+	if entry.Name == filetree.ParentDir {
+		leaveDir(e)
+		return
+	}
+
+	// the entry's own flag is false for a symlink to a directory, so what to do
+	// with the one being opened is worth the single stat
+	path := e.Exp.Path(entry.Name)
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		goTo(e, path, "")
+		return
+	}
+
+	if command.Edit(e, path, false) {
+		Close(e)
+	}
+}
+
+func toggleHidden(e *state.Editor) {
+	if err := e.Exp.ToggleHidden(); err != nil {
+		e.StatusMsg = "E484: Can't open file " + e.Exp.Dir()
+	}
+}
+
+func down(e *state.Editor)   { e.Exp.Move(1) }
+func up(e *state.Editor)     { e.Exp.Move(-1) }
+func top(e *state.Editor)    { e.Exp.Top() }
+func bottom(e *state.Editor) { e.Exp.Bottom() }
+
+// A half screen of the listing, which is what Ctrl-D and Ctrl-U move by, the
+// same fraction of the window they move the buffer by.
+func pageDown(e *state.Editor) { e.Exp.Move(Page(e)) }
+func pageUp(e *state.Editor)   { e.Exp.Move(-Page(e)) }
+
+func Page(e *state.Editor) int {
+	return max((e.Rows-filetree.HeaderRows)/2, 1)
+}
+
+var actions = map[rune]func(*state.Editor){
+	'j': down,
+	'k': up,
+	'l': openSelected,
+	'h': leaveDir,
+	'-': leaveDir,
+	'g': top,
+	'G': bottom,
+	'H': toggleHidden,
+	'/': startSearch,
+	'q': Close,
+}
+
+var specialActions = map[termbox.Key]func(*state.Editor){
+	termbox.KeyEnter:      openSelected,
+	termbox.KeyEsc:        clearFilter,
+	termbox.KeyArrowDown:  down,
+	termbox.KeyArrowUp:    up,
+	termbox.KeyArrowRight: openSelected,
+	termbox.KeyArrowLeft:  leaveDir,
+	termbox.KeyCtrlD:      pageDown,
+	termbox.KeyCtrlU:      pageUp,
+	termbox.KeyPgdn:       pageDown,
+	termbox.KeyPgup:       pageUp,
+}
+
+func Key(e *state.Editor, event termbox.Event) {
+	if event.Key == termbox.KeySpace {
+		e.PendingKeys, e.PendingTime = append(e.PendingKeys[:0], ' '), time.Now()
+		return
+	}
+
+	if event.Ch != 0 {
+		leader := len(e.PendingKeys) > 0 && time.Since(e.PendingTime) < state.ChordTimeout
+		e.PendingKeys = e.PendingKeys[:0]
+
+		switch {
+		case leader && event.Ch == 'e':
+			Open(e)
+		case leader:
+		default:
+			if action, ok := actions[event.Ch]; ok {
+				action(e)
+			}
+		}
+		return
+	}
+
+	e.PendingKeys = e.PendingKeys[:0]
+	if action, ok := view.MoveKeys[event.Key]; ok {
+		leaveFor(e, func() { action(e) })
+		return
+	}
+	if action, ok := specialActions[event.Key]; ok {
+		action(e)
+	}
+}
+
+// leaveFor is Ctrl-hjkl out of the tree: the window it lands in is
+// showing a buffer, so the explorer is left behind the way opening a file from
+// it leaves it. A move with no window that way changes nothing.
+func leaveFor(e *state.Editor, move func()) {
+	was := view.CurrentWindow(e)
+	move()
+	if view.Focused() != was {
+		Close(e)
+	}
+}
+
+func Draw(e *state.Editor)          { e.Exp.Draw(e.WindowArea(), &e.Palette) }
+func CursorRow(e *state.Editor) int { return e.Exp.CursorRow(e.WindowArea()) }
+func Status(e *state.Editor) string { return e.Exp.Status() }
