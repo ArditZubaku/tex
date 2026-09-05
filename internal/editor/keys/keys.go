@@ -10,6 +10,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
+	"github.com/ArditZubaku/tex/internal/editor/rename"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
@@ -133,6 +134,7 @@ func chordKeys() map[string]func(*state.Editor) {
 		" bo": view.CloseOtherBuffers,
 		" bl": view.CloseBuffersLeft,
 		" br": view.CloseBuffersRight,
+		" cr": rename.Start,
 		" sh": view.SplitRight,
 		" sv": view.SplitBelow,
 		" ss": find.OpenSymbols,
