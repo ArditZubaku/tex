@@ -16,6 +16,14 @@ func Print(col, row int, fg, bg termbox.Attribute, msg string) {
 	}
 }
 
+// Fill paints a run of cells in one colour, which is what a band under a row of
+// text is: characters drawn over it afterwards keep the colours painted here.
+func Fill(col, row, width int, fg, bg termbox.Attribute) {
+	for i := range width {
+		termbox.SetCell(col+i, row, ' ', fg, bg)
+	}
+}
+
 // Pad runs text out to a width so that what it is drawn on takes the whole
 // width in its own colours, rather than however far the text happens to reach.
 func Pad(txt string, width int) string {

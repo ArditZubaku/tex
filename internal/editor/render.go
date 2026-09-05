@@ -11,13 +11,6 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-// Characters drawn over the band with SetChar keep the colours painted here.
-func highlightRow(row int) {
-	for col := range COLS {
-		termbox.SetCell(screenCol(col), screenRow(row), ' ', active.Plain, active.CursorLineBg)
-	}
-}
-
 func displayTextBuffer() {
 	bufLen := buf.LineCount()
 	gutterCols := gutter.Width(bufLen)
@@ -40,7 +33,7 @@ func displayTextBuffer() {
 		numberColor, background := active.LineNumber, active.Background
 		if textBufRow == currentRow {
 			numberColor, background = active.CursorLineNumber, active.CursorLineBg
-			highlightRow(row)
+			screen.Fill(screenCol(0), screenRow(row), COLS, active.Plain, active.CursorLineBg)
 		}
 		screen.Print(screenCol(0), screenRow(row), numberColor, background, gutter.Label(textBufRow, currentRow, gutterCols))
 

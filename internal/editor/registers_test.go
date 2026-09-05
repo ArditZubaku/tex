@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/search"
 	"github.com/ArditZubaku/tex/internal/theme"
@@ -21,7 +22,7 @@ func inReadMode(t *testing.T, content string, row, col int) *buffer.Buffer {
 	searchPat, searchBack, hlSearch = search.Pattern{}, false, false
 	promptChar, promptInput, statusMsg = 0, nil, ""
 	quitting, active = false, theme.Default()
-	explorerOpen, explorerHidden, explorerFilter = false, false, ""
+	explorerOpen, exp = false, explorer.Explorer{}
 	buffers, currentBuffer, tabBarOffset = nil, 0, 0
 	root, current, winRow, winCol = nil, nil, tabBarRows, 0
 
