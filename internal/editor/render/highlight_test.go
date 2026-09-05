@@ -24,8 +24,6 @@ func writeTemp(t *testing.T, content string) string {
 
 func TestLineColorsWithoutSyntax(t *testing.T) {
 	e := state.New()
-	e.Lang = nil
-	defer func() { e.Lang = nil }()
 
 	got, open := lineColors(e, []rune("var x int"), true)
 	if got != nil || open {
@@ -36,7 +34,6 @@ func TestLineColorsWithoutSyntax(t *testing.T) {
 func TestBlockStateBefore(t *testing.T) {
 	e := state.New()
 	e.Lang = syntax.Detect("x.go")
-	defer func() { e.Lang = nil }()
 
 	e.Buf = buffer.Open(writeTemp(t, "a\n/* open\nstill\n*/ b\nc\n"))
 	defer e.Buf.Close()
@@ -55,7 +52,7 @@ func TestBlockStateBefore(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := blockStateBefore(e, tc.row); got != tc.want {
-				t.Errorf("blockStateBefore(e, %d) = %v, want %v", tc.row, got, tc.want)
+				t.Errorf("blockStateBefore(%d) = %v, want %v", tc.row, got, tc.want)
 			}
 		})
 	}
@@ -66,7 +63,6 @@ func TestBlockStateBefore(t *testing.T) {
 func TestBlockStateBeforeIsBounded(t *testing.T) {
 	e := state.New()
 	e.Lang = syntax.Detect("x.go")
-	defer func() { e.Lang = nil }()
 
 	lines := "/* open\n" + strings.Repeat("still\n", blockLookback+10)
 	e.Buf = buffer.Open(writeTemp(t, lines))
