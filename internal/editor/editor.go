@@ -7,6 +7,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
+	"github.com/ArditZubaku/tex/internal/editor/render"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/gutter"
@@ -51,14 +52,14 @@ func Run(args []string) {
 			os.Exit(1) // TODO: Will think of something better in such a case
 		}
 
-		displayBufferLine()
-		displayWindows()
+		render.BufferLine(ed)
+		render.Windows(ed)
 		find.DrawPicker(ed)
-		displayStatusBar()
+		render.StatusBar(ed)
 
 		switch ed.Mode {
 		case state.PromptMode:
-			termbox.SetCursor(promptCol(), ed.StatusRow())
+			termbox.SetCursor(ed.PromptCol(), ed.StatusRow())
 		case state.PickerMode:
 			termbox.SetCursor(ed.Pick.CursorCol(ed.ScreenArea()), ed.Pick.CursorRow(ed.ScreenArea()))
 		case state.ExplorerMode:

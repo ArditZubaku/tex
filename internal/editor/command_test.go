@@ -184,7 +184,7 @@ func TestThePromptShowsTheCommandBeingTyped(t *testing.T) {
 
 	press(t, ":wq")
 
-	if txt, ok := promptStatus(); !ok || txt != ":wq" {
+	if txt, ok := ed.PromptStatus(); !ok || txt != ":wq" {
 		t.Errorf("promptStatus = %q,%v, want \":wq\",true", txt, ok)
 	}
 }

@@ -215,14 +215,14 @@ func TestThePromptShowsWhatIsBeingTyped(t *testing.T) {
 
 	press(t, "/nee")
 
-	if txt, ok := promptStatus(); !ok || txt != "/nee" {
+	if txt, ok := ed.PromptStatus(); !ok || txt != "/nee" {
 		t.Errorf("promptStatus = %q,%v, want \"/nee\",true", txt, ok)
 	}
 
 	press(t, string(rune(27)))
 	press(t, "?nee")
 
-	if txt, _ := promptStatus(); txt != "?nee" {
+	if txt, _ := ed.PromptStatus(); txt != "?nee" {
 		t.Errorf("promptStatus = %q, want %q", txt, "?nee")
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/render"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 )
@@ -342,7 +343,7 @@ func TestBufferLineListsTheOpenBuffersAndMarksTheUnsaved(t *testing.T) {
 	press(t, "x")
 	openPaths(t, paths...)
 
-	open := openTabs()
+	open := render.Tabs(ed)
 	if len(open) != 2 {
 		t.Fatalf("%d tabs, want 2", len(open))
 	}

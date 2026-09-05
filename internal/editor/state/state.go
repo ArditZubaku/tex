@@ -188,3 +188,17 @@ func (e *Editor) PopJump() (Jump, bool) {
 
 	return back, true
 }
+
+// PromptStatus takes the status bar over while a line is being typed, and for
+// the one redraw after a command reported something.
+func (e *Editor) PromptStatus() (string, bool) {
+	if e.Mode == PromptMode {
+		return e.Prompt.Text(), true
+	}
+
+	return e.StatusMsg, e.StatusMsg != ""
+}
+
+func (e *Editor) PromptCol() int {
+	return e.Prompt.Width()
+}

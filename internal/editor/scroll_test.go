@@ -3,6 +3,8 @@ package editor
 import (
 	"strings"
 	"testing"
+
+	"github.com/ArditZubaku/tex/internal/editor/render"
 )
 
 func inWindow(t *testing.T, lines, row int) {
@@ -95,13 +97,13 @@ func TestScrollingFollowsTheCursorAwayFromACenteredView(t *testing.T) {
 	inWindow(t, 100, 50)
 
 	press(t, "zz")
-	scrollTextBuffer()
+	render.Scroll(ed)
 	if ed.OffsetRow != 40 {
 		t.Fatalf("offsetRow = %d, want the centered 40 left alone", ed.OffsetRow)
 	}
 
 	press(t, "30j")
-	scrollTextBuffer()
+	render.Scroll(ed)
 	if ed.OffsetRow != 61 {
 		t.Errorf("offsetRow = %d, want 61", ed.OffsetRow)
 	}

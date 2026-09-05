@@ -8,8 +8,8 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/prompt"
 	"github.com/ArditZubaku/tex/internal/editor/register"
+	"github.com/ArditZubaku/tex/internal/editor/render"
 	"github.com/ArditZubaku/tex/internal/editor/state"
-	"github.com/ArditZubaku/tex/internal/editor/tabbar"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/search"
 	"github.com/ArditZubaku/tex/internal/theme"
@@ -29,7 +29,7 @@ func inReadMode(t *testing.T, content string, row, col int) *buffer.Buffer {
 	ed.Quitting, ed.Palette = false, theme.Default()
 	ed.ExplorerOpen, ed.Exp = false, filetree.Tree{}
 	view.Reset()
-	tabs = tabbar.Bar{}
+	render.Reset()
 	ed.WinRow, ed.WinCol = state.TabBarRows, 0
 
 	return b

@@ -57,17 +57,3 @@ func endPrompt() {
 	}
 	ed.Prompt.Clear()
 }
-
-// promptStatus takes the status bar over while a line is being typed, and for
-// the one redraw after a command reported something.
-func promptStatus() (string, bool) {
-	if ed.Mode == state.PromptMode {
-		return ed.Prompt.Text(), true
-	}
-
-	return ed.StatusMsg, ed.StatusMsg != ""
-}
-
-func promptCol() int {
-	return ed.Prompt.Width()
-}

@@ -1,29 +1,45 @@
-package editor
+package render
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/syntax"
 )
 
-func TestLineColorsWithoutSyntax(t *testing.T) {
-	ed.Lang = nil
-	defer func() { ed.Lang = nil }()
+func writeTemp(t *testing.T, content string) string {
+	t.Helper()
 
-	got, open := lineColors([]rune("var x int"), true)
+	path := filepath.Join(t.TempDir(), "f.txt")
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	return path
+}
+
+func TestLineColorsWithoutSyntax(t *testing.T) {
+	e := state.New()
+	e.Lang = nil
+	defer func() { e.Lang = nil }()
+
+	got, open := lineColors(e, []rune("var x int"), true)
 	if got != nil || open {
 		t.Errorf("lineColors with no lang = %v, %v, want nil, false", got, open)
 	}
 }
 
 func TestBlockStateBefore(t *testing.T) {
-	ed.Lang = syntax.Detect("x.go")
-	defer func() { ed.Lang = nil }()
+	e := state.New()
+	e.Lang = syntax.Detect("x.go")
+	defer func() { e.Lang = nil }()
 
-	ed.Buf = buffer.Open(writeTemp(t, "a\n/* open\nstill\n*/ b\nc\n"))
-	defer ed.Buf.Close()
+	e.Buf = buffer.Open(writeTemp(t, "a\n/* open\nstill\n*/ b\nc\n"))
+	defer e.Buf.Close()
 
 	cases := []struct {
 		name string
@@ -38,8 +54,8 @@ func TestBlockStateBefore(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := blockStateBefore(tc.row); got != tc.want {
-				t.Errorf("blockStateBefore(%d) = %v, want %v", tc.row, got, tc.want)
+			if got := blockStateBefore(e, tc.row); got != tc.want {
+				t.Errorf("blockStateBefore(e, %d) = %v, want %v", tc.row, got, tc.want)
 			}
 		})
 	}
@@ -48,17 +64,18 @@ func TestBlockStateBefore(t *testing.T) {
 // Past the look-back bound the window is assumed to start outside a comment,
 // which is what keeps a redraw from lexing the whole file.
 func TestBlockStateBeforeIsBounded(t *testing.T) {
-	ed.Lang = syntax.Detect("x.go")
-	defer func() { ed.Lang = nil }()
+	e := state.New()
+	e.Lang = syntax.Detect("x.go")
+	defer func() { e.Lang = nil }()
 
 	lines := "/* open\n" + strings.Repeat("still\n", blockLookback+10)
-	ed.Buf = buffer.Open(writeTemp(t, lines))
-	defer ed.Buf.Close()
+	e.Buf = buffer.Open(writeTemp(t, lines))
+	defer e.Buf.Close()
 
-	if !blockStateBefore(blockLookback) {
+	if !blockStateBefore(e, blockLookback) {
 		t.Error("blockStateBefore within the bound = false, want true")
 	}
-	if blockStateBefore(blockLookback + 2) {
+	if blockStateBefore(e, blockLookback+2) {
 		t.Error("blockStateBefore past the bound = true, want false")
 	}
 }
