@@ -11,8 +11,8 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-func startSearchForward()  { ed.StartPrompt('/') }
-func startSearchBackward() { ed.StartPrompt('?') }
+func startSearchForward(e *state.Editor)  { e.StartPrompt('/') }
+func startSearchBackward(e *state.Editor) { e.StartPrompt('?') }
 
 func handlePromptKey(event termbox.Event) {
 	switch ed.Prompt.Key(event) {

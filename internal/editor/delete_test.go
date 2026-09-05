@@ -247,25 +247,25 @@ func TestOperators(t *testing.T) {
 	cases := []struct {
 		name string
 		col  int
-		op   func()
+		op   func(*state.Editor)
 		want string
 	}{
-		{"x deletes under the cursor", 1, bind(edit.DeleteRune), "fo bar baz"},
-		{"x at end of line", 10, bind(edit.DeleteRune), "foo bar ba"},
-		{"x past end of line", 11, bind(edit.DeleteRune), "foo bar baz"},
-		{"dw from a word start", 0, bind(edit.DeleteWord), "bar baz"},
-		{"dw mid-word", 5, bind(edit.DeleteWord), "foo bbaz"},
-		{"dw on the last word stops at end of line", 8, bind(edit.DeleteWord), "foo bar "},
-		{"de from a word start", 4, bind(edit.DeleteToWordEnd), "foo  baz"},
-		{"de mid-word", 5, bind(edit.DeleteToWordEnd), "foo b baz"},
-		{"de on the last word stops at end of line", 8, bind(edit.DeleteToWordEnd), "foo bar "},
+		{"x deletes under the cursor", 1, edit.DeleteRune, "fo bar baz"},
+		{"x at end of line", 10, edit.DeleteRune, "foo bar ba"},
+		{"x past end of line", 11, edit.DeleteRune, "foo bar baz"},
+		{"dw from a word start", 0, edit.DeleteWord, "bar baz"},
+		{"dw mid-word", 5, edit.DeleteWord, "foo bbaz"},
+		{"dw on the last word stops at end of line", 8, edit.DeleteWord, "foo bar "},
+		{"de from a word start", 4, edit.DeleteToWordEnd, "foo  baz"},
+		{"de mid-word", 5, edit.DeleteToWordEnd, "foo b baz"},
+		{"de on the last word stops at end of line", 8, edit.DeleteToWordEnd, "foo bar "},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			b := atCursor(t, content, 0, tc.col)
 
-			tc.op()
+			tc.op(ed)
 			wantLines(t, b, tc.want, "last")
 			if ed.Modified != (tc.want != "foo bar baz") {
 				t.Errorf("modified = %v after a %s", ed.Modified, tc.name)

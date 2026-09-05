@@ -49,35 +49,35 @@ func handleCharKey(keyEvent termbox.Event) {
 
 // readModeActions dispatches the single-key vim motions; keys that start a
 // chord are held pending instead, see chordActions.
-var readModeActions = map[rune]func(){
-	'G': ed.GoToBottom,
-	'H': bind(view.PrevBuffer),
-	'L': bind(view.NextBuffer),
-	'I': ed.GoToStartOfLine,
-	'A': ed.GoToEndOfLine,
-	'a': ed.EditAfterWord,
-	'h': ed.Left,
-	'j': ed.Down,
-	'k': ed.Up,
-	'l': ed.Right,
-	'w': ed.NextWord,
-	'b': ed.PrevWord,
-	'e': ed.EndOfWord,
-	'q': ed.Close,
-	'i': ed.EditBeforeWord,
-	'x': bind(edit.DeleteRune),
-	'o': bind(edit.OpenLineBelow),
-	'O': bind(edit.OpenLineAbove),
-	'p': bind(edit.PasteAfter),
-	'P': bind(edit.PasteBefore),
-	'u': ed.Undo,
+var readModeActions = map[rune]func(*state.Editor){
+	'G': (*state.Editor).GoToBottom,
+	'H': view.PrevBuffer,
+	'L': view.NextBuffer,
+	'I': (*state.Editor).GoToStartOfLine,
+	'A': (*state.Editor).GoToEndOfLine,
+	'a': (*state.Editor).EditAfterWord,
+	'h': (*state.Editor).Left,
+	'j': (*state.Editor).Down,
+	'k': (*state.Editor).Up,
+	'l': (*state.Editor).Right,
+	'w': (*state.Editor).NextWord,
+	'b': (*state.Editor).PrevWord,
+	'e': (*state.Editor).EndOfWord,
+	'q': (*state.Editor).Close,
+	'i': (*state.Editor).EditBeforeWord,
+	'x': edit.DeleteRune,
+	'o': edit.OpenLineBelow,
+	'O': edit.OpenLineAbove,
+	'p': edit.PasteAfter,
+	'P': edit.PasteBefore,
+	'u': (*state.Editor).Undo,
 	'/': startSearchForward,
 	'?': startSearchBackward,
-	'n': bind(find.NextMatch),
-	'N': bind(find.PrevMatch),
+	'n': find.NextMatch,
+	'N': find.PrevMatch,
 	':': startExPrompt,
-	'v': bind(edit.StartVisualChar),
-	'V': bind(edit.StartVisualLine),
+	'v': edit.StartVisualChar,
+	'V': edit.StartVisualLine,
 }
 
 // Visual mode reuses Read mode's motions — a motion there drags the far end of
@@ -86,15 +86,15 @@ var readModeActions = map[rune]func(){
 // out rather than doing what it does in Read mode.
 var visualActions = visualKeys()
 
-func visualKeys() map[rune]func() {
-	actions := map[rune]func(){
-		'v': bind(edit.ToggleVisualChar),
-		'V': bind(edit.ToggleVisualLine),
-		'o': bind(edit.SwapVisualEnds),
-		'd': bind(edit.DeleteSelection),
-		'x': bind(edit.DeleteSelection),
-		'c': bind(edit.ChangeSelection),
-		'y': bind(edit.YankSelection),
+func visualKeys() map[rune]func(*state.Editor) {
+	actions := map[rune]func(*state.Editor){
+		'v': edit.ToggleVisualChar,
+		'V': edit.ToggleVisualLine,
+		'o': edit.SwapVisualEnds,
+		'd': edit.DeleteSelection,
+		'x': edit.DeleteSelection,
+		'c': edit.ChangeSelection,
+		'y': edit.YankSelection,
 	}
 	for _, ch := range "hjklwbeG" {
 		actions[ch] = readModeActions[ch]
@@ -108,42 +108,42 @@ func visualKeys() map[rune]func() {
 // buffer commands under.
 var chordActions = chordKeys()
 
-func chordKeys() map[string]func() {
-	chords := map[string]func(){
-		"gg":  ed.GoToTop,
-		"gd":  bind(find.GoToDefinition),
-		"gr":  bind(find.OpenReferences),
-		"dd":  bind(edit.DeleteLine),
-		"dw":  bind(edit.DeleteWord),
-		"de":  bind(edit.DeleteToWordEnd),
-		"db":  bind(edit.DeleteToPrevWord),
-		"yy":  bind(edit.YankLine),
-		"yw":  bind(edit.YankWord),
-		"ye":  bind(edit.YankToWordEnd),
-		"yb":  bind(edit.YankToPrevWord),
-		"zz":  ed.CenterView,
-		" e":  bind(explorer.Open),
-		" bb": bind(view.AlternateBuffer),
-		" bd": bind(view.CloseCurrentBuffer),
-		" bn": bind(view.NextBuffer),
-		" bp": bind(view.PrevBuffer),
-		" bo": bind(view.CloseOtherBuffers),
-		" bl": bind(view.CloseBuffersLeft),
-		" br": bind(view.CloseBuffersRight),
-		" sh": bind(view.SplitRight),
-		" sv": bind(view.SplitBelow),
-		" ss": bind(find.OpenSymbols),
-		" sS": bind(find.OpenWorkspaceSymbols),
-		" wd": bind(view.CloseWindow),
-		"  ":  bind(find.OpenFiles),
+func chordKeys() map[string]func(*state.Editor) {
+	chords := map[string]func(*state.Editor){
+		"gg":  (*state.Editor).GoToTop,
+		"gd":  find.GoToDefinition,
+		"gr":  find.OpenReferences,
+		"dd":  edit.DeleteLine,
+		"dw":  edit.DeleteWord,
+		"de":  edit.DeleteToWordEnd,
+		"db":  edit.DeleteToPrevWord,
+		"yy":  edit.YankLine,
+		"yw":  edit.YankWord,
+		"ye":  edit.YankToWordEnd,
+		"yb":  edit.YankToPrevWord,
+		"zz":  (*state.Editor).CenterView,
+		" e":  explorer.Open,
+		" bb": view.AlternateBuffer,
+		" bd": view.CloseCurrentBuffer,
+		" bn": view.NextBuffer,
+		" bp": view.PrevBuffer,
+		" bo": view.CloseOtherBuffers,
+		" bl": view.CloseBuffersLeft,
+		" br": view.CloseBuffersRight,
+		" sh": view.SplitRight,
+		" sv": view.SplitBelow,
+		" ss": find.OpenSymbols,
+		" sS": find.OpenWorkspaceSymbols,
+		" wd": view.CloseWindow,
+		"  ":  find.OpenFiles,
 	}
 
 	return chords
 }
 
-var visualChords = map[string]func(){
-	"gg": ed.GoToTop,
-	"zz": ed.CenterView,
+var visualChords = map[string]func(*state.Editor){
+	"gg": (*state.Editor).GoToTop,
+	"zz": (*state.Editor).CenterView,
 }
 
 // A chord's own prefixes do nothing on their own; they wait for the keys that
@@ -154,7 +154,7 @@ var (
 	visualChordPrefixes = prefixesOf(visualChords)
 )
 
-func prefixesOf(chords map[string]func()) map[string]bool {
+func prefixesOf(chords map[string]func(*state.Editor)) map[string]bool {
 	prefixes := make(map[string]bool)
 	for chord := range chords {
 		keys := []rune(chord)
@@ -219,42 +219,36 @@ func handleReadModeChar(keyEvent termbox.Event) {
 	}
 }
 
-// bind hands a command the editor it works on, so that the tables above can
-// name the ones that live in their own packages the way they name their own.
-func bind(cmd func(*state.Editor)) func() {
-	return func() { cmd(ed) }
-}
-
-func runCommand(action func(), countAware bool) {
+func runCommand(action func(*state.Editor), countAware bool) {
 	ed.CmdCount, ed.HadCount, ed.PendingCount = max(ed.PendingCount, 1), ed.PendingCount > 0, 0
 	defer func() { ed.CmdCount, ed.HadCount = 1, false }()
 
 	ed.BeginChange()
 	if countAware {
-		action()
+		action(ed)
 	} else {
 		for range ed.CmdCount {
-			action()
+			action(ed)
 		}
 	}
 	ed.EndChange()
 }
 
-var specialKeyActions = map[termbox.Key]func(){
-	termbox.KeyCtrlS:      bind(command.Save),
-	termbox.KeyEnter:      bind(edit.Enter),
-	termbox.KeyBackspace:  bind(edit.Backspace),
-	termbox.KeyBackspace2: bind(edit.Backspace),
-	termbox.KeyArrowUp:    ed.Up,
-	termbox.KeyCtrlU:      ed.PageUp,
-	termbox.KeyArrowDown:  ed.Down,
-	termbox.KeyCtrlD:      ed.PageDown, // this is a vim motion actually, but it far easier to handle it like this
-	termbox.KeyArrowLeft:  ed.Left,
-	termbox.KeyArrowRight: ed.Right,
-	termbox.KeyPgup:       ed.PageUp,
-	termbox.KeyPgdn:       ed.PageDown,
-	termbox.KeyCtrlR:      ed.Redo,
-	termbox.KeyCtrlO:      bind(find.JumpBack),
+var specialKeyActions = map[termbox.Key]func(*state.Editor){
+	termbox.KeyCtrlS:      command.Save,
+	termbox.KeyEnter:      edit.Enter,
+	termbox.KeyBackspace:  edit.Backspace,
+	termbox.KeyBackspace2: edit.Backspace,
+	termbox.KeyArrowUp:    (*state.Editor).Up,
+	termbox.KeyCtrlU:      (*state.Editor).PageUp,
+	termbox.KeyArrowDown:  (*state.Editor).Down,
+	termbox.KeyCtrlD:      (*state.Editor).PageDown, // this is a vim motion actually, but it far easier to handle it like this
+	termbox.KeyArrowLeft:  (*state.Editor).Left,
+	termbox.KeyArrowRight: (*state.Editor).Right,
+	termbox.KeyPgup:       (*state.Editor).PageUp,
+	termbox.KeyPgdn:       (*state.Editor).PageDown,
+	termbox.KeyCtrlR:      (*state.Editor).Redo,
+	termbox.KeyCtrlO:      find.JumpBack,
 }
 
 func handleSpecialKey(keyEvent termbox.Event) {
@@ -287,7 +281,7 @@ func handleSpecialKey(keyEvent termbox.Event) {
 		ed.Col = ed.MaxCol(ed.Row)
 	default:
 		if action, ok := specialKeyActions[keyEvent.Key]; ok {
-			action()
+			action(ed)
 		}
 	}
 
@@ -315,4 +309,4 @@ func esc() {
 	state.SetCursorShape(state.CursorDefault)
 }
 
-func startExPrompt() { ed.StartPrompt(':') }
+func startExPrompt(e *state.Editor) { e.StartPrompt(':') }
