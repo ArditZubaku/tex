@@ -1,4 +1,4 @@
-.PHONY: lint run
+.PHONY: lint run hooks
 
 FILE ?= main.go
 
@@ -21,3 +21,6 @@ format:
 		-v ~/.cache/golangci-lint:/root/.cache \
 		-w /app \
 		golangci/golangci-lint:latest-alpine golangci-lint fmt
+
+hooks:
+	@git config core.hooksPath .githooks && echo "hooks installed from .githooks"
