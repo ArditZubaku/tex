@@ -9,9 +9,8 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/history"
+	"github.com/ArditZubaku/tex/internal/editor/tabbar"
 	"github.com/ArditZubaku/tex/internal/syntax"
-	"github.com/mattn/go-runewidth"
-	"github.com/nsf/termbox-go"
 )
 
 // The editor keeps every file it has opened in a list, the way VIM's hidden
@@ -39,8 +38,6 @@ var (
 // The buffer line takes the first row of the window; everything the buffer and
 // the explorer draw sits below it.
 const tabBarRows = 1
-
-const modifiedMark = '●'
 
 // currentEntry adopts the buffer the editor started with when the list is still
 // empty, so that the list always has the file being edited in it without main
@@ -277,7 +274,7 @@ func listBuffers() {
 		}
 		label := mark + strconv.Itoa(i+1) + " " + filepath.Base(entry.path)
 		if entry.modified {
-			label += " " + string(modifiedMark)
+			label += " " + string(tabbar.ModifiedMark)
 		}
 		labels = append(labels, label)
 	}
@@ -285,81 +282,19 @@ func listBuffers() {
 	statusMsg = strings.Join(labels, "  ")
 }
 
-// A cell of the buffer line, laid out before anything is drawn so that
-// scrolling the row to keep the current buffer on screen is one window over it.
-// A zero rune is the second half of a wide one, which termbox draws itself.
-type tabCell struct {
-	ch     rune
-	fg, bg termbox.Attribute
-}
-
-var tabBarOffset int
+var tabs tabbar.Bar
 
 func displayBufferLine() {
-	cells, from, to := bufferLineCells()
-	scrollBufferLine(len(cells), from, to)
-
-	for col := range screenCols {
-		ch, fg, bg := ' ', active.TabFg, active.TabBarBg
-		if i := col + tabBarOffset; i >= 0 && i < len(cells) {
-			ch, fg, bg = cells[i].ch, cells[i].fg, cells[i].bg
-		}
-		if ch == 0 {
-			continue
-		}
-		termbox.SetCell(col, 0, ch, fg, bg)
-	}
+	tabs.Draw(0, screenCols, openTabs(), currentBuffer, &active)
 }
 
-func bufferLineCells() (cells []tabCell, activeFrom, activeTo int) {
+func openTabs() []tabbar.Tab {
 	syncBuffer()
 
-	for i, entry := range buffers {
-		fg, bg := active.TabFg, active.TabBarBg
-		if i == currentBuffer {
-			fg, bg, activeFrom = active.TabActiveFg, active.TabActiveBg, len(cells)
-		}
-
-		cells = appendTab(cells, entry, fg, bg)
-		if i == currentBuffer {
-			activeTo = len(cells)
-		}
+	open := make([]tabbar.Tab, 0, len(buffers))
+	for _, entry := range buffers {
+		open = append(open, tabbar.Tab{Name: filepath.Base(entry.path), Modified: entry.modified})
 	}
 
-	return cells, activeFrom, activeTo
-}
-
-func appendTab(cells []tabCell, entry *bufferEntry, fg, bg termbox.Attribute) []tabCell {
-	label := " " + filepath.Base(entry.path) + " "
-	if entry.modified {
-		label += string(modifiedMark) + " "
-	}
-
-	for _, ch := range label {
-		markFg := fg
-		if ch == modifiedMark {
-			markFg = active.TabModified
-		}
-		cells = append(cells, tabCell{ch: ch, fg: markFg, bg: bg})
-		for range runewidth.RuneWidth(ch) - 1 {
-			cells = append(cells, tabCell{bg: bg})
-		}
-	}
-
-	return cells
-}
-
-func scrollBufferLine(width, from, to int) {
-	if to-from >= screenCols {
-		tabBarOffset = from
-		return
-	}
-
-	if from < tabBarOffset {
-		tabBarOffset = from
-	}
-	if to > tabBarOffset+screenCols {
-		tabBarOffset = to - screenCols
-	}
-	tabBarOffset = max(min(tabBarOffset, width-screenCols), 0)
+	return open
 }

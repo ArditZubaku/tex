@@ -333,59 +333,23 @@ func TestBufferListNamesThemMarkingTheCurrentAndTheUnsaved(t *testing.T) {
 	}
 }
 
-func TestBufferLinePicksOutTheCurrentBufferAndMarksTheUnsaved(t *testing.T) {
+func TestBufferLineListsTheOpenBuffersAndMarksTheUnsaved(t *testing.T) {
 	paths := inBuffers(t, "a.txt")
 
 	press(t, "x")
 	openPaths(t, paths...)
 
-	cells, from, to := bufferLineCells()
-	if got := cellText(cells); got != " f.txt ●  a.txt " {
-		t.Errorf("buffer line = %q", got)
+	open := openTabs()
+	if len(open) != 2 {
+		t.Fatalf("%d tabs, want 2", len(open))
 	}
-	if got := cellText(cells[from:to]); got != " a.txt " {
-		t.Errorf("current tab = %q, want %q", got, " a.txt ")
+	if open[0].Name != "f.txt" || !open[0].Modified {
+		t.Errorf("tab 0 = %+v, want f.txt unsaved", open[0])
 	}
-	for i, cell := range cells {
-		want := active.TabFg
-		switch {
-		case i >= from && i < to:
-			want = active.TabActiveFg
-		case cell.ch == modifiedMark:
-			want = active.TabModified
-		}
-		if cell.fg != want {
-			t.Errorf("cell %d (%q) fg = %v, want %v", i, cell.ch, cell.fg, want)
-		}
+	if open[1].Name != "a.txt" || open[1].Modified {
+		t.Errorf("tab 1 = %+v, want a.txt saved", open[1])
 	}
-}
-
-func TestBufferLineScrollsTheCurrentBufferIntoView(t *testing.T) {
-	names := make([]string, 0, 20)
-	for i := range 20 {
-		names = append(names, string(rune('a'+i))+".txt")
+	if currentBuffer != 1 {
+		t.Errorf("current buffer = %d, want the one just opened", currentBuffer)
 	}
-	paths := inBuffers(t, names...)
-	openPaths(t, paths...)
-
-	cells, from, to := bufferLineCells()
-	scrollBufferLine(len(cells), from, to)
-
-	if len(cells) <= screenCols {
-		t.Fatalf("buffer line is %d cells wide, want wider than the window", len(cells))
-	}
-	if from < tabBarOffset || to > tabBarOffset+screenCols {
-		t.Errorf("current tab at [%d,%d) is outside the window at %d", from, to, tabBarOffset)
-	}
-}
-
-func cellText(cells []tabCell) string {
-	out := make([]rune, 0, len(cells))
-	for _, cell := range cells {
-		if cell.ch != 0 {
-			out = append(out, cell.ch)
-		}
-	}
-
-	return string(out)
 }
