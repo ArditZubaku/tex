@@ -196,11 +196,18 @@ func (b *Buffer) Save(path string) error {
 		return err
 	}
 
-	// the old handle still points at the replaced file
-	b.Close()
-	*b = *Open(path)
+	b.Reload(path)
 
 	return nil
+}
+
+// Reload reads the file again from scratch, dropping the window, the index and
+// every edit the overlay held. It is what a save needs, since the old handle
+// still points at the file the rename replaced, and what a formatter rewriting
+// the file underneath the buffer leaves it needing.
+func (b *Buffer) Reload(path string) {
+	b.Close()
+	*b = *Open(path)
 }
 
 func (b *Buffer) Close() {
