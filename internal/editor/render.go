@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/gutter"
@@ -17,7 +18,7 @@ func displayTextBuffer() {
 	gutterCols := gutter.Width(bufLen)
 	textCols := ed.Cols - gutterCols
 	inBlock := blockStateBefore(ed.OffsetRow)
-	selected := visualSelection()
+	selected := edit.Selection(ed)
 
 	for row := 0; row < ed.Rows; row++ {
 		textBufRow := row + ed.OffsetRow
@@ -51,7 +52,7 @@ func displayTextBuffer() {
 			if textBufCol < 0 {
 				continue
 			}
-			inSelection := selected.covers(textBufRow, textBufCol, lineLen)
+			inSelection := selected.Covers(textBufRow, textBufCol, lineLen)
 
 			if textBufCol >= lineLen {
 				if inSelection {

@@ -3,6 +3,7 @@ package editor
 import (
 	"time"
 
+	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/nsf/termbox-go"
@@ -35,7 +36,7 @@ func dispatchKey(keyEvent termbox.Event) {
 func handleCharKey(keyEvent termbox.Event) {
 	switch ed.Mode {
 	case state.EditMode:
-		insertRune(keyEvent)
+		edit.InsertRune(ed, keyEvent)
 	case state.ReadMode, state.VisualMode:
 		handleReadModeChar(keyEvent)
 		ed.ClampCol()
@@ -60,19 +61,19 @@ var readModeActions = map[rune]func(){
 	'e': ed.EndOfWord,
 	'q': closeEditor,
 	'i': ed.EditBeforeWord,
-	'x': deleteRune,
-	'o': openLineBelow,
-	'O': openLineAbove,
-	'p': pasteAfter,
-	'P': pasteBefore,
+	'x': bind(edit.DeleteRune),
+	'o': bind(edit.OpenLineBelow),
+	'O': bind(edit.OpenLineAbove),
+	'p': bind(edit.PasteAfter),
+	'P': bind(edit.PasteBefore),
 	'u': ed.Undo,
 	'/': startSearchForward,
 	'?': startSearchBackward,
 	'n': nextMatch,
 	'N': prevMatch,
 	':': startExPrompt,
-	'v': startVisualChar,
-	'V': startVisualLine,
+	'v': bind(edit.StartVisualChar),
+	'V': bind(edit.StartVisualLine),
 }
 
 // Visual mode reuses Read mode's motions — a motion there drags the far end of
@@ -83,13 +84,13 @@ var visualActions = visualKeys()
 
 func visualKeys() map[rune]func() {
 	actions := map[rune]func(){
-		'v': toggleVisualChar,
-		'V': toggleVisualLine,
-		'o': swapVisualEnds,
-		'd': deleteSelection,
-		'x': deleteSelection,
-		'c': changeSelection,
-		'y': yankSelection,
+		'v': bind(edit.ToggleVisualChar),
+		'V': bind(edit.ToggleVisualLine),
+		'o': bind(edit.SwapVisualEnds),
+		'd': bind(edit.DeleteSelection),
+		'x': bind(edit.DeleteSelection),
+		'c': bind(edit.ChangeSelection),
+		'y': bind(edit.YankSelection),
 	}
 	for _, ch := range "hjklwbeG" {
 		actions[ch] = readModeActions[ch]
@@ -108,14 +109,14 @@ func chordKeys() map[string]func() {
 		"gg":  ed.GoToTop,
 		"gd":  goToDefinition,
 		"gr":  openReferences,
-		"dd":  deleteLine,
-		"dw":  deleteWord,
-		"de":  deleteToWordEnd,
-		"db":  deleteToPrevWord,
-		"yy":  yankLine,
-		"yw":  yankWord,
-		"ye":  yankToWordEnd,
-		"yb":  yankToPrevWord,
+		"dd":  bind(edit.DeleteLine),
+		"dw":  bind(edit.DeleteWord),
+		"de":  bind(edit.DeleteToWordEnd),
+		"db":  bind(edit.DeleteToPrevWord),
+		"yy":  bind(edit.YankLine),
+		"yw":  bind(edit.YankWord),
+		"ye":  bind(edit.YankToWordEnd),
+		"yb":  bind(edit.YankToPrevWord),
 		"zz":  ed.CenterView,
 		" e":  openExplorer,
 		" bb": alternateBuffer,
@@ -214,6 +215,12 @@ func handleReadModeChar(keyEvent termbox.Event) {
 	}
 }
 
+// bind hands a command the editor it works on, so that the tables above can
+// name the ones that live in their own packages the way they name their own.
+func bind(cmd func(*state.Editor)) func() {
+	return func() { cmd(ed) }
+}
+
 func runCommand(action func(), countAware bool) {
 	ed.CmdCount, ed.HadCount, ed.PendingCount = max(ed.PendingCount, 1), ed.PendingCount > 0, 0
 	defer func() { ed.CmdCount, ed.HadCount = 1, false }()
@@ -241,9 +248,9 @@ var windowMoveKeys = map[termbox.Key]func(){
 
 var specialKeyActions = map[termbox.Key]func(){
 	termbox.KeyCtrlS:      saveFile,
-	termbox.KeyEnter:      enter,
-	termbox.KeyBackspace:  backspace,
-	termbox.KeyBackspace2: backspace,
+	termbox.KeyEnter:      bind(edit.Enter),
+	termbox.KeyBackspace:  bind(edit.Backspace),
+	termbox.KeyBackspace2: bind(edit.Backspace),
 	termbox.KeyArrowUp:    ed.Up,
 	termbox.KeyCtrlU:      ed.PageUp,
 	termbox.KeyArrowDown:  ed.Down,
@@ -298,7 +305,7 @@ func insertRuneNTimes(keyEvent termbox.Event, n int) {
 		return
 	}
 	for range n {
-		insertRune(keyEvent)
+		edit.InsertRune(ed, keyEvent)
 	}
 }
 

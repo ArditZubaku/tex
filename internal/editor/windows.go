@@ -3,6 +3,7 @@ package editor
 import (
 	"slices"
 
+	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/layout"
 	"github.com/nsf/termbox-go"
@@ -81,7 +82,7 @@ func applyRect(w *window) {
 // history with it, and drops a selection, which belonged to the window left.
 func applyWindow(w *window) {
 	if ed.Mode == state.VisualMode {
-		exitVisual()
+		edit.ExitVisual(ed)
 	}
 	current, currentBuffer = w, max(slices.Index(buffers, w.entry), 0)
 	applyEntry(w.entry)

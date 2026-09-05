@@ -3,6 +3,7 @@ package editor
 import (
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
@@ -90,7 +91,7 @@ func TestDeletingTheLastRunePullsTheCursorBack(t *testing.T) {
 	b := atCursor(t, "abc\n", 0, 2)
 	ed.Mode = state.ReadMode
 
-	deleteRune()
+	edit.DeleteRune(ed)
 	ed.ClampCol()
 
 	wantLines(t, b, "ab")

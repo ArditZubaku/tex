@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
@@ -249,15 +250,15 @@ func TestOperators(t *testing.T) {
 		op   func()
 		want string
 	}{
-		{"x deletes under the cursor", 1, deleteRune, "fo bar baz"},
-		{"x at end of line", 10, deleteRune, "foo bar ba"},
-		{"x past end of line", 11, deleteRune, "foo bar baz"},
-		{"dw from a word start", 0, deleteWord, "bar baz"},
-		{"dw mid-word", 5, deleteWord, "foo bbaz"},
-		{"dw on the last word stops at end of line", 8, deleteWord, "foo bar "},
-		{"de from a word start", 4, deleteToWordEnd, "foo  baz"},
-		{"de mid-word", 5, deleteToWordEnd, "foo b baz"},
-		{"de on the last word stops at end of line", 8, deleteToWordEnd, "foo bar "},
+		{"x deletes under the cursor", 1, bind(edit.DeleteRune), "fo bar baz"},
+		{"x at end of line", 10, bind(edit.DeleteRune), "foo bar ba"},
+		{"x past end of line", 11, bind(edit.DeleteRune), "foo bar baz"},
+		{"dw from a word start", 0, bind(edit.DeleteWord), "bar baz"},
+		{"dw mid-word", 5, bind(edit.DeleteWord), "foo bbaz"},
+		{"dw on the last word stops at end of line", 8, bind(edit.DeleteWord), "foo bar "},
+		{"de from a word start", 4, bind(edit.DeleteToWordEnd), "foo  baz"},
+		{"de mid-word", 5, bind(edit.DeleteToWordEnd), "foo b baz"},
+		{"de on the last word stops at end of line", 8, bind(edit.DeleteToWordEnd), "foo bar "},
 	}
 
 	for _, tc := range cases {
@@ -291,7 +292,7 @@ func TestDeleteToPrevWord(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			b := atCursor(t, "foo bar baz\nlast\n", 0, tc.col)
 
-			deleteToPrevWord()
+			edit.DeleteToPrevWord(ed)
 			wantLines(t, b, tc.want, "last")
 			if ed.Col != tc.col2 {
 				t.Errorf("currentCol = %d, want %d", ed.Col, tc.col2)
@@ -304,7 +305,7 @@ func TestDeleteToPrevWord(t *testing.T) {
 func TestDeleteToPrevWordStopsAtTheLineStart(t *testing.T) {
 	b := atCursor(t, "foo\nbar\n", 1, 0)
 
-	deleteToPrevWord()
+	edit.DeleteToPrevWord(ed)
 	wantLines(t, b, "foo", "bar")
 	if ed.Modified {
 		t.Error("db at the start of a line reported a modification")
@@ -329,7 +330,7 @@ func TestBackspace(t *testing.T) {
 	b := atCursor(t, "foo\nbar\n", 0, 2)
 	ed.Mode = state.EditMode
 
-	backspace()
+	edit.Backspace(ed)
 	wantLines(t, b, "fo", "bar")
 	if ed.Col != 1 {
 		t.Fatalf("currentCol = %d, want 1", ed.Col)
@@ -340,7 +341,7 @@ func TestBackspaceAtColumnZeroJoins(t *testing.T) {
 	b := atCursor(t, "foo\nbar\nbaz\n", 1, 0)
 	ed.Mode = state.EditMode
 
-	backspace()
+	edit.Backspace(ed)
 	wantLines(t, b, "foobar", "baz")
 	if ed.Row != 0 || ed.Col != 3 {
 		t.Fatalf("cursor at %d,%d, want 0,3", ed.Row, ed.Col)
@@ -355,7 +356,7 @@ func TestBackspaceAtTheStartOfTheBuffer(t *testing.T) {
 	b := atCursor(t, "foo\n", 0, 0)
 	ed.Mode = state.EditMode
 
-	backspace()
+	edit.Backspace(ed)
 	wantLines(t, b, "foo")
 	if ed.Row != 0 || ed.Col != 0 || ed.Modified {
 		t.Errorf("cursor at %d,%d, modified = %v", ed.Row, ed.Col, ed.Modified)
@@ -366,7 +367,7 @@ func TestBackspaceInReadModeJustMoves(t *testing.T) {
 	b := atCursor(t, "foo\n", 0, 2)
 	ed.Mode = state.ReadMode
 
-	backspace()
+	edit.Backspace(ed)
 	wantLines(t, b, "foo")
 	if ed.Col != 1 || ed.Modified {
 		t.Errorf("currentCol = %d, modified = %v", ed.Col, ed.Modified)
@@ -376,7 +377,7 @@ func TestBackspaceInReadModeJustMoves(t *testing.T) {
 func TestDeleteLineKeepsCursorInBuffer(t *testing.T) {
 	b := atCursor(t, "a\nbb\nccc\n", 2, 2)
 
-	deleteLine()
+	edit.DeleteLine(ed)
 	if ed.Row != 1 {
 		t.Errorf("currentRow = %d, want 1", ed.Row)
 	}

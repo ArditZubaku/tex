@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/nsf/termbox-go"
 )
 
@@ -136,7 +137,7 @@ func TestInsertDoesNotCorruptNeighbours(t *testing.T) {
 
 	ed.Row, ed.Col = row, 0
 	for _, ch := range "abc" {
-		insertRune(termbox.Event{Ch: ch})
+		edit.InsertRune(ed, termbox.Event{Ch: ch})
 	}
 
 	if got := string(ed.Buf.Line(row)); !strings.HasPrefix(got, "abc") {

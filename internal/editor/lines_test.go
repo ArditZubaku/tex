@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
@@ -210,7 +211,7 @@ func TestEnter(t *testing.T) {
 		b := atCursor(t, "abcd\nlast\n", 0, 2)
 		ed.Mode = state.EditMode
 
-		enter()
+		edit.Enter(ed)
 		wantLines(t, b, "ab", "cd", "last")
 		if ed.Row != 1 || ed.Col != 0 || !ed.Modified {
 			t.Errorf("cursor at %d,%d, modified %v", ed.Row, ed.Col, ed.Modified)
@@ -221,7 +222,7 @@ func TestEnter(t *testing.T) {
 		b := atCursor(t, "abcd\nlast\n", 0, 2)
 		ed.Mode = state.ReadMode
 
-		enter()
+		edit.Enter(ed)
 		wantLines(t, b, "abcd", "last")
 		if ed.Row != 1 || ed.Modified {
 			t.Errorf("currentRow = %d, modified %v", ed.Row, ed.Modified)
@@ -232,8 +233,8 @@ func TestEnter(t *testing.T) {
 		b := atCursor(t, "abcd\n", 0, 2)
 		ed.Mode = state.EditMode
 
-		enter()
-		backspace()
+		edit.Enter(ed)
+		edit.Backspace(ed)
 		wantLines(t, b, "abcd")
 		if ed.Row != 0 || ed.Col != 2 {
 			t.Errorf("cursor at %d,%d, want 0,2", ed.Row, ed.Col)
@@ -246,7 +247,7 @@ func TestOpenLineOperators(t *testing.T) {
 		b := atCursor(t, "a\nbb\n", 0, 1)
 		ed.Mode = state.ReadMode
 
-		openLineBelow()
+		edit.OpenLineBelow(ed)
 		wantLines(t, b, "a", "", "bb")
 		if ed.Row != 1 || ed.Col != 0 || ed.Mode != state.EditMode || !ed.Modified {
 			t.Errorf("cursor at %d,%d, mode %v, modified %v", ed.Row, ed.Col, ed.Mode, ed.Modified)
@@ -257,7 +258,7 @@ func TestOpenLineOperators(t *testing.T) {
 		b := atCursor(t, "a\nbb\n", 1, 2)
 		ed.Mode = state.ReadMode
 
-		openLineAbove()
+		edit.OpenLineAbove(ed)
 		wantLines(t, b, "a", "", "bb")
 		if ed.Row != 1 || ed.Col != 0 || ed.Mode != state.EditMode {
 			t.Errorf("cursor at %d,%d, mode %v", ed.Row, ed.Col, ed.Mode)
@@ -268,7 +269,7 @@ func TestOpenLineOperators(t *testing.T) {
 		b := atCursor(t, "a\nbb\n", 1, 0)
 		ed.Mode = state.ReadMode
 
-		openLineBelow()
+		edit.OpenLineBelow(ed)
 		wantLines(t, b, "a", "bb", "")
 		if ed.Row != 2 {
 			t.Errorf("currentRow = %d, want 2", ed.Row)

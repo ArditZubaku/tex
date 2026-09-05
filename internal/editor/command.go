@@ -99,6 +99,11 @@ func lineAddress(line string) (int, bool) {
 	return min(max(row-1, 0), ed.Buf.LineCount()-1), true
 }
 
+// saveFile is Ctrl-S, in either mode: ':w' without the prompt.
+func saveFile() {
+	writeFile("")
+}
+
 // writeFile is ':w'. Given a name it writes there and carries on editing that
 // file, the way VIM's ':saveas' does, because the buffer is reopened against
 // whatever was written.

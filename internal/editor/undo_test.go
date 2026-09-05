@@ -3,6 +3,7 @@ package editor
 import (
 	"testing"
 
+	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/nsf/termbox-go"
 )
 
@@ -74,7 +75,7 @@ func TestUndoSplit(t *testing.T) {
 	b := inReadMode(t, "foobar\n", 0, 3)
 
 	press(t, "i")
-	enter()
+	edit.Enter(ed)
 	esc()
 	wantLines(t, b, "foo", "bar")
 
@@ -89,7 +90,7 @@ func TestUndoJoinRestoresBothLines(t *testing.T) {
 	b := inReadMode(t, "foo\nbar\n", 1, 0)
 
 	press(t, "i")
-	backspace()
+	edit.Backspace(ed)
 	esc()
 	wantLines(t, b, "foobar")
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
@@ -85,7 +86,7 @@ func switchBuffer(index int) {
 	}
 
 	if ed.Mode == state.VisualMode {
-		exitVisual()
+		edit.ExitVisual(ed)
 	}
 	syncWindow()
 	loadBuffer(((index % len(buffers)) + len(buffers)) % len(buffers))
@@ -117,7 +118,7 @@ func openInBuffer(path string) {
 	}
 
 	if ed.Mode == state.VisualMode {
-		exitVisual()
+		edit.ExitVisual(ed)
 	}
 	buffers = append(buffers, &bufferEntry{buf: buffer.Open(path), path: path, lang: syntax.Detect(path)})
 	loadBuffer(len(buffers) - 1)
@@ -148,7 +149,7 @@ func closeBuffer(force bool) {
 	}
 
 	if ed.Mode == state.VisualMode {
-		exitVisual()
+		edit.ExitVisual(ed)
 	}
 	index := min(currentBuffer, len(buffers)-1)
 	showBufferInstead(gone, buffers[index])
