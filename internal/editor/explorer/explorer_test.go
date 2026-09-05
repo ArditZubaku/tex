@@ -437,3 +437,116 @@ func TestTogglingDotfilesKeepsTheFilter(t *testing.T) {
 	}
 	wantEntries(t, e, ".main.swp", "main.go")
 }
+
+func TestACreatesAFileInTheDirectoryBeingListed(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "start.txt")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "anotes.md\n")
+
+	if e.Mode != state.ExplorerMode {
+		t.Fatalf("mode = %v, want ExplorerMode", e.Mode)
+	}
+	info, err := os.Stat(filepath.Join(dir, "notes.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.IsDir() {
+		t.Error("notes.md is a directory")
+	}
+	wantEntries(t, e, "../", "notes.md", "start.txt")
+	if got := e.Exp.SelectedName(); got != "notes.md" {
+		t.Errorf("selected %q, want notes.md", got)
+	}
+}
+
+func TestATrailingSlashCreatesADirectory(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "start.txt")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "apkg/\n")
+
+	info, err := os.Stat(filepath.Join(dir, "pkg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.IsDir() {
+		t.Error("pkg is not a directory")
+	}
+	wantEntries(t, e, "../", "pkg/", "start.txt")
+}
+
+func TestAPathCreatesTheDirectoriesOnTheWayToTheFile(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "start.txt")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "ainternal/editor/keys.go\n")
+
+	if _, err := os.Stat(filepath.Join(dir, "internal", "editor", "keys.go")); err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(dir, "internal", "editor"); e.Exp.Dir() != want {
+		t.Errorf("explorerDir = %q, want %q", e.Exp.Dir(), want)
+	}
+	if got := e.Exp.SelectedName(); got != "keys.go" {
+		t.Errorf("selected %q, want keys.go", got)
+	}
+}
+
+func TestACreatingOverAnExistingNameLeavesItAlone(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "start.txt")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "astart.txt\n")
+
+	content, err := os.ReadFile(filepath.Join(dir, "start.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "in start.txt\n" {
+		t.Errorf("start.txt = %q, want it untouched", content)
+	}
+	if e.StatusMsg == "" {
+		t.Error("nothing reported for a name that already exists")
+	}
+}
+
+func TestEscOnTheCreatePromptMakesNothing(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "start.txt")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "anotes.md")
+	edtest.Press(t, e, string(rune(27)))
+
+	if e.Mode != state.ExplorerMode {
+		t.Fatalf("mode = %v, want ExplorerMode", e.Mode)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "notes.md")); !os.IsNotExist(err) {
+		t.Error("notes.md was created by a cancelled prompt")
+	}
+	wantEntries(t, e, "../", "start.txt")
+}
+
+func TestTheCreatePromptDoesNotNarrowTheListing(t *testing.T) {
+	e := state.New()
+
+	inExplorer(t, e, "main.go", "README.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "azzz")
+
+	if txt, ok := e.PromptStatus(); !ok || txt != "new: zzz" {
+		t.Errorf("prompt = %q, want %q", txt, "new: zzz")
+	}
+	wantEntries(t, e, "../", "README.md", "main.go")
+}

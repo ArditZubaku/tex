@@ -25,10 +25,8 @@ func handlePromptKey(e *state.Editor, event termbox.Event) {
 		return
 	}
 
-	// the explorer's own '/' narrows its listing as the pattern is typed, so
-	// what is on screen is always what Enter would settle on
 	if e.ExplorerOpen {
-		explorer.Filter(e, string(e.Prompt.Input()))
+		explorer.Typing(e, e.Prompt.Delimiter(), string(e.Prompt.Input()))
 	}
 }
 
@@ -37,7 +35,7 @@ func submitPrompt(e *state.Editor) {
 	endPrompt(e)
 
 	if e.ExplorerOpen {
-		explorer.Filter(e, string(input))
+		explorer.Submit(e, delimiter, string(input))
 		return
 	}
 
@@ -54,7 +52,7 @@ func endPrompt(e *state.Editor) {
 	e.Mode = state.ReadMode
 	if e.ExplorerOpen {
 		e.Mode = state.ExplorerMode
-		explorer.Filter(e, "")
+		explorer.Cancel(e, e.Prompt.Delimiter())
 	}
 	e.Prompt.Clear()
 }

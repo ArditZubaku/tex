@@ -3,8 +3,10 @@
 package explorer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/nsf/termbox-go"
@@ -53,11 +55,98 @@ func leaveDir(e *state.Editor) {
 	}
 }
 
+// The prompt the status line is handed is the same one every time; the
+// delimiter is what says which of them Enter is settling.
+const (
+	searchPrompt = '/'
+	createPrompt = 'a'
+)
+
 // startSearch is '/', which hands the status line to the same prompt
 // the buffer's search uses; what is typed there narrows the listing as it goes.
-func startSearch(e *state.Editor) { e.StartPrompt('/') }
+func startSearch(e *state.Editor) { e.StartPrompt(searchPrompt) }
+
+// startCreate is 'a', which asks for a name to make in the directory being
+// listed.
+func startCreate(e *state.Editor) { e.StartLabelledPrompt(createPrompt, "new: ", "") }
+
+// Typing is each key of a prompt opened over the explorer: the search narrows
+// the listing as the pattern is typed, so that what is on screen is always what
+// Enter would settle on. The others have nothing to show until Enter.
+func Typing(e *state.Editor, delimiter rune, input string) {
+	if delimiter == searchPrompt {
+		Filter(e, input)
+	}
+}
+
+func Submit(e *state.Editor, delimiter rune, input string) {
+	if delimiter == createPrompt {
+		create(e, input)
+		return
+	}
+
+	Filter(e, input)
+}
+
+// Cancel is Esc: the pattern typed so far goes, along with the filter it was
+// narrowing, while a name left unfinished leaves the listing as it found it.
+func Cancel(e *state.Editor, delimiter rune) {
+	if delimiter == searchPrompt {
+		Filter(e, "")
+	}
+}
 
 func Filter(e *state.Editor, filter string) { e.Exp.Filter(filter) }
+
+// create is what 'a' does with the name it was given, taken relative to the
+// directory being listed: a trailing '/' makes a directory and anything else a
+// file, with the directories named on the way to either made as well. The
+// listing moves to whichever directory holds what was made, with it selected.
+func create(e *state.Editor, input string) {
+	name := strings.TrimSpace(input)
+	if name == "" {
+		return
+	}
+
+	path := e.Exp.Path(name)
+	if _, err := os.Lstat(path); err == nil {
+		e.StatusMsg = "E13: File exists: " + path
+		return
+	}
+
+	if !makePath(e, path, strings.HasSuffix(name, "/")) {
+		return
+	}
+	if goTo(e, filepath.Dir(path), filepath.Base(path)) {
+		e.StatusMsg = fmt.Sprintf("%q created", path)
+	}
+}
+
+func makePath(e *state.Editor, path string, dir bool) bool {
+	if dir {
+		return makeDir(e, path)
+	}
+	if !makeDir(e, filepath.Dir(path)) {
+		return false
+	}
+
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		e.StatusMsg = "E212: Can't open file for writing: " + path
+		return false
+	}
+
+	return file.Close() == nil
+}
+
+func makeDir(e *state.Editor, dir string) bool {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		e.StatusMsg = "E739: Cannot create directory: " + dir
+		return false
+	}
+
+	return true
+}
 
 // clearFilter is Esc: it drops the filter it finds, and closes the explorer
 // when there is none left to drop.
@@ -122,6 +211,7 @@ var actions = map[rune]func(*state.Editor){
 	'g': top,
 	'G': bottom,
 	'H': toggleHidden,
+	'a': startCreate,
 	'/': startSearch,
 	'q': Close,
 }
