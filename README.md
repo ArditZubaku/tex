@@ -33,10 +33,10 @@ back to tmux.
 
 ## Layout
 
-The editor is one package; what it is built out of are packages of their own, so
-that the boundaries are the compiler's to keep rather than a convention. What
-anything could use sits under `internal/`; what only the editor has any use for
-sits under `internal/editor/`:
+What the editor is built out of are packages of their own, so that the
+boundaries are the compiler's to keep rather than a convention. What anything
+could use sits under `internal/`; what only the editor has any use for sits
+under `internal/editor/`:
 
 ```
 main.go                 hands the arguments to the editor and nothing else
@@ -52,27 +52,36 @@ internal/
   decl/                 what a declaration looks like: gd, gr and the symbols
   project/              the tree the file sits in, and the files beside it
   layout/               the window tree: splits, closes and rectangles
-  editor/               the editor itself: modes, commands, windows
+  editor/               the loop, the globals it runs on, and the key tables
     screen/             putting text on the terminal, and taking a key off it
     history/            the changes u and Ctrl-R step through
     register/           what was last yanked or deleted
     picker/             the popup: a list narrowed to what is typed
-    explorer/           the directory listing <leader>e opens
+    filetree/           the directory listing <leader>e draws
     tabbar/             the buffer line along the top
+    prompt/             the line of input / ? and : are typed on
+    state/              the editor being run: cursor, mode, buffer, room
+    edit/               typing, deleting, yank and put, the Visual selection
+    view/               the buffer list and the window tree
+    command/            the ':' commands, and the file writing they share
+    find/               search, gd, gr, the symbols and the picker's popup
+    explorer/           <leader>e: the file tree as the editor drives it
+    render/             one frame: windows, buffer line, status line
 ```
 
 Nothing below `editor` imports it, and nothing imports `editor` but `main`, so
-the dependencies run one way: `chars`, `theme`, `buffer`, `gutter`, `project`,
-`layout` and `screen` depend on nothing of the editor's, `syntax` on `chars` and
-`theme`, `fuzzy` and `decl` on `chars`, `search` on `buffer`, `motion` on both,
-`history` on `buffer`, `register` on nothing at all, and the three that draw —
-`picker`, `explorer` and `tabbar` — on `theme`, with the first two on `screen`
-and `layout` as well.
+the dependencies run one way. Under `internal/`, `chars`, `theme`, `buffer`,
+`gutter`, `project` and `layout` depend on nothing of the editor's, `syntax` on
+`chars` and `theme`, `fuzzy` and `decl` on `chars`, `search` on `buffer` and
+`motion` on both. Under `editor/`, `screen`, `history`, `register`, `picker`,
+`filetree`, `tabbar` and `prompt` are leaves in the same way; `state` holds them
+and is what every command below takes as its one argument — `edit` first, then
+`view` on top of it, then `command`, `find` and `explorer`, with `render`
+reading all of them.
 
-What is left in `editor` itself is what reads its package-level state — the
-cursor, the buffer being edited, the mode — which is what makes it one package
-rather than several: the key tables dispatch to it, and the commands work on it.
-What came out is everything that could be handed its input instead.
+What is left in `editor` itself is the wiring: the loop that draws and reads a
+key, the one `state.Editor` it runs on, and the tables that say which command
+each key names.
 
 ## Features
 
