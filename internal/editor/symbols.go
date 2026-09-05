@@ -2,7 +2,6 @@ package editor
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/ArditZubaku/tex/internal/decl"
@@ -52,29 +51,8 @@ func bufferSymbols() []pickerEntry {
 }
 
 func symbolsInFiles(limit int) []pickerEntry {
-	root := project.Root(sourceFile)
-	files, err := project.List(root)
-	if err != nil {
-		return nil
-	}
-
-	ext := filepath.Ext(sourceFile)
 	entries := make([]pickerEntry, 0, 64)
-	for _, rel := range files {
-		path := filepath.Join(root, rel)
-		if filepath.Ext(path) != ext || project.Same(path, sourceFile) {
-			continue
-		}
-
-		info, err := os.Stat(path)
-		if err != nil || info.Size() > maxDefinitionFileSize {
-			continue
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-
+	for path, content := range project.Siblings(sourceFile) {
 		entries = append(entries, symbolEntries(path, decl.Symbols(decl.Of(content), limit-len(entries)))...)
 		if len(entries) >= limit {
 			break

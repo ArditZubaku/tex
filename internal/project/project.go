@@ -4,6 +4,7 @@ package project
 
 import (
 	"io/fs"
+	"iter"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,4 +81,44 @@ func Same(a, b string) bool {
 	}
 
 	return left == right
+}
+
+// A file is worth reading whole to look through, but not at the cost of
+// pulling a tree of them into memory: anything larger than this is left to a
+// real index.
+const maxFileSize = 1 << 20
+
+// Siblings is every file beside the one given, of the same kind, read whole:
+// the reach 'gd', 'gr' and the workspace symbols all settle for. A file that
+// cannot be read is skipped rather than reported, since a listing of the rest
+// is still worth having.
+func Siblings(of string) iter.Seq2[string, []byte] {
+	return func(yield func(string, []byte) bool) {
+		root := Root(of)
+		files, err := List(root)
+		if err != nil {
+			return
+		}
+
+		ext := filepath.Ext(of)
+		for _, rel := range files {
+			path := filepath.Join(root, rel)
+			if filepath.Ext(path) != ext || Same(path, of) {
+				continue
+			}
+
+			info, err := os.Stat(path)
+			if err != nil || info.Size() > maxFileSize {
+				continue
+			}
+			content, err := os.ReadFile(path)
+			if err != nil {
+				continue
+			}
+
+			if !yield(path, content) {
+				return
+			}
+		}
+	}
 }

@@ -2,12 +2,12 @@ package editor
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ArditZubaku/tex/internal/decl"
 	"github.com/ArditZubaku/tex/internal/project"
 )
 
@@ -24,7 +24,7 @@ func openReferences() {
 		return
 	}
 
-	mentions, err := regexp.Compile(`\b` + regexp.QuoteMeta(word) + `\b`)
+	mentions, err := decl.Mentions(word)
 	if err != nil {
 		statusMsg = "E486: Pattern not found: " + word
 		return
@@ -56,29 +56,8 @@ func referencesInBuffer(mentions *regexp.Regexp) []pickerEntry {
 }
 
 func referencesInFiles(mentions *regexp.Regexp) []pickerEntry {
-	root := project.Root(sourceFile)
-	files, err := project.List(root)
-	if err != nil {
-		return nil
-	}
-
-	ext := filepath.Ext(sourceFile)
 	entries := make([]pickerEntry, 0, 16)
-	for _, rel := range files {
-		path := filepath.Join(root, rel)
-		if filepath.Ext(path) != ext || project.Same(path, sourceFile) {
-			continue
-		}
-
-		info, err := os.Stat(path)
-		if err != nil || info.Size() > maxDefinitionFileSize {
-			continue
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-
+	for path, content := range project.Siblings(sourceFile) {
 		for row, line := range strings.Split(string(content), "\n") {
 			for _, at := range mentions.FindAllStringIndex(line, -1) {
 				entries = append(entries, reference(path, row, utf8.RuneCountInString(line[:at[0]]), line))

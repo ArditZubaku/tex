@@ -1,8 +1,6 @@
 package editor
 
 import (
-	"os"
-	"path/filepath"
 	"regexp"
 
 	"github.com/ArditZubaku/tex/internal/decl"
@@ -12,11 +10,6 @@ import (
 // 'gd' is VIM's jump to a declaration, read from the text rather than from a
 // language server: the identifier under the cursor is looked for in the shapes
 // a declaration takes, strongest first, nearest above the cursor first of all.
-
-// A definition is worth looking for in the files beside the one being edited,
-// but not at the cost of reading a tree of them whole: anything larger than
-// this is left to a real index.
-const maxDefinitionFileSize = 1 << 20
 
 type definition struct {
 	path string
@@ -125,25 +118,13 @@ func definitionInBuffer(forms []*regexp.Regexp) (definition, bool) {
 	return definition{path: sourceFile, row: at.Row, col: at.Col, rank: at.Rank}, true
 }
 
-// definitionInFiles looks through the files beside the one being edited, of the
-// same kind, and takes the strongest declaration any of them holds.
+// definitionInFiles looks through the files beside the one being edited and
+// takes the strongest declaration any of them holds.
 func definitionInFiles(forms []*regexp.Regexp) (definition, bool) {
-	root := project.Root(sourceFile)
-	files, err := project.List(root)
-	if err != nil {
-		return definition{}, false
-	}
-
-	ext := filepath.Ext(sourceFile)
 	best := definition{rank: len(forms) - 1} // the plain occurrence is no reason to open a file
-	for _, rel := range files {
-		path := filepath.Join(root, rel)
-		if filepath.Ext(path) != ext || project.Same(path, sourceFile) {
-			continue
-		}
-
-		if found, ok := definitionInFile(path, forms, best.rank); ok {
-			best = found
+	for path, content := range project.Siblings(sourceFile) {
+		if at, ok := decl.First(decl.Of(content), forms, best.rank); ok {
+			best = definition{path: path, row: at.Row, col: at.Col, rank: at.Rank}
 		}
 	}
 
@@ -152,25 +133,6 @@ func definitionInFiles(forms []*regexp.Regexp) (definition, bool) {
 	}
 
 	return best, true
-}
-
-func definitionInFile(path string, forms []*regexp.Regexp, weaker int) (definition, bool) {
-	info, err := os.Stat(path)
-	if err != nil || info.Size() > maxDefinitionFileSize {
-		return definition{}, false
-	}
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return definition{}, false
-	}
-
-	at, ok := decl.First(decl.Of(content), forms, weaker)
-	if !ok {
-		return definition{}, false
-	}
-
-	return definition{path: path, row: at.Row, col: at.Col, rank: at.Rank}, true
 }
 
 func bufLines() decl.Lines {
