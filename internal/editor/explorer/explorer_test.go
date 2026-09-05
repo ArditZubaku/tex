@@ -550,3 +550,102 @@ func TestTheCreatePromptDoesNotNarrowTheListing(t *testing.T) {
 	}
 	wantEntries(t, e, "../", "README.md", "main.go")
 }
+
+func TestYyThenPCopiesTheFileUnderAnotherName(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jyy")
+	edtest.Press(t, e, "p")
+
+	if txt, ok := e.PromptStatus(); !ok || txt != "paste as: notes.md" {
+		t.Fatalf("prompt = %q, want %q", txt, "paste as: notes.md")
+	}
+
+	edtest.Press(t, e, "\x15copy.md\n")
+
+	content, err := os.ReadFile(filepath.Join(dir, "copy.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "in notes.md\n" {
+		t.Errorf("copy.md = %q, want the yanked file's content", content)
+	}
+	wantEntries(t, e, "../", "copy.md", "notes.md")
+	if got := e.Exp.SelectedName(); got != "copy.md" {
+		t.Errorf("selected %q, want copy.md", got)
+	}
+}
+
+func TestAYankedFilePastesIntoAnotherDirectory(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "notes.md", "pkg")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jjyy")
+	edtest.Press(t, e, "kl")
+
+	if want := filepath.Join(dir, "pkg"); e.Exp.Dir() != want {
+		t.Fatalf("explorerDir = %q, want %q", e.Exp.Dir(), want)
+	}
+
+	edtest.Press(t, e, "p\n")
+
+	if _, err := os.Stat(filepath.Join(dir, "pkg", "notes.md")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "notes.md")); err != nil {
+		t.Error("the yanked file went with the copy")
+	}
+	wantEntries(t, e, "../", "notes.md")
+}
+
+func TestPastingOverAnExistingNameLeavesItAlone(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "notes.md", "other.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jyy")
+	edtest.Press(t, e, "p\x15other.md\n")
+
+	content, err := os.ReadFile(filepath.Join(dir, "other.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "in other.md\n" {
+		t.Errorf("other.md = %q, want it untouched", content)
+	}
+}
+
+func TestPWithNothingYankedOpensNoPrompt(t *testing.T) {
+	e := state.New()
+
+	inExplorer(t, e, "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "p")
+
+	if e.Mode != state.ExplorerMode {
+		t.Errorf("mode = %v, want ExplorerMode", e.Mode)
+	}
+	if e.StatusMsg == "" {
+		t.Error("nothing reported for a paste with an empty register")
+	}
+}
+
+func TestYyRefusesADirectory(t *testing.T) {
+	e := state.New()
+
+	inExplorer(t, e, "pkg")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jyy")
+
+	if got := e.Exp.Yanked(); got != "" {
+		t.Errorf("yanked %q, want a directory to be refused", got)
+	}
+}
