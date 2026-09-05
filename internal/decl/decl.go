@@ -37,6 +37,10 @@ var forms = []string{
 	`(?:^|[^\w.])(%s)\b`,
 }
 
+// ParamForm is where the parameter list sits in forms: a name declared there is
+// local to the function whatever column that function's own line starts in.
+const ParamForm = 2
+
 // Site is where a form matched, and which one: a lower rank is a stronger
 // claim to being the declaration.
 type Site struct {
@@ -118,6 +122,20 @@ func BlockStart(src Lines, row int) int {
 	}
 
 	return 0
+}
+
+// BlockEnd is where the construct the row sits in gives out: the next line
+// below it that starts in the first column, which is where the one after it —
+// or the brace closing this one — begins.
+func BlockEnd(src Lines, row int) int {
+	for at := row + 1; at < src.Count; at++ {
+		line := src.At(at)
+		if len(line) > 0 && line[0] != ' ' && line[0] != '\t' {
+			return at
+		}
+	}
+
+	return src.Count
 }
 
 // First takes the strongest form any line matches, and the first line of that
