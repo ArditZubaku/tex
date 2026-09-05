@@ -143,6 +143,8 @@ func chordKeys() map[string]func() {
 		" br": closeBuffersRight,
 		" sh": splitRight,
 		" sv": splitBelow,
+		" ss": openSymbols,
+		" sS": openWorkspaceSymbols,
 		" wd": closeWindow,
 		"  ":  openPicker,
 	}
