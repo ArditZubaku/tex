@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ArditZubaku/txi/internal/theme"
+	"github.com/ArditZubaku/tex/internal/theme"
 	"github.com/nsf/termbox-go"
 )
 

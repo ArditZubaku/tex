@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ArditZubaku/txi/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/nsf/termbox-go"
 )
 

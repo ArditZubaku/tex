@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/ArditZubaku/txi/internal/chars"
+	"github.com/ArditZubaku/tex/internal/chars"
 )
 
 // Score matches the query as a subsequence of the path and scores what it

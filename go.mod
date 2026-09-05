@@ -1,4 +1,4 @@
-module github.com/ArditZubaku/txi
+module github.com/ArditZubaku/tex
 
 go 1.26.4
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ArditZubaku/txi/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/buffer"
 )
 
 func wantCursor(t *testing.T, row, col int) {

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/ArditZubaku/txi/internal/editor"
+	"github.com/ArditZubaku/tex/internal/editor"
 )
 
 func main() {

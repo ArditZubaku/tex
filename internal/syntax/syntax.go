@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ArditZubaku/txi/internal/chars"
-	"github.com/ArditZubaku/txi/internal/theme"
+	"github.com/ArditZubaku/tex/internal/chars"
+	"github.com/ArditZubaku/tex/internal/theme"
 	"github.com/nsf/termbox-go"
 )
 

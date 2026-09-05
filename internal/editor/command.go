@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ArditZubaku/txi/internal/buffer"
-	"github.com/ArditZubaku/txi/internal/syntax"
-	"github.com/ArditZubaku/txi/internal/theme"
+	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/syntax"
+	"github.com/ArditZubaku/tex/internal/theme"
 )
 
 const noWriteSinceChange = "E37: No write since last change (add ! to override)"

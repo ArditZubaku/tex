@@ -154,7 +154,7 @@ func buildIndex(r io.ReaderAt, size int64) []int64 {
 // the file size. The buffer is then reopened against what was written, which
 // drops the overlay and rebuilds the index.
 func (b *Buffer) Save(path string) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".txi-*")
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".tex-*")
 	if err != nil {
 		return err
 	}

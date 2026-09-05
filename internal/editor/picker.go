@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ArditZubaku/txi/internal/fuzzy"
+	"github.com/ArditZubaku/tex/internal/fuzzy"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
 )

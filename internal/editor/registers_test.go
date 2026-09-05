@@ -3,8 +3,8 @@ package editor
 import (
 	"testing"
 
-	"github.com/ArditZubaku/txi/internal/buffer"
-	"github.com/ArditZubaku/txi/internal/theme"
+	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/theme"
 	"github.com/nsf/termbox-go"
 )
 

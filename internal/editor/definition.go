@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/ArditZubaku/txi/internal/chars"
+	"github.com/ArditZubaku/tex/internal/chars"
 )
 
 // 'gd' is VIM's jump to a declaration, read from the text rather than from a

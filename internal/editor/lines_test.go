@@ -3,7 +3,7 @@ package editor
 import (
 	"testing"
 
-	"github.com/ArditZubaku/txi/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/buffer"
 )
 
 func TestInsertLine(t *testing.T) {

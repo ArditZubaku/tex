@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ArditZubaku/txi/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/buffer"
 )
 
 func lines(t *testing.T, b *buffer.Buffer) []string {

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ArditZubaku/txi/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/buffer"
 )
 
 func readBack(t *testing.T, path string) string {

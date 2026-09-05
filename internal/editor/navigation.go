@@ -3,7 +3,7 @@ package editor
 import (
 	"time"
 
-	"github.com/ArditZubaku/txi/internal/chars"
+	"github.com/ArditZubaku/tex/internal/chars"
 	"github.com/nsf/termbox-go"
 )
 

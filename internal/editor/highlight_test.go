@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ArditZubaku/txi/internal/buffer"
-	"github.com/ArditZubaku/txi/internal/syntax"
+	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/syntax"
 )
 
 func TestLineColorsWithoutSyntax(t *testing.T) {

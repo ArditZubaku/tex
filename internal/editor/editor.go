@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/ArditZubaku/txi/internal/buffer"
-	"github.com/ArditZubaku/txi/internal/syntax"
+	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/syntax"
 	"github.com/nsf/termbox-go"
 )
 
