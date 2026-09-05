@@ -165,13 +165,17 @@ func (e *Editor) ScreenArea() layout.Rect {
 	return layout.Rect{Row: TabBarRows, Rows: e.ScreenRows, Cols: e.ScreenCols}
 }
 
-// Close lets the editor's loop fall out and shut the terminal down on its way,
-// so quitting runs the same path whether it was 'q' or ':q' that asked.
-func (e *Editor) StartPrompt(delimiter rune) {
+func (e *Editor) StartPrompt(delimiter rune) { e.StartPromptWith(delimiter, "") }
+
+// StartPromptWith opens the prompt on a line already typed, which is what
+// '<leader>cr' does with the name the rename it opens is to work on.
+func (e *Editor) StartPromptWith(delimiter rune, input string) {
 	e.Mode = PromptMode
-	e.Prompt.Start(delimiter)
+	e.Prompt.StartWith(delimiter, input)
 }
 
+// Close lets the editor's loop fall out and shut the terminal down on its way,
+// so quitting runs the same path whether it was 'q' or ':q' that asked.
 func (e *Editor) Close() { e.Quitting = true }
 
 func (e *Editor) PushJump() {

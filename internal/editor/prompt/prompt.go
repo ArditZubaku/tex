@@ -21,8 +21,12 @@ type Line struct {
 	input     []rune
 }
 
-func (l *Line) Start(delimiter rune) {
-	l.delimiter, l.input = delimiter, l.input[:0]
+func (l *Line) Start(delimiter rune) { l.StartWith(delimiter, "") }
+
+// StartWith opens the line on text already typed, which is what '<leader>cr'
+// hands the name it is about to rename.
+func (l *Line) StartWith(delimiter rune, input string) {
+	l.delimiter, l.input = delimiter, append(l.input[:0], []rune(input)...)
 }
 
 func (l *Line) Delimiter() rune { return l.delimiter }
