@@ -227,7 +227,6 @@ func handleReadModeChar(e *state.Editor, keyEvent termbox.Event) {
 
 func runCommand(e *state.Editor, action func(*state.Editor), countAware bool) {
 	e.CmdCount, e.HadCount, e.PendingCount = max(e.PendingCount, 1), e.PendingCount > 0, 0
-	defer func() { e.CmdCount, e.HadCount = 1, false }()
 
 	e.BeginChange()
 	if countAware {
@@ -238,6 +237,8 @@ func runCommand(e *state.Editor, action func(*state.Editor), countAware bool) {
 		}
 	}
 	e.EndChange()
+
+	e.CmdCount, e.HadCount = 1, false
 }
 
 var specialKeyActions = map[termbox.Key]func(*state.Editor){
