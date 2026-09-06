@@ -18,6 +18,10 @@ import (
 	"github.com/ArditZubaku/tex/internal/gutter"
 )
 
+// textScratch is the row being drawn, decoded into an array that outlives the
+// frame: a redraw reads every visible line and keeps none of them.
+var textScratch []rune
+
 func Text(e *state.Editor) {
 	bufLen := e.Buf.LineCount()
 	gutterCols := gutter.Width(bufLen)
@@ -44,7 +48,8 @@ func Text(e *state.Editor) {
 		}
 		screen.Print(e.ScreenCol(0), e.ScreenRow(row), numberColor, background, gutter.Label(textBufRow, e.Row, gutterCols))
 
-		line := e.Buf.Line(textBufRow)
+		textScratch = e.Buf.LineInto(textBufRow, textScratch)
+		line := textScratch
 		lineLen := len(line)
 
 		var colors []termbox.Attribute

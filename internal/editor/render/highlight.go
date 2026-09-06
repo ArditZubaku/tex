@@ -18,6 +18,8 @@ func lineColors(e *state.Editor, line []rune, inBlock bool) ([]termbox.Attribute
 // past blockLookback lines the window is taken to start outside a comment.
 const blockLookback = 64
 
+var lookbackScratch []rune
+
 func blockStateBefore(e *state.Editor, row int) bool {
 	if !e.Lang.HasBlockComments() {
 		return false
@@ -25,7 +27,8 @@ func blockStateBefore(e *state.Editor, row int) bool {
 
 	inBlock := false
 	for i := max(row-blockLookback, 0); i < row; i++ {
-		inBlock = e.Lang.Highlight(e.Buf.Line(i), inBlock, nil, &e.Palette)
+		lookbackScratch = e.Buf.LineInto(i, lookbackScratch)
+		inBlock = e.Lang.Highlight(lookbackScratch, inBlock, nil, &e.Palette)
 	}
 
 	return inBlock
