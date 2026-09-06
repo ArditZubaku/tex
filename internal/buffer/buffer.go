@@ -227,21 +227,30 @@ func (b *Buffer) Save(path string) error {
 	}
 
 	// bufio's error is sticky, so it is enough to check it once at the Flush.
-	// the overlay is in row order, so it is walked alongside the index rather
-	// than looked up once per line
+	// The overlay is in row order, so it is walked alongside the index rather
+	// than looked up once per line, and the index of what is being written is
+	// built as it goes: every line's offset is known here, and reading the file
+	// back to work them out again would cost as much as the write did.
 	w := bufio.NewWriterSize(tmp, WindowBytes)
-	next := 0
+	starts := make([]int64, 0, b.count)
+	written, next := int64(0), 0
 	for i := range b.count {
+		starts = append(starts, written)
+
 		if next < len(b.overlay) && b.overlay[next].row == i {
 			for _, ch := range b.overlay[next].line {
-				_, _ = w.WriteRune(ch)
+				n, _ := w.WriteRune(ch)
+				written += int64(n)
 			}
 			next++
 		} else {
-			_, _ = w.Write(b.rawLine(i))
+			n, _ := w.Write(b.rawLine(i))
+			written += int64(n)
 		}
+
 		if i < b.count-1 || b.endsWithNewline {
 			_ = w.WriteByte('\n')
+			written++
 		}
 	}
 
@@ -260,9 +269,40 @@ func (b *Buffer) Save(path string) error {
 		return err
 	}
 
-	b.Reload(path)
+	b.reopen(path, starts, written)
 
 	return nil
+}
+
+// reopen points the buffer at what Save has just written, keeping the index it
+// built while writing. Everything else a reload rebuilds — the window, the
+// decoded line, the overlay — is simply dropped.
+func (b *Buffer) reopen(path string, starts []int64, size int64) {
+	file, err := os.Open(path)
+	if err != nil || size == 0 {
+		if err != nil {
+			slog.Error("Failed to reopen the saved file", "path", path, "error", err)
+		} else {
+			closeFile(file)
+		}
+		b.Reload(path)
+
+		return
+	}
+
+	endsWithNewline := b.endsWithNewline
+	b.Close()
+
+	*b = Buffer{
+		file:            file,
+		size:            size,
+		count:           len(starts),
+		starts:          starts,
+		endsWithNewline: endsWithNewline,
+		win:             make([]byte, 0, WindowBytes),
+		winFrom:         -1,
+		winTo:           -1,
+	}
 }
 
 // Reload reads the file again from scratch, dropping the window, the index and

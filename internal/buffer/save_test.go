@@ -147,3 +147,74 @@ func TestSaveBigFileMatchesFullDecode(t *testing.T) {
 		}
 	}
 }
+
+// Save keeps the index it built while writing rather than reading the file
+// back, so the buffer left behind has to read exactly as a fresh open of it.
+func TestSaveLeavesTheBufferReadingLikeAFreshOpen(t *testing.T) {
+	cases := []struct {
+		name    string
+		content string
+		edit    func(*Buffer)
+	}{
+		{"a trailing newline", "a\nbb\nccc\n", func(b *Buffer) { b.SetLine(1, []rune("XX")) }},
+		{"no trailing newline", "a\nbb\nccc", func(b *Buffer) { b.SetLine(2, []rune("YYY")) }},
+		{"crlf on untouched lines", "a\r\nbb\r\nccc\r\n", func(b *Buffer) { b.SetLine(0, []rune("Z")) }},
+		{"multi-byte runes", "ünï\ncödé\n", func(b *Buffer) { b.SetLine(0, []rune("ßß")) }},
+		{"a line split", "a\nbb\nccc\n", func(b *Buffer) { b.SplitLine(1, 1) }},
+		{"a line joined", "a\nbb\nccc\n", func(b *Buffer) { b.JoinLine(0) }},
+		{"a line inserted", "a\nbb\n", func(b *Buffer) { b.InsertLine(1); b.SetLine(1, []rune("new")) }},
+		{"a line deleted", "a\nbb\nccc\n", func(b *Buffer) { b.DeleteLine(1) }},
+		{"every line emptied", "a\n", func(b *Buffer) { b.DeleteLine(0) }},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := writeTemp(t, tc.content)
+			b := Open(path)
+			defer b.Close()
+
+			tc.edit(b)
+			if err := b.Save(path); err != nil {
+				t.Fatal(err)
+			}
+
+			fresh := Open(path)
+			defer fresh.Close()
+
+			if b.LineCount() != fresh.LineCount() {
+				t.Fatalf("LineCount = %d, want %d", b.LineCount(), fresh.LineCount())
+			}
+			for i := range fresh.LineCount() {
+				if got, want := string(b.Line(i)), string(fresh.Line(i)); got != want {
+					t.Fatalf("line %d = %q, want %q", i, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestSaveBigFileLeavesTheBufferReadable(t *testing.T) {
+	path := bigFile(t, 5000)
+
+	b := Open(path)
+	defer b.Close()
+
+	b.SetLine(41, []rune("was the oversized line"))
+	b.DeleteLine(1000)
+	b.SplitLine(2000, 3)
+	if err := b.Save(path); err != nil {
+		t.Fatal(err)
+	}
+
+	fresh := Open(path)
+	defer fresh.Close()
+
+	if b.LineCount() != fresh.LineCount() {
+		t.Fatalf("LineCount = %d, want %d", b.LineCount(), fresh.LineCount())
+	}
+	for i := range fresh.LineCount() {
+		if got, want := string(b.Line(i)), string(fresh.Line(i)); got != want {
+			t.Fatalf("line %d = %.40q, want %.40q", i, got, want)
+		}
+	}
+}
