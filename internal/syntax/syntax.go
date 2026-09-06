@@ -4,6 +4,7 @@
 package syntax
 
 import (
+	"bytes"
 	"path/filepath"
 	"strings"
 
@@ -293,6 +294,23 @@ func paint(out []termbox.Attribute, from, to int, color termbox.Attribute) {
 // lines, which is the one construct a redraw cannot lex a line at a time.
 func (s *Syntax) HasBlockComments() bool {
 	return s != nil && s.blockStart != ""
+}
+
+// CanChangeBlock says whether a line could leave the block-comment state
+// different from how it found it. Only the opening delimiter opens one and only
+// the closing delimiter closes it, so a line whose raw bytes hold neither the
+// first byte of the one that applies leaves the state exactly as it was —
+// whatever quotes, words or line comments it holds. It is what lets a redraw
+// look back over a screenful of lines without decoding most of them.
+func (s *Syntax) CanChangeBlock(raw []byte, inBlock bool) bool {
+	if !s.HasBlockComments() {
+		return false
+	}
+	if inBlock {
+		return bytes.IndexByte(raw, s.blockEnd[0]) >= 0
+	}
+
+	return bytes.IndexByte(raw, s.blockStart[0]) >= 0
 }
 
 func (s *Syntax) Highlight(line []rune, inBlock bool, out []termbox.Attribute, palette *theme.Palette) bool {

@@ -27,6 +27,13 @@ func blockStateBefore(e *state.Editor, row int) bool {
 
 	inBlock := false
 	for i := max(row-blockLookback, 0); i < row; i++ {
+		if line, edited := e.Buf.EditedLine(i); edited {
+			inBlock = e.Lang.Highlight(line, inBlock, nil, &e.Palette)
+			continue
+		}
+		if !e.Lang.CanChangeBlock(e.Buf.Raw(i), inBlock) {
+			continue
+		}
 		lookbackScratch = e.Buf.LineInto(i, lookbackScratch)
 		inBlock = e.Lang.Highlight(lookbackScratch, inBlock, nil, &e.Palette)
 	}
