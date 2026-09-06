@@ -65,6 +65,38 @@ func TestLineNumberLabelFillsTheGutter(t *testing.T) {
 	}
 }
 
+func referenceLabel(row, cursorRow, width int) string {
+	if row == cursorRow {
+		return fmt.Sprintf("%-*d", width, row+1)
+	}
+
+	distance := row - cursorRow
+	if distance < 0 {
+		distance = -distance
+	}
+
+	return fmt.Sprintf("%*d ", width-1, distance)
+}
+
+func TestLabelMatchesTheFormatItReplaced(t *testing.T) {
+	for _, width := range []int{4, 5, 7, 9, 4} {
+		for _, cursorRow := range []int{0, 7, 5000, 199999} {
+			rows := []int{
+				0, 1, 6, 8,
+				cursorRow, cursorRow + 1,
+				cursorRow + maxCached - 1, cursorRow + maxCached, cursorRow + maxCached + 3,
+				1234567,
+			}
+			for _, row := range rows {
+				want := referenceLabel(row, cursorRow, width)
+				if got := Label(row, cursorRow, width); got != want {
+					t.Errorf("Label(%d, %d, %d) = %q, want %q", row, cursorRow, width, got, want)
+				}
+			}
+		}
+	}
+}
+
 func TestWidthMatchesTheDigitCount(t *testing.T) {
 	for lines := range 2000 {
 		want := max(len(fmt.Sprintf("%d", max(lines, 1)))+1, minGutterWidth)
