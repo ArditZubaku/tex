@@ -22,10 +22,15 @@ type Syntax struct {
 	blockEnd    string
 	quotes      string
 	quoteSet    [asciiMax]bool
-	keywords    map[string]bool
-	types       map[string]bool
-	builtins    map[string]bool
-	constants   map[string]bool
+
+	// the first rune of each delimiter, so that the common case of a character
+	// that starts none of them costs a compare
+	commentAt, blockAt, blockEndAt rune
+
+	keywords  map[string]bool
+	types     map[string]bool
+	builtins  map[string]bool
+	constants map[string]bool
 }
 
 // asciiMax bounds the lookup tables below. Every delimiter a language of the
@@ -103,7 +108,22 @@ func init() {
 		for _, quote := range s.quotes {
 			s.quoteSet[quote] = true
 		}
+
+		s.commentAt, s.blockAt = firstRune(s.lineComment), firstRune(s.blockStart)
+		s.blockEndAt = firstRune(s.blockEnd)
 	}
+}
+
+// noRune is what a language without that delimiter gets: nothing in a line
+// equals it, so the check below simply never fires.
+const noRune = rune(-1)
+
+func firstRune(delimiter string) rune {
+	if delimiter == "" {
+		return noRune
+	}
+
+	return rune(delimiter[0])
 }
 
 var extensionSyntax = map[string]*Syntax{
@@ -197,15 +217,19 @@ var (
 	proseOnly = theme.Palette{Comment: proseMark, StringLit: proseMark, Escape: proseMark}
 )
 
-func hasPrefixAt(line []rune, i int, prefix string) bool {
-	if prefix == "" || i+len(prefix) > len(line) {
+// hasPrefixAt takes the delimiter's first rune separately so that the common
+// case — a character that starts no delimiter at all — costs one compare. Past
+// it, a delimiter is ASCII, so its bytes are compared against the line's runes
+// one for one, without decoding it. A language without the delimiter passes
+// noRune, which nothing in a line is.
+func hasPrefixAt(line []rune, i int, first rune, prefix string) bool {
+	if line[i] != first || i+len(prefix) > len(line) {
 		return false
 	}
-	for _, ch := range prefix {
-		if line[i] != ch {
+	for j := 1; j < len(prefix); j++ {
+		if line[i+j] != rune(prefix[j]) {
 			return false
 		}
-		i++
 	}
 
 	return true
@@ -234,12 +258,12 @@ func (s *Syntax) Highlight(line []rune, inBlock bool, out []termbox.Attribute, p
 			i, inBlock = s.scanBlock(line, i)
 			paint(out, start, i, palette.Comment)
 
-		case hasPrefixAt(line, i, s.lineComment):
+		case hasPrefixAt(line, i, s.commentAt, s.lineComment):
 			paint(out, i, len(line), palette.Comment)
 
 			return false
 
-		case hasPrefixAt(line, i, s.blockStart):
+		case hasPrefixAt(line, i, s.blockAt, s.blockStart):
 			start := i
 			i, inBlock = s.scanBlock(line, i+len(s.blockStart))
 			paint(out, start, i, palette.Comment)
@@ -291,7 +315,7 @@ func (s *Syntax) wordColor(word string, line []rune, after int, palette *theme.P
 
 func (s *Syntax) scanBlock(line []rune, i int) (int, bool) {
 	for ; i < len(line); i++ {
-		if hasPrefixAt(line, i, s.blockEnd) {
+		if hasPrefixAt(line, i, s.blockEndAt, s.blockEnd) {
 			return i + len(s.blockEnd), false
 		}
 	}
