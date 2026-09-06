@@ -21,11 +21,16 @@ type Syntax struct {
 	blockStart  string
 	blockEnd    string
 	quotes      string
+	quoteSet    [asciiMax]bool
 	keywords    map[string]bool
 	types       map[string]bool
 	builtins    map[string]bool
 	constants   map[string]bool
 }
+
+// asciiMax bounds the lookup tables below. Every delimiter a language of the
+// tables here uses is ASCII, so a byte-wide set covers all of them.
+const asciiMax = 128
 
 func words(list string) map[string]bool {
 	set := make(map[string]bool)
@@ -89,6 +94,16 @@ var hashSyntax = &Syntax{
 		print range repr reversed round setattr sorted sum super zip
 		cd echo printf pwd read shift source test unset`),
 	constants: words(`True False None NotImplemented Ellipsis self cls true false null`),
+}
+
+// The lookups the lexer reads on its hot path are derived rather than written
+// out, so that a language's literal above stays the one place it is described.
+func init() {
+	for _, s := range []*Syntax{goSyntax, cSyntax, hashSyntax} {
+		for _, quote := range s.quotes {
+			s.quoteSet[quote] = true
+		}
+	}
 }
 
 var extensionSyntax = map[string]*Syntax{
@@ -229,7 +244,7 @@ func (s *Syntax) Highlight(line []rune, inBlock bool, out []termbox.Attribute, p
 			i, inBlock = s.scanBlock(line, i+len(s.blockStart))
 			paint(out, start, i, palette.Comment)
 
-		case strings.ContainsRune(s.quotes, line[i]):
+		case line[i] < asciiMax && s.quoteSet[line[i]]:
 			i = s.scanString(line, i, out, palette)
 
 		case line[i] >= '0' && line[i] <= '9':
