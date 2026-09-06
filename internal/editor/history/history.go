@@ -38,40 +38,43 @@ const depth = 500
 // buffers puts one away and takes another out.
 type History struct {
 	undo, redo []change
-	pending    *change
-	touched    map[int]bool
+	// pending is held by value: a command that changes nothing still opens one,
+	// and a pointer would put a heap allocation behind every keystroke.
+	pending change
+	open    bool
+	touched map[int]bool
 }
 
 func (h *History) CanUndo() bool { return len(h.undo) > 0 }
 func (h *History) CanRedo() bool { return len(h.redo) > 0 }
 
 func (h *History) Begin(row, col int) {
-	if h.pending != nil {
+	if h.open {
 		return
 	}
-	h.pending = &change{row: row, col: col}
-	h.touched = nil // most commands never touch a line, so allocate on demand
+	h.pending, h.open = change{row: row, col: col}, true
+	clear(h.touched) // most commands never touch a line, so the map is kept
 }
 
 // End closes the open change, unless it is being held: an insert session runs
 // from the key that entered it to the Esc that leaves it, and VIM undoes all of
 // it in one go.
 func (h *History) End(hold bool) {
-	if h.pending == nil || hold {
+	if !h.open || hold {
 		return
 	}
 	if len(h.pending.actions) > 0 {
-		h.undo = push(h.undo, *h.pending)
+		h.undo = push(h.undo, h.pending)
 		h.redo = h.redo[:0]
 	}
-	h.pending = nil
+	h.pending, h.open = change{}, false
 }
 
 // Abandon drops the change being recorded without keeping it, which is what a
 // buffer taken out again needs: whatever was open belonged to the last session
 // in it.
 func (h *History) Abandon() {
-	h.pending, h.touched = nil, nil
+	h.pending, h.open, h.touched = change{}, false, nil
 }
 
 func push(stack []change, c change) []change {
@@ -88,7 +91,7 @@ func push(stack []change, c change) []change {
 // original back. A structural change invalidates that, since it renumbers the
 // rows the snapshots are keyed by, so both recorders below clear the set.
 func (h *History) TouchLine(b *buffer.Buffer, row int) {
-	if h.pending == nil || h.touched[row] {
+	if !h.open || h.touched[row] {
 		return
 	}
 	if h.touched == nil {
@@ -105,7 +108,7 @@ func (h *History) TouchLine(b *buffer.Buffer, row int) {
 // TouchInsert and TouchDelete are called before the insert or delete they
 // describe, while the row still holds what has to be remembered.
 func (h *History) TouchInsert(row int) {
-	if h.pending == nil {
+	if !h.open {
 		return
 	}
 	h.pending.actions = append(h.pending.actions, action{kind: dropLine, row: row})
@@ -113,7 +116,7 @@ func (h *History) TouchInsert(row int) {
 }
 
 func (h *History) TouchDelete(b *buffer.Buffer, row int) {
-	if h.pending == nil {
+	if !h.open {
 		return
 	}
 	h.pending.actions = append(h.pending.actions, action{
