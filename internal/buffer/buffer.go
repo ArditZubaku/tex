@@ -303,6 +303,49 @@ func (b *Buffer) Line(i int) []rune {
 	return line
 }
 
+// LineInto is Line for a caller that reads one line after another and keeps
+// none of them: the runes go into scratch, which is grown when it is too small
+// and returned so that the next line reuses it. Nothing is cached, and an
+// edited line is copied out rather than aliased, so what comes back is the
+// caller's to read and the overlay's to keep.
+func (b *Buffer) LineInto(i int, scratch []rune) []rune {
+	if i < 0 || i >= b.count {
+		return scratch[:0]
+	}
+	if line, ok := b.overlay[i]; ok {
+		return append(scratch[:0], line...)
+	}
+
+	return appendRunes(scratch[:0], b.Raw(i))
+}
+
+// appendRunes is bytes.Runes into a buffer the caller owns. One byte cannot
+// decode to more than one rune, so len(raw) is capacity enough for all of them.
+func appendRunes(dst []rune, raw []byte) []rune {
+	if cap(dst) < len(raw) {
+		dst = make([]rune, len(raw))
+	}
+	dst = dst[:len(raw)]
+
+	// almost every line is ASCII from end to end, and widening one is a loop
+	// with nothing in it but a load and a store
+	n := 0
+	for ; n < len(raw); n++ {
+		if raw[n] >= utf8.RuneSelf {
+			break
+		}
+		dst[n] = rune(raw[n])
+	}
+
+	for i := n; i < len(raw); n++ {
+		ch, size := utf8.DecodeRune(raw[i:])
+		dst[n] = ch
+		i += size
+	}
+
+	return dst[:n]
+}
+
 // editedLine reports the overlay's copy of line i, the one that shadows the
 // file, so a caller can tell a line it has to read as runes from one it can
 // still read as raw bytes.
