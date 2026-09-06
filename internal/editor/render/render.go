@@ -56,8 +56,16 @@ func Text(e *state.Editor) {
 		colors, inBlock = lineColors(e, line, inBlock)
 		hits := find.LineHits(e, textBufRow)
 
+		// Past the end of the line there is nothing to draw unless a selection
+		// bands over it, and the frame was cleared before any of this ran.
+		drawCols := textCols
+		if !selected.Active {
+			drawCols = max(min(textCols, lineLen-e.OffsetCol), 0)
+		}
+		screenRow, textCol0 := e.ScreenRow(row), e.ScreenCol(gutterCols)
+
 		// Render visible characters in current row
-		for col := range textCols {
+		for col := range drawCols {
 			textBufCol := col + e.OffsetCol
 			if textBufCol < 0 {
 				continue
@@ -66,7 +74,7 @@ func Text(e *state.Editor) {
 
 			if textBufCol >= lineLen {
 				if inSelection {
-					termbox.SetCell(e.ScreenCol(gutterCols+col), e.ScreenRow(row), ' ', e.Palette.Plain, e.Palette.VisualBg)
+					termbox.SetCell(textCol0+col, screenRow, ' ', e.Palette.Plain, e.Palette.VisualBg)
 				}
 				continue
 			}
@@ -88,7 +96,7 @@ func Text(e *state.Editor) {
 			if inSelection {
 				cellBackground = e.Palette.VisualBg
 			}
-			termbox.SetCell(e.ScreenCol(gutterCols+col), e.ScreenRow(row), ch, foreground, cellBackground)
+			termbox.SetCell(textCol0+col, screenRow, ch, foreground, cellBackground)
 		}
 	}
 }
