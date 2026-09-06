@@ -102,7 +102,7 @@ otherwise close a cycle.
 
 - **Modal editing** — a Read (Normal) mode for navigation, an Edit (Insert) mode for typing and a Visual mode for selecting, with the terminal cursor changing shape (block vs. blinking bar) depending on mode. The cursor sits *on* a character in Normal mode, stopping at the last one on the line like VIM does; only Insert mode reaches the column past it, where appending happens.
 - **VIM-style navigation** — `hjkl`, word motions (`w`/`b`/`e`), line jumps (`I`/`A`), buffer jumps (`gg`/`G`); see the full list below.
-- **Saving** — `:w` or `Ctrl-S`, in either mode. The buffer is streamed to a temporary file in the same directory and renamed over the target, so a failed write cannot truncate the original; untouched lines are copied as raw bytes, so a save costs no more memory than scrolling does. File permissions, CRLF line endings on untouched lines, and a missing trailing newline are all preserved.
+- **Saving** — `:w` or `Ctrl-S`, in either mode. The buffer is streamed to a temporary file in the same directory and renamed over the target, so a failed write cannot truncate the original; untouched lines are copied as raw bytes, so a save costs no more memory than scrolling does. The index of where the new file's lines begin is built as the file is written, so the buffer left behind never reads back what it has just written. File permissions, CRLF line endings on untouched lines, and a missing trailing newline are all preserved.
 - **Format on save** — a file written with `:w`, `:wq` or `Ctrl-S` is handed to whatever formats its language, and the result is read straight back into the buffer, so the formatting appears under the cursor rather than only on disk. Four languages so far, each taking the first of its formatters that is actually installed: **Go** (`gofumpt`, `goimports`, `gofmt`), **Rust** (`rustfmt`), and **JavaScript**/**TypeScript** (`prettier`, `biome`) — a JavaScript project's own `node_modules/.bin` is looked in before the `PATH`, since that is where `prettier` almost always is. A language with nothing installed for it, and a file of any other kind, is written exactly as it was. The formatter runs from inside the file's own directory, so `rustfmt.toml`, `.prettierrc` and the rest are found the way the tool's own CLI finds them.
 
   It costs a save what the formatter itself costs and nothing else: the lookup for a formatter on the `PATH` is made once and remembered, a file already formatted is left alone and not reread — `gofmt` over a 300-line file takes about **3ms**, which is under a frame either way — and only a file the formatter actually rewrote is read back, which the modification time says without reading either version. A formatter that hangs is given five seconds and then killed, since the editor's loop blocks on the keyboard, and a file too large for one to be worth waiting on (4MB) is written unformatted. **The write always lands first.** A formatter that refuses the file — while it is being typed into, almost always a syntax error rather than anything else — leaves what was written exactly where it is, and its complaint goes in a box in the top-right corner rather than onto the status line, which carries the write as usual:
@@ -285,9 +285,15 @@ page cache without charging it to the process.
 Everything after that pass is random access through the index: `G` and `gg` are
 O(1), the status bar's line count is exact, and displaying a line is one `pread`
 into the window when the line falls outside it. Lines edited in Insert mode live in
-an overlay map that shadows the file, so an edit is never lost when the window moves.
+an overlay that shadows the file, so an edit is never lost when the window moves.
 Lifting a line into that overlay copies it once; every keystroke after that grows or
 shrinks it in place, so typing a word costs no allocation per character.
+
+The overlay is a list in row order rather than a map. Reading a line finds its entry
+by binary search, and inserting or deleting one renumbers the entries below it by
+walking a run of them — where a map made that an allocation, a sort and two map
+operations for every line already edited, so an `Enter` cost more the longer the
+session had gone on.
 
 Opening a line with `o`/`O` adds an index entry that borrows the offset of the line
 below it, which leaves every neighbouring line's extent exactly as it was; the new
@@ -301,6 +307,14 @@ length of that single line rather than by the size of the file.
 
 A line wider than the window grows it for as long as that line is on screen, then it
 shrinks back. Only the index scales with file size, at 8 bytes per line.
+
+Drawing a frame holds nothing per line either. Every visible line is decoded into one
+array that outlives the frame and coloured into one more, and both are reused by every
+row of every redraw. The block-comment state above the window is settled by looking
+back a bounded number of lines, and a line whose raw bytes cannot hold the delimiter
+that would change that state is skipped without being decoded at all — which is most
+of them. A screenful of a 200,000-line file is drawn with no allocation per line of
+text: what is left is the status bar and the buffer line, a handful of short strings.
 
 ### Goals not yet implemented
 
