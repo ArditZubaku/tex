@@ -31,7 +31,31 @@ type Syntax struct {
 	types     map[string]bool
 	builtins  map[string]bool
 	constants map[string]bool
+
+	// kinds is the four tables above merged, so that a word costs one lookup
+	// rather than four misses; longest is the length past which none can match,
+	// and firstOf which ASCII byte a name of each length can start with, which
+	// rules most identifiers out before the table is reached at all.
+	kinds   map[string]wordKind
+	longest int
+	firstOf [wordBytes + 1][2]uint64
 }
+
+// A wordKind is which of a language's tables a word is in, which is as much as
+// the colour of it depends on.
+type wordKind uint8
+
+const (
+	plainWord wordKind = iota
+	keywordWord
+	constantWord
+	typeWord
+	builtinWord
+)
+
+// wordBytes bounds the key a lookup is built in. A word longer than the
+// longest name any table holds cannot be in one, so it never reaches the key.
+const wordBytes = 32
 
 // asciiMax bounds the lookup tables below. Every delimiter a language of the
 // tables here uses is ASCII, so a byte-wide set covers all of them.
@@ -111,6 +135,27 @@ func init() {
 
 		s.commentAt, s.blockAt = firstRune(s.lineComment), firstRune(s.blockStart)
 		s.blockEndAt = firstRune(s.blockEnd)
+
+		s.kinds = make(map[string]wordKind)
+		// least specific first, so that a word in two tables keeps the colour
+		// the switch this replaced would have reached first
+		s.merge(s.builtins, builtinWord)
+		s.merge(s.types, typeWord)
+		s.merge(s.constants, constantWord)
+		s.merge(s.keywords, keywordWord)
+	}
+}
+
+func (s *Syntax) merge(words map[string]bool, kind wordKind) {
+	for word := range words {
+		if len(word) > wordBytes {
+			continue
+		}
+		s.kinds[word] = kind
+		s.longest = max(s.longest, len(word))
+		if first := word[0]; first < asciiMax {
+			s.firstOf[len(word)][first>>6] |= 1 << (first & 63)
+		}
 	}
 }
 
@@ -285,21 +330,41 @@ func (s *Syntax) Highlight(line []rune, inBlock bool, out []termbox.Attribute, p
 // A name the language reserves nothing for is still worth colouring when it is
 // being called: an open bracket right after it is what tells a call from a
 // variable, which is as far as one line of context reaches.
-func (s *Syntax) wordColor(word string, line []rune, after int, palette *theme.Palette) termbox.Attribute {
-	switch {
-	case s.keywords[word]:
+func (s *Syntax) wordColor(word []rune, line []rune, after int, palette *theme.Palette) termbox.Attribute {
+	switch s.kindOf(word) {
+	case keywordWord:
 		return palette.Keyword
-	case s.constants[word]:
+	case constantWord:
 		return palette.Constant
-	case s.types[word]:
+	case typeWord:
 		return palette.TypeName
-	case s.builtins[word]:
+	case builtinWord:
 		return palette.Builtin
-	case after < len(line) && line[after] == '(':
-		return palette.Function
-	default:
-		return palette.Plain
 	}
+	if after < len(line) && line[after] == '(' {
+		return palette.Function
+	}
+
+	return palette.Plain
+}
+
+// A word is ASCII by construction, so its key is copied a byte at a time into
+// an array on the stack: indexing a map by a string over one of those is the
+// shape the compiler turns into a lookup with nothing allocated for it.
+func (s *Syntax) kindOf(word []rune) wordKind {
+	if len(word) > s.longest {
+		return plainWord
+	}
+	if first := word[0]; first >= asciiMax || s.firstOf[len(word)][first>>6]&(1<<(first&63)) == 0 {
+		return plainWord
+	}
+
+	var key [wordBytes]byte
+	for i, ch := range word {
+		key[i] = byte(ch)
+	}
+
+	return s.kinds[string(key[:len(word)])]
 }
 
 // scanWord takes the run of word characters at i — a number if it starts with
@@ -322,7 +387,7 @@ func (s *Syntax) scanWord(line []rune, i int, out []termbox.Attribute, palette *
 	// A run of a lexer asked only for its block-comment state paints nothing,
 	// and a word's colour is the most expensive thing here.
 	if out != nil {
-		paint(out, start, i, s.wordColor(string(line[start:i]), line, i, palette))
+		paint(out, start, i, s.wordColor(line[start:i], line, i, palette))
 	}
 
 	return i
