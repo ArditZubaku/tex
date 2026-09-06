@@ -34,7 +34,68 @@ type Buffer struct {
 	cacheLine      []rune
 	cacheOK        bool
 
-	overlay map[int][]rune // lines edited in Insert mode, shadowing the file
+	overlay []edit // lines edited in Insert mode, shadowing the file
+}
+
+// An edit is one line the overlay holds, together with the row it is on. They
+// are kept in row order rather than in a map so that inserting or deleting a
+// line renumbers the ones below it by walking a run of them, which is what a
+// map made an allocation, a sort and two map operations per edited line of.
+type edit struct {
+	row  int
+	line []rune
+}
+
+// editAt is where row's entry is, or where one for it belongs. It is written
+// out rather than left to slices.BinarySearchFunc because every read of every
+// line goes through it, and a comparator passed as a value is an indirect call
+// per step of the search.
+func (b *Buffer) editAt(row int) (int, bool) {
+	low, high := 0, len(b.overlay)
+	for low < high {
+		mid := int(uint(low+high) >> 1)
+		if b.overlay[mid].row < row {
+			low = mid + 1
+		} else {
+			high = mid
+		}
+	}
+
+	return low, low < len(b.overlay) && b.overlay[low].row == row
+}
+
+func (b *Buffer) edited(row int) ([]rune, bool) {
+	at, ok := b.editAt(row)
+	if !ok {
+		return nil, false
+	}
+
+	return b.overlay[at].line, true
+}
+
+func (b *Buffer) setEdit(row int, line []rune) {
+	at, ok := b.editAt(row)
+	if ok {
+		b.overlay[at].line = line
+		return
+	}
+
+	b.overlay = slices.Insert(b.overlay, at, edit{row: row, line: line})
+}
+
+func (b *Buffer) dropEdit(row int) {
+	if at, ok := b.editAt(row); ok {
+		b.overlay = slices.Delete(b.overlay, at, at+1)
+	}
+}
+
+// shiftEdits renumbers every entry from row down by delta, which is what a line
+// inserted or deleted above them does to the rows they are on.
+func (b *Buffer) shiftEdits(row, delta int) {
+	at, _ := b.editAt(row)
+	for i := at; i < len(b.overlay); i++ {
+		b.overlay[i].row += delta
+	}
 }
 
 // WindowBytes is how much of the file is held in memory at once, which the
@@ -52,7 +113,7 @@ func NewEmpty() *Buffer {
 	return &Buffer{
 		count:   1,
 		starts:  []int64{0},
-		overlay: map[int][]rune{0: {}},
+		overlay: []edit{{row: 0, line: []rune{}}},
 		winFrom: -1,
 		winTo:   -1,
 	}
@@ -94,7 +155,6 @@ func Open(name string) *Buffer {
 		win:             make([]byte, 0, WindowBytes),
 		winFrom:         -1,
 		winTo:           -1,
-		overlay:         make(map[int][]rune),
 	}
 }
 
@@ -167,12 +227,16 @@ func (b *Buffer) Save(path string) error {
 	}
 
 	// bufio's error is sticky, so it is enough to check it once at the Flush.
+	// the overlay is in row order, so it is walked alongside the index rather
+	// than looked up once per line
 	w := bufio.NewWriterSize(tmp, WindowBytes)
+	next := 0
 	for i := range b.count {
-		if line, ok := b.overlay[i]; ok {
-			for _, ch := range line {
+		if next < len(b.overlay) && b.overlay[next].row == i {
+			for _, ch := range b.overlay[next].line {
 				_, _ = w.WriteRune(ch)
 			}
+			next++
 		} else {
 			_, _ = w.Write(b.rawLine(i))
 		}
@@ -290,7 +354,7 @@ func (b *Buffer) Line(i int) []rune {
 	if i < 0 || i >= b.count {
 		return nil
 	}
-	if line, ok := b.overlay[i]; ok {
+	if line, ok := b.edited(i); ok {
 		return line
 	}
 	if b.cacheOK && b.cacheRow == i {
@@ -312,7 +376,7 @@ func (b *Buffer) LineInto(i int, scratch []rune) []rune {
 	if i < 0 || i >= b.count {
 		return scratch[:0]
 	}
-	if line, ok := b.overlay[i]; ok {
+	if line, ok := b.edited(i); ok {
 		return append(scratch[:0], line...)
 	}
 
@@ -350,8 +414,7 @@ func appendRunes(dst []rune, raw []byte) []rune {
 // file, so a caller can tell a line it has to read as runes from one it can
 // still read as raw bytes.
 func (b *Buffer) EditedLine(i int) ([]rune, bool) {
-	line, ok := b.overlay[i]
-	return line, ok
+	return b.edited(i)
 }
 
 // RuneLen avoids decoding: for unedited lines it counts runes over the raw bytes.
@@ -359,7 +422,7 @@ func (b *Buffer) RuneLen(i int) int {
 	if i < 0 || i >= b.count {
 		return 0
 	}
-	if line, ok := b.overlay[i]; ok {
+	if line, ok := b.edited(i); ok {
 		return len(line)
 	}
 	if b.cacheOK && b.cacheRow == i {
@@ -383,7 +446,7 @@ func (b *Buffer) SetLine(i int, line []rune) {
 		return
 	}
 
-	b.overlay[i] = line
+	b.setEdit(i, line)
 	if b.cacheOK && b.cacheRow == i {
 		b.cacheOK = false
 	}
@@ -397,8 +460,8 @@ func (b *Buffer) InsertRune(i, col int, ch rune) {
 	line := b.Line(i)
 	col = min(max(col, 0), len(line))
 
-	if edited, ok := b.overlay[i]; ok {
-		b.overlay[i] = slices.Insert(edited, col, ch)
+	if at, ok := b.editAt(i); ok {
+		b.overlay[at].line = slices.Insert(b.overlay[at].line, col, ch)
 		return
 	}
 
@@ -419,8 +482,8 @@ func (b *Buffer) DeleteRunes(i, from, to int) {
 		return
 	}
 
-	if edited, ok := b.overlay[i]; ok {
-		b.overlay[i] = append(edited[:from], edited[to:]...)
+	if at, ok := b.editAt(i); ok {
+		b.overlay[at].line = slices.Delete(b.overlay[at].line, from, to)
 		return
 	}
 
@@ -452,19 +515,8 @@ func (b *Buffer) InsertLine(i int) {
 	b.starts = slices.Insert(b.starts, i, off)
 	b.count++
 
-	shifted := make([]int, 0, len(b.overlay))
-	for row := range b.overlay {
-		if row >= i {
-			shifted = append(shifted, row)
-		}
-	}
-	// descending, so each line moves into a slot already vacated
-	slices.SortFunc(shifted, func(a, b int) int { return b - a })
-	for _, row := range shifted {
-		b.overlay[row+1] = b.overlay[row]
-		delete(b.overlay, row)
-	}
-	b.overlay[i] = nil
+	b.shiftEdits(i, 1)
+	b.setEdit(i, nil)
 
 	// window line numbers no longer match the file after the shift
 	b.winFrom, b.winTo = -1, -1
@@ -483,7 +535,8 @@ func (b *Buffer) SplitLine(i, col int) {
 	tail := slices.Clone(line[col:])
 
 	b.InsertLine(i + 1)
-	b.overlay[i], b.overlay[i+1] = line[:col], tail
+	b.setEdit(i, line[:col])
+	b.setEdit(i+1, tail)
 }
 
 // JoinLine appends line i+1 to line i and drops it. The result has to live in
@@ -494,12 +547,12 @@ func (b *Buffer) JoinLine(i int) {
 		return
 	}
 
-	line, ok := b.overlay[i]
+	line, ok := b.edited(i)
 	if !ok {
 		line = slices.Clone(b.Line(i))
 	}
 
-	b.overlay[i] = append(line, b.Line(i+1)...)
+	b.setEdit(i, append(line, b.Line(i+1)...))
 	b.DeleteLine(i + 1)
 }
 
@@ -514,7 +567,8 @@ func (b *Buffer) DeleteLine(i int) {
 
 	// VIM leaves an empty line behind rather than an empty buffer
 	if b.count == 1 {
-		b.overlay[i] = b.overlay[i][:0]
+		line, _ := b.edited(i)
+		b.setEdit(i, line[:0])
 		return
 	}
 
@@ -522,29 +576,16 @@ func (b *Buffer) DeleteLine(i int) {
 	// hand the deleted bytes to the line above it. Pin that line into the
 	// overlay instead, where its content no longer depends on the index.
 	if i > 0 {
-		if _, ok := b.overlay[i-1]; !ok {
-			b.overlay[i-1] = slices.Clone(b.Line(i - 1))
+		if _, ok := b.edited(i - 1); !ok {
+			b.setEdit(i-1, slices.Clone(b.Line(i-1)))
 		}
 	}
 
 	b.starts = append(b.starts[:i], b.starts[i+1:]...)
 	b.count--
 
-	delete(b.overlay, i)
-	if len(b.overlay) > 0 {
-		shifted := make([]int, 0, len(b.overlay))
-		for row := range b.overlay {
-			if row > i {
-				shifted = append(shifted, row)
-			}
-		}
-		// ascending, so each line moves into a slot already vacated
-		slices.Sort(shifted)
-		for _, row := range shifted {
-			b.overlay[row-1] = b.overlay[row]
-			delete(b.overlay, row)
-		}
-	}
+	b.dropEdit(i)
+	b.shiftEdits(i+1, -1)
 
 	// window line numbers no longer match the file after the shift
 	b.winFrom, b.winTo = -1, -1
