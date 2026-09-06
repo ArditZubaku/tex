@@ -271,19 +271,8 @@ func (s *Syntax) Highlight(line []rune, inBlock bool, out []termbox.Attribute, p
 		case line[i] < asciiMax && s.quoteSet[line[i]]:
 			i = s.scanString(line, i, out, palette)
 
-		case line[i] >= '0' && line[i] <= '9':
-			start := i
-			for i < len(line) && (chars.IsWord(line[i]) || line[i] == '.') {
-				i++
-			}
-			paint(out, start, i, palette.Number)
-
 		case chars.IsWord(line[i]):
-			start := i
-			for i < len(line) && chars.IsWord(line[i]) {
-				i++
-			}
-			paint(out, start, i, s.wordColor(string(line[start:i]), line, i, palette))
+			i = s.scanWord(line, i, out, palette)
 
 		default:
 			i++
@@ -311,6 +300,32 @@ func (s *Syntax) wordColor(word string, line []rune, after int, palette *theme.P
 	default:
 		return palette.Plain
 	}
+}
+
+// scanWord takes the run of word characters at i — a number if it starts with
+// a digit, which is the one run a '.' carries on through — and colours it.
+func (s *Syntax) scanWord(line []rune, i int, out []termbox.Attribute, palette *theme.Palette) int {
+	start := i
+
+	if line[i] >= '0' && line[i] <= '9' {
+		for i < len(line) && (chars.IsWord(line[i]) || line[i] == '.') {
+			i++
+		}
+		paint(out, start, i, palette.Number)
+
+		return i
+	}
+
+	for i < len(line) && chars.IsWord(line[i]) {
+		i++
+	}
+	// A run of a lexer asked only for its block-comment state paints nothing,
+	// and a word's colour is the most expensive thing here.
+	if out != nil {
+		paint(out, start, i, s.wordColor(string(line[start:i]), line, i, palette))
+	}
+
+	return i
 }
 
 func (s *Syntax) scanBlock(line []rune, i int) (int, bool) {
