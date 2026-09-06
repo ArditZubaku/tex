@@ -3,11 +3,9 @@
 package render
 
 import (
-	"fmt"
 	"path/filepath"
 	"strconv"
 
-	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
 
 	"github.com/ArditZubaku/tex/internal/editor/edit"
@@ -101,7 +99,7 @@ func StatusBar(e *state.Editor) {
 		return
 	}
 
-	var modeStatus, copyStatus, undoStatus, redoStatus, countStatus, fileStatus, cursorStatus string
+	var modeStatus string
 
 	switch {
 	case e.Mode == state.EditMode:
@@ -123,32 +121,52 @@ func StatusBar(e *state.Editor) {
 	if e.Modified {
 		status = "modified"
 	}
-	fileStatus = fmt.Sprintf("%s - %d lines %s", name[:fileNameLen], e.Buf.LineCount(), status)
-
-	cursorStatus = fmt.Sprintf("Row %s, Col %s ", strconv.Itoa(e.Row+1), strconv.Itoa(e.Col+1))
-
-	if !e.Clip.Empty() {
-		copyStatus = " [Copy]"
-	}
-
-	if e.Hist.CanUndo() {
-		undoStatus = " [Undo]"
-	}
-
-	if e.Hist.CanRedo() {
-		redoStatus = " [Redo]"
-	}
-
+	right := rightScratch[:0]
 	if e.PendingCount > 0 {
-		countStatus = strconv.Itoa(e.PendingCount) + " "
+		right = strconv.AppendInt(right, int64(e.PendingCount), 10)
+		right = append(right, ' ')
+	}
+	right = append(right, "Row "...)
+	right = strconv.AppendInt(right, int64(e.Row+1), 10)
+	right = append(right, ", Col "...)
+	right = strconv.AppendInt(right, int64(e.Col+1), 10)
+	right = append(right, ' ')
+	rightScratch = right
+
+	shown := name[:fileNameLen]
+	line := lineScratch[:0]
+	line = append(line, modeStatus...)
+	line = append(line, shown...)
+	line = append(line, " - "...)
+	line = strconv.AppendInt(line, int64(e.Buf.LineCount()), 10)
+	line = append(line, " lines "...)
+	line = append(line, status...)
+	if !e.Clip.Empty() {
+		line = append(line, " [Copy]"...)
+	}
+	if e.Hist.CanUndo() {
+		line = append(line, " [Undo]"...)
+	}
+	if e.Hist.CanRedo() {
+		line = append(line, " [Redo]"...)
 	}
 
-	leftStatus := modeStatus + fileStatus + copyStatus + undoStatus + redoStatus
-	rightStatus := countStatus + cursorStatus
-	txt := screen.Pad(leftStatus, e.ScreenCols-runewidth.StringWidth(rightStatus)) + rightStatus
+	// The left half is padded out to where the right half starts, so that the
+	// bar takes the whole width in the status colours. Everything in it but the
+	// file name is ASCII, so only the name's own width has to be measured.
+	width := len(line) - len(shown) + screen.Width(shown)
+	for ; width < e.ScreenCols-len(right); width++ {
+		line = append(line, ' ')
+	}
+	line = append(line, right...)
+	lineScratch = line
 
-	screen.Print(0, e.StatusRow(), e.Palette.StatusFg, e.Palette.StatusBg, txt)
+	screen.Print(0, e.StatusRow(), e.Palette.StatusFg, e.Palette.StatusBg, string(line))
 }
+
+// The status bar is rebuilt on every frame, so its two halves are assembled in
+// buffers that outlive the frame rather than in fresh strings.
+var lineScratch, rightScratch []byte
 
 func Scroll(e *state.Editor) {
 	textCols := e.Cols - gutter.Width(e.Buf.LineCount())
