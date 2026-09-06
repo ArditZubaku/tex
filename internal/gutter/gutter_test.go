@@ -1,6 +1,9 @@
 package gutter
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestGutterWidth(t *testing.T) {
 	cases := []struct {
@@ -58,6 +61,21 @@ func TestLineNumberLabelFillsTheGutter(t *testing.T) {
 					t.Errorf("len(Label(%d, %d, %d)) = %d, want %d", row, cursorRow, width, got, width)
 				}
 			}
+		}
+	}
+}
+
+func TestWidthMatchesTheDigitCount(t *testing.T) {
+	for lines := range 2000 {
+		want := max(len(fmt.Sprintf("%d", max(lines, 1)))+1, minGutterWidth)
+		if got := Width(lines); got != want {
+			t.Fatalf("Width(%d) = %d, want %d", lines, got, want)
+		}
+	}
+	for _, lines := range []int{9999, 10000, 999999, 1000000, 1 << 40} {
+		want := max(len(fmt.Sprintf("%d", lines))+1, minGutterWidth)
+		if got := Width(lines); got != want {
+			t.Errorf("Width(%d) = %d, want %d", lines, got, want)
 		}
 	}
 }

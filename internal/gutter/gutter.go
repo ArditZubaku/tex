@@ -7,7 +7,11 @@ const minGutterWidth = 4
 
 // Width is how many columns the gutter takes for a buffer of that many lines.
 func Width(lineCount int) int {
-	digits := len(fmt.Sprintf("%d", max(lineCount, 1)))
+	digits := 1
+	for n := max(lineCount, 1); n >= 10; n /= 10 {
+		digits++
+	}
+
 	return max(digits+1, minGutterWidth)
 }
 
