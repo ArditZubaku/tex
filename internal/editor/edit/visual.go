@@ -214,7 +214,7 @@ func yankSpan(e *state.Editor, s Span) {
 	}
 
 	if s.startRow == s.endRow {
-		e.Clip = register.Charwise([][]rune{runeSpan(e, s.startRow, s.startCol, s.endCol+1)})
+		e.SetClip(register.Charwise([][]rune{runeSpan(e, s.startRow, s.startCol, s.endCol+1)}))
 		return
 	}
 
@@ -225,7 +225,7 @@ func yankSpan(e *state.Editor, s Span) {
 	}
 	lines = append(lines, runeSpan(e, s.endRow, 0, s.endCol+1))
 
-	e.Clip = register.Charwise(lines)
+	e.SetClip(register.Charwise(lines))
 }
 
 func runeSpan(e *state.Editor, row, from, to int) []rune {

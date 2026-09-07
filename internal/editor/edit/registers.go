@@ -19,11 +19,11 @@ func YankLines(e *state.Editor, row, n int) {
 	for i := range n {
 		lines = append(lines, slices.Clone(e.Buf.Line(row+i)))
 	}
-	e.Clip = register.Linewise(lines)
+	e.SetClip(register.Linewise(lines))
 }
 
 func yankChars(e *state.Editor, row, from, to int) {
-	e.Clip = register.Charwise([][]rune{slices.Clone(e.Buf.Line(row)[from:to])})
+	e.SetClip(register.Charwise([][]rune{slices.Clone(e.Buf.Line(row)[from:to])}))
 }
 
 // YankWord is 'yw', YankToWordEnd is 'ye' and YankToPrevWord is 'yb'. Like the
