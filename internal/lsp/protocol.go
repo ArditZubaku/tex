@@ -15,6 +15,10 @@ const (
 	methodExit                 = "exit"
 	methodRegisterCapability   = "client/registerCapability"
 	methodUnregisterCapability = "client/unregisterCapability"
+	methodDidOpen              = "textDocument/didOpen"
+	methodDidChange            = "textDocument/didChange"
+	methodDidSave              = "textDocument/didSave"
+	methodDidClose             = "textDocument/didClose"
 )
 
 // FileURI is a path as a server names it. Symlinks are resolved because a
@@ -62,11 +66,4 @@ func resolved(path string) string {
 	resolvedPaths[path] = abs
 
 	return abs
-}
-
-// Reset drops what the lookups found, so that a test is not answered from
-// another one's paths.
-func Reset() {
-	clear(resolvedPaths)
-	clear(found)
 }
