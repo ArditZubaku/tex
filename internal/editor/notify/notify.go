@@ -82,7 +82,7 @@ func (n *Note) Draw(within layout.Rect, palette *theme.Palette) {
 // area, sized to the message rather than to the screen, since an error of a few
 // words has no business covering a corner's worth of the file.
 func (n *Note) frame(within layout.Rect) ([]string, layout.Rect) {
-	lines := wrap(n.text, min(maxCols, within.Cols)-4) // the frame's edges and a space either side
+	lines := screen.Wrap(n.text, min(maxCols, within.Cols)-4) // the frame's edges and a space either side
 	if len(lines) > maxRows-2 {
 		lines = lines[:maxRows-2]
 	}
@@ -99,32 +99,4 @@ func (n *Note) frame(within layout.Rect) ([]string, layout.Rect) {
 		Rows: len(lines) + 2,
 		Cols: cols,
 	}
-}
-
-// wrap breaks the message onto lines that fit the box, on the spaces where
-// there are any and mid-word where a single word — a path, most often — is
-// longer than the box is wide.
-func wrap(text string, width int) []string {
-	if width < 1 {
-		return nil
-	}
-
-	var lines []string
-	for _, word := range strings.Fields(text) {
-		last := len(lines) - 1
-		if last >= 0 && runewidth.StringWidth(lines[last]+" "+word) <= width {
-			lines[last] += " " + word
-			continue
-		}
-
-		lines = append(lines, "")
-		for runewidth.StringWidth(word) > width {
-			runes := []rune(word)
-			lines[len(lines)-1], word = string(runes[:width]), string(runes[width:])
-			lines = append(lines, "")
-		}
-		lines[len(lines)-1] = word
-	}
-
-	return lines
 }

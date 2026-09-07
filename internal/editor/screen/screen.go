@@ -120,3 +120,32 @@ func StartWaker() func() {
 		}
 	}
 }
+
+// Wrap breaks text onto lines that fit a width, on the spaces where there are
+// any and mid-word where a single word — a path, most often — is longer than
+// the room there is for it.
+func Wrap(text string, width int) []string {
+	if width < 1 {
+		return nil
+	}
+
+	var lines []string
+	for _, word := range strings.Fields(text) {
+		last := len(lines) - 1
+		if last >= 0 && runewidth.StringWidth(lines[last]+" "+word) <= width {
+			lines[last] += " " + word
+
+			continue
+		}
+
+		lines = append(lines, "")
+		for runewidth.StringWidth(word) > width {
+			runes := []rune(word)
+			lines[len(lines)-1], word = string(runes[:width]), string(runes[width:])
+			lines = append(lines, "")
+		}
+		lines[len(lines)-1] = word
+	}
+
+	return lines
+}

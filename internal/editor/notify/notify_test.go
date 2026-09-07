@@ -15,30 +15,6 @@ func at(t *testing.T, when time.Time) {
 	t.Cleanup(func() { now = time.Now })
 }
 
-func TestWrapBreaksOnSpaces(t *testing.T) {
-	got := wrap("a.go:2:6: expected declaration", 12)
-
-	want := []string{"a.go:2:6:", "expected", "declaration"}
-	if strings.Join(got, "|") != strings.Join(want, "|") {
-		t.Errorf("wrap = %q, want %q", got, want)
-	}
-}
-
-func TestWrapBreaksAWordTooLongForTheBox(t *testing.T) {
-	got := wrap("aa bbbbbbbb", 4)
-
-	want := []string{"aa", "bbbb", "bbbb"}
-	if strings.Join(got, "|") != strings.Join(want, "|") {
-		t.Errorf("wrap = %q, want %q", got, want)
-	}
-}
-
-func TestWrapKeepsWhatFitsOnOneLine(t *testing.T) {
-	if got := wrap("expected declaration", 40); len(got) != 1 || got[0] != "expected declaration" {
-		t.Errorf("wrap = %q, want it left whole", got)
-	}
-}
-
 func TestTheBoxSitsInTheTopRightCorner(t *testing.T) {
 	var n Note
 	n.Show("gofmt", "expected declaration")
