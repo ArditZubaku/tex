@@ -27,6 +27,12 @@ type Palette struct {
 	// Error is the box in the corner, frame and text alike: the one colour the
 	// editor draws in that is meant to be looked at rather than read past.
 	Error termbox.Attribute
+
+	// What a language server said about a line, worst first. The background is
+	// left alone — it belongs to the cursor line and the selection — so these
+	// are drawn as the text's own colour with an underline, which is the
+	// nearest a terminal gets to a squiggle.
+	DiagError, DiagWarn, DiagHint termbox.Attribute
 }
 
 // Themes are addressed by position, the way ':theme=1' names the first one.
@@ -86,6 +92,10 @@ var defaultTheme = Palette{
 	TabModified: termbox.ColorYellow,
 	Separator:   color256(240),
 	Error:       termbox.ColorLightRed,
+
+	DiagError: termbox.ColorLightRed,
+	DiagWarn:  termbox.ColorLightYellow,
+	DiagHint:  termbox.ColorLightBlue,
 }
 
 // Gruvbox, at the 256-colour indices its own palette documents for terminals,
@@ -125,6 +135,10 @@ var gruvboxTheme = Palette{
 	TabModified: color256(214), // yellow #fabd2f
 	Separator:   color256(239), // bg2 #504945, gruvbox's own VertSplit
 	Error:       color256(167), // red #fb4934
+
+	DiagError: color256(167), // red    #fb4934
+	DiagWarn:  color256(214), // yellow #fabd2f
+	DiagHint:  color256(108), // aqua   #8ec07c
 }
 
 // GitHub's dark default, at the nearest 256-colour index to each of the hex
@@ -165,4 +179,8 @@ var githubDarkTheme = Palette{
 	TabModified: color256(178), // attention.fg  #d29922
 	Separator:   color256(237), // border.default #30363d
 	Error:       color256(203), // danger.fg     #f85149
+
+	DiagError: color256(203), // danger.fg    #f85149
+	DiagWarn:  color256(178), // attention.fg #d29922
+	DiagHint:  color256(111), // accent.fg    #79c0ff
 }
