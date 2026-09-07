@@ -15,7 +15,6 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
-	"github.com/ArditZubaku/tex/internal/gutter"
 	"github.com/ArditZubaku/tex/internal/lsp"
 	"github.com/ArditZubaku/tex/internal/syntax"
 )
@@ -85,7 +84,7 @@ func Run(args []string) {
 		case state.ExplorerMode:
 			termbox.SetCursor(ed.ScreenCol(0), explorer.CursorRow(ed))
 		default:
-			termbox.SetCursor(ed.ScreenCol(ed.Col-ed.OffsetCol+gutter.Width(ed.Buf.LineCount())), ed.ScreenRow(ed.Row-ed.OffsetRow))
+			termbox.SetCursor(ed.CursorScreenCol(), ed.CursorScreenRow())
 		}
 
 		if err := termbox.Flush(); err != nil {

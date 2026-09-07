@@ -13,6 +13,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/picker"
 	"github.com/ArditZubaku/tex/internal/editor/prompt"
 	"github.com/ArditZubaku/tex/internal/editor/register"
+	"github.com/ArditZubaku/tex/internal/gutter"
 	"github.com/ArditZubaku/tex/internal/layout"
 	"github.com/ArditZubaku/tex/internal/search"
 	"github.com/ArditZubaku/tex/internal/syntax"
@@ -156,6 +157,16 @@ func (e *Editor) ScreenRow(row int) int { return e.WinRow + row }
 func (e *Editor) ScreenCol(col int) int { return e.WinCol + col }
 
 func (e *Editor) StatusRow() int { return e.ScreenRows + TabBarRows }
+
+// CursorScreenRow and CursorScreenCol are the cell the terminal's own cursor
+// sits in for the buffer being edited: inside the window, past the gutter, and
+// less however far the view is scrolled. A box drawn beside the cursor is
+// placed from them.
+func (e *Editor) CursorScreenRow() int { return e.ScreenRow(e.Row - e.OffsetRow) }
+
+func (e *Editor) CursorScreenCol() int {
+	return e.ScreenCol(e.Col - e.OffsetCol + gutter.Width(e.Buf.LineCount()))
+}
 
 // WindowArea is the room the window being drawn has to itself; ScreenArea is
 // everything below the buffer line, which is what a popup centres in.
