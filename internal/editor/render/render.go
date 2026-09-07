@@ -29,7 +29,7 @@ func Text(e *state.Editor) {
 	inBlock := blockStateBefore(e, e.OffsetRow)
 	selected := edit.Selection(e)
 
-	for row := 0; row < e.Rows; row++ {
+	for row := range e.Rows {
 		textBufRow := row + e.OffsetRow
 
 		// Past end of buffer: draw line indicator once per row
@@ -49,55 +49,82 @@ func Text(e *state.Editor) {
 		screen.Print(e.ScreenCol(0), e.ScreenRow(row), numberColor, background, gutter.Label(textBufRow, e.Row, gutterCols))
 
 		textScratch = e.Buf.LineInto(textBufRow, textScratch)
-		line := textScratch
-		lineLen := len(line)
-
-		var colors []termbox.Attribute
-		colors, inBlock = lineColors(e, line, inBlock)
-		hits := find.LineHits(e, textBufRow)
+		paint := rowPaint{
+			line:       textScratch,
+			hits:       find.LineHits(e, textBufRow),
+			selected:   selected,
+			row:        textBufRow,
+			screenRow:  e.ScreenRow(row),
+			startCol:   e.ScreenCol(gutterCols),
+			background: background,
+		}
+		paint.colors, inBlock = lineColors(e, paint.line, inBlock)
 
 		// Past the end of the line there is nothing to draw unless a selection
 		// bands over it, and the frame was cleared before any of this ran.
-		drawCols := textCols
+		paint.cols = textCols
 		if !selected.Active {
-			drawCols = max(min(textCols, lineLen-e.OffsetCol), 0)
+			paint.cols = max(min(textCols, len(paint.line)-e.OffsetCol), 0)
 		}
-		screenRow, textCol0 := e.ScreenRow(row), e.ScreenCol(gutterCols)
 
-		// Render visible characters in current row
-		for col := range drawCols {
-			textBufCol := col + e.OffsetCol
-			if textBufCol < 0 {
-				continue
-			}
-			inSelection := selected.Covers(textBufRow, textBufCol, lineLen)
+		drawRunes(e, paint)
+	}
+}
 
-			if textBufCol >= lineLen {
-				if inSelection {
-					termbox.SetCell(textCol0+col, screenRow, ' ', e.Palette.Plain, e.Palette.VisualBg)
-				}
-				continue
-			}
+// A rowPaint is one row of text with everything it is drawn against already
+// resolved: what the row holds, where on screen it starts and how far it
+// reaches, and the colours that belong to the whole of it rather than to a cell.
+type rowPaint struct {
+	line       []rune
+	colors     []termbox.Attribute
+	hits       find.HitScan
+	selected   edit.Span
+	row        int
+	screenRow  int
+	startCol   int
+	cols       int
+	background termbox.Attribute
+}
 
-			ch := line[textBufCol]
-			if ch == '\t' {
-				ch = ' '
-			}
+// drawRunes is the cells of one row. Which colour a cell ends up in is settled
+// here and in this order, each beating the one before it: the plain text, what
+// the syntax says, what a search matched, and what a selection covers — the
+// last two being deliberate, transient acts, which is why they win.
+func drawRunes(e *state.Editor, paint rowPaint) {
+	lineLen := len(paint.line)
 
-			foreground, cellBackground := e.Palette.Plain, background
-			if colors != nil {
-				foreground = colors[textBufCol]
-			}
-			if hits.Covers(textBufCol) {
-				foreground, cellBackground = e.Palette.MatchFg, e.Palette.MatchBg
-			}
-			// the selection keeps the text's own colours and takes the
-			// background, which is what makes it read as a band over them
+	for col := range paint.cols {
+		textBufCol := col + e.OffsetCol
+		if textBufCol < 0 {
+			continue
+		}
+		inSelection := paint.selected.Covers(paint.row, textBufCol, lineLen)
+
+		if textBufCol >= lineLen {
 			if inSelection {
-				cellBackground = e.Palette.VisualBg
+				termbox.SetCell(paint.startCol+col, paint.screenRow, ' ', e.Palette.Plain, e.Palette.VisualBg)
 			}
-			termbox.SetCell(textCol0+col, screenRow, ch, foreground, cellBackground)
+			continue
 		}
+
+		ch := paint.line[textBufCol]
+		if ch == '\t' {
+			ch = ' '
+		}
+
+		foreground, cellBackground := e.Palette.Plain, paint.background
+		if paint.colors != nil {
+			foreground = paint.colors[textBufCol]
+		}
+		if paint.hits.Covers(textBufCol) {
+			foreground, cellBackground = e.Palette.MatchFg, e.Palette.MatchBg
+		}
+		// the selection keeps the text's own colours and takes the background,
+		// which is what makes it read as a band over them
+		if inSelection {
+			cellBackground = e.Palette.VisualBg
+		}
+		termbox.SetCell(paint.startCol+col, paint.screenRow, ch, foreground, cellBackground)
 	}
 }
 
