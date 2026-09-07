@@ -72,13 +72,14 @@ internal/
     filetree/           the directory listing <leader>e draws
     tabbar/             the buffer line along the top
     prompt/             the line of input / ? and : are typed on
+    hover/              the box K's answer goes in, and its markup as plain text
     state/              the editor being run: cursor, mode, buffer, room
     edit/               typing, deleting, yank and put, the Visual selection
     rename/             <leader>cr: a name, and how far it reaches
     view/               the buffer list and the window tree
     diag/               what a language server said about a line, and where it moved to
     command/            the ':' commands, and the file writing they share
-    find/               search, gd, gr, the symbols and the picker's popup
+    find/               search, gd, gr, K, the symbols, the diagnostics, the popup
     explorer/           <leader>e: the file tree as the editor drives it
     render/             one frame: windows, buffer line, status line
     keys/               which command each key, chord and count names
@@ -90,10 +91,10 @@ the dependencies run one way. Under `internal/`, `chars`, `theme`, `buffer`,
 `gutter`, `project` and `layout` depend on nothing of the editor's, `syntax` on
 `chars` and `theme`, `fuzzy` and `decl` on `chars`, `search` and `lsp` on
 `buffer`, and `motion` on both. Under `editor/`, `screen`, `history`, `register`,
-`picker`, `filetree`, `tabbar` and `prompt` are leaves in the same way; `state`
-holds them and is what every command below takes as its one argument — `edit` first, then
-`view` on top of it, then `rename` and `diag`, with `command`, `find` and
-`explorer` above them and `render` and `keys` reading all of them.
+`picker`, `filetree`, `tabbar`, `prompt` and `hover` are leaves in the same way;
+`state` holds them and is what every command below takes as its one argument —
+`edit` first, then `view` on top of it, then `rename` and `diag`, with `command`,
+`find` and `explorer` above them and `render` and `keys` reading all of them.
 
 What is left in `editor` itself is the loop: it makes the one `state.Editor`,
 draws a frame from it and hands the next key to `keys`. Every test lives in the
@@ -154,6 +155,10 @@ otherwise close a cycle.
 - **Go to definition and references** — `gd` on an identifier jumps to where it is declared. A language server knows which `count` of the four in the file is the one under the cursor, and is asked when there is one; what follows is what answers when there is not. VIM's own `gd` is a local declaration, and so is the text's: the search goes *up* from the cursor to the start of the top-level construct it sits in and takes the nearest line declaring the name — the parameter it was passed as, the local it was assigned from — rather than a field of the same name three hundred lines below. A mention reached through a `.` is not one of them, so `b.file` never answers for `file`. Failing that the whole file is searched in the shapes a declaration takes across the languages the editor highlights — `func`/`fn`/`def`/`function`, `type`/`class`/`struct`/`interface`, a parameter list, `var`/`let`/`const`, then a `:=` or `=` binding — strongest form first, with the plain first mention of the word as the last resort. Failing that too the files beside it of the same kind are read (under the project root, hidden directories left out, nothing larger than a megabyte) and the one holding it is opened as a buffer. `Ctrl-O` goes back to where the jump left from, across files as well, and the row is centred when the jump lands off screen. Nothing found says so (`E388`), as does a cursor on no identifier at all (`E349`). `gr` is the other half of it: every mention of the identifier — from the server when there is one, and otherwise the file being edited first, then the ones of the same kind beside it — listed in the picker's own popup as `file:line: the line itself`, narrowed by what is typed and opened with `Enter`, which counts as a jump so `Ctrl-O` comes back from it too. A server tells the two apart that the text cannot: `gr` on a method finds the calls to *that* method rather than every line in the project with the same word in it.
 
   **A lookup never holds the keyboard.** The request goes out, the editor carries on, and the answer lands a few frames later; nothing is drawn in between, since a warm server answers in tens of milliseconds and a message that appears for that long is a flicker rather than news. An answer to a lookup already given up on — the cursor has moved, or another `gd` has been pressed since — is dropped rather than acted on, because acting on it would move the cursor over whatever was started instead. And a server that finds nothing, refuses, or never answers at all leaves the text to answer: a hung one degrades to the paragraphs above after two seconds rather than to nothing at all.
+
+- **Hover** — `K` on an identifier is what a language server knows about it, in a box beside the cursor: the signature, the type, and the doc comment above the declaration. It is VIM's own `K` with the server where the man page used to be, and there is nothing behind it in the text — a doc comment read off the file is what `gd` is for, and `gd` goes to the file rather than quoting it back at you, so with no server running `K` says so and leaves it there.
+
+  The box goes *under* the cursor's line, since one drawn over it would hide the thing being asked about, and above it when there is no room below; it is sized to the answer and pulled left to stay on the screen. What the server sends is markup, and a terminal has no bold and no headings to draw it with, so the fences come off and what is left is the text: a fenced signature keeps the line breaks it was written with — it is code, and rewrapping it across a comma reads worse than cutting it — while the prose is joined into a paragraph and wrapped to the box's own width. An answer longer than the box is cut rather than scrolled. It comes down on the next key pressed, whatever that key is, the way the status line's own message does; nothing about it is waited for, so the box appears a frame or two after `K` and the keyboard is never held.
 
 - **Rename** — `<leader>cr` on an identifier is LazyVim's rename with the same text behind it rather than a language server: the `:` line opens on `:rename target` with the name already typed, so it is edited into the new one rather than retyped, and `Enter` renames it as far as it reaches. What a rename has to get right is *which* mentions are the same thing rather than the same spelling, and that is read off the declaration:
 
@@ -239,6 +244,7 @@ otherwise close a cycle.
 | `<leader>cr` | Normal | rename the identifier under the cursor as far as it reaches |
 | `:rename` | Normal | the same, typed out (`:rename handle`) |
 | `:wa` | Normal | write and format every buffer with unsaved changes |
+| `K` | Normal | show what a language server knows about the identifier under the cursor |
 | `Ctrl-O` | Normal | go back to where the last jump left from |
 | `<leader><leader>` | Normal | open the file picker on the project root |
 | `<leader>ss` | Normal | list the declarations of the file being edited |
