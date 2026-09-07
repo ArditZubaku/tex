@@ -2,6 +2,9 @@
 
 A small terminal text editor written in Go, built on [termbox-go](https://github.com/nsf/termbox-go). It's modal like VIM (separate Normal/Read, Insert/Edit and Visual modes) and currently implements a subset of VIM's motions and editing keys.
 
+https://github.com/user-attachments/assets/620b49ad-a62f-47fb-b0f7-113c9e453f8e
+
+
 ## Usage
 
 ```sh
