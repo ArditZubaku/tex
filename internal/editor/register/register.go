@@ -3,7 +3,10 @@
 // v), which spans more than one line only when a Visual selection did.
 package register
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 type Register struct {
 	lines    [][]rune
@@ -16,6 +19,24 @@ func Charwise(lines [][]rune) Register { return Register{lines: lines} }
 func (r Register) Empty() bool       { return len(r.lines) == 0 }
 func (r Register) IsLinewise() bool  { return r.linewise }
 func (r Register) Content() [][]rune { return r.lines }
+
+// Text is the register flattened for something outside the editor to read,
+// such as the system clipboard: its lines joined by "\n", with a trailing one
+// added for a linewise register since that is whole lines rather than a run
+// stopping mid-line.
+func (r Register) Text() string {
+	lines := make([]string, len(r.lines))
+	for i, line := range r.lines {
+		lines[i] = string(line)
+	}
+
+	text := strings.Join(lines, "\n")
+	if r.linewise {
+		text += "\n"
+	}
+
+	return text
+}
 
 // Repeated is a counted put of a charwise register: the copies run into each
 // other, so putting a two-line register twice leaves three lines, not four.
