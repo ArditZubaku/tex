@@ -8,6 +8,7 @@ import (
 
 	"github.com/nsf/termbox-go"
 
+	"github.com/ArditZubaku/tex/internal/editor/diag"
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
@@ -16,6 +17,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/gutter"
+	"github.com/ArditZubaku/tex/internal/theme"
 )
 
 // textScratch is the row being drawn, decoded into an array that outlives the
@@ -28,6 +30,7 @@ func Text(e *state.Editor) {
 	textCols := e.Cols - gutterCols
 	inBlock := blockStateBefore(e, e.OffsetRow)
 	selected := edit.Selection(e)
+	notes := diag.Of(e.SourceFile)
 
 	for row := range e.Rows {
 		textBufRow := row + e.OffsetRow
@@ -41,10 +44,24 @@ func Text(e *state.Editor) {
 			continue
 		}
 
+		// Most files have nothing said about them, and the zero value already
+		// answers "nothing on this row" for every column of it.
+		var marks diag.Rows
+		if len(notes) > 0 {
+			marks = notes.Row(textBufRow)
+		}
+
 		numberColor, background := e.Palette.LineNumber, e.Palette.Background
 		if textBufRow == e.Row {
 			numberColor, background = e.Palette.CursorLineNumber, e.Palette.CursorLineBg
 			screen.Fill(e.ScreenCol(0), e.ScreenRow(row), e.Cols, e.Palette.Plain, e.Palette.CursorLineBg)
+		}
+		// The number rather than a column of its own: a marker beside the text
+		// would move every line across the moment a server came up, and the row
+		// is worth marking even when what was said about it is scrolled out of
+		// sight sideways.
+		if worst := marks.Worst(); worst != diag.None {
+			numberColor = severityColor(&e.Palette, worst)
 		}
 		screen.Print(e.ScreenCol(0), e.ScreenRow(row), numberColor, background, gutter.Label(textBufRow, e.Row, gutterCols))
 
@@ -52,6 +69,7 @@ func Text(e *state.Editor) {
 		paint := rowPaint{
 			line:       textScratch,
 			hits:       find.LineHits(e, textBufRow),
+			marks:      marks,
 			selected:   selected,
 			row:        textBufRow,
 			screenRow:  e.ScreenRow(row),
@@ -78,6 +96,7 @@ type rowPaint struct {
 	line       []rune
 	colors     []termbox.Attribute
 	hits       find.HitScan
+	marks      diag.Rows
 	selected   edit.Span
 	row        int
 	screenRow  int
@@ -88,8 +107,9 @@ type rowPaint struct {
 
 // drawRunes is the cells of one row. Which colour a cell ends up in is settled
 // here and in this order, each beating the one before it: the plain text, what
-// the syntax says, what a search matched, and what a selection covers — the
-// last two being deliberate, transient acts, which is why they win.
+// the syntax says, what a server said about it, what a search matched, and what
+// a selection covers. The last two are deliberate, transient acts, which is why
+// they win over a diagnostic that will still be there afterwards.
 func drawRunes(e *state.Editor, paint rowPaint) {
 	lineLen := len(paint.line)
 
@@ -116,6 +136,9 @@ func drawRunes(e *state.Editor, paint rowPaint) {
 		if paint.colors != nil {
 			foreground = paint.colors[textBufCol]
 		}
+		if severity := paint.marks.Under(textBufCol); severity != diag.None {
+			foreground = severityColor(&e.Palette, severity) | termbox.AttrUnderline
+		}
 		if paint.hits.Covers(textBufCol) {
 			foreground, cellBackground = e.Palette.MatchFg, e.Palette.MatchBg
 		}
@@ -125,6 +148,19 @@ func drawRunes(e *state.Editor, paint rowPaint) {
 			cellBackground = e.Palette.VisualBg
 		}
 		termbox.SetCell(paint.startCol+col, paint.screenRow, ch, foreground, cellBackground)
+	}
+}
+
+// Info and a hint share a colour: the difference between them is not worth a
+// third shade the eye has to learn.
+func severityColor(palette *theme.Palette, severity diag.Severity) termbox.Attribute {
+	switch severity {
+	case diag.Error:
+		return palette.DiagError
+	case diag.Warning:
+		return palette.DiagWarn
+	default:
+		return palette.DiagHint
 	}
 }
 

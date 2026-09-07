@@ -14,6 +14,7 @@ import (
 	"github.com/nsf/termbox-go"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/diag"
 	"github.com/ArditZubaku/tex/internal/editor/filetree"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/keys"
@@ -89,6 +90,7 @@ func InReadMode(t *testing.T, e *state.Editor, content string, row, col int) *bu
 	e.ExplorerOpen, e.Exp = false, filetree.Tree{}
 	view.Reset()
 	render.Reset()
+	diag.Reset()
 	lsp.Reset()
 	e.WinRow, e.WinCol = state.TabBarRows, 0
 
