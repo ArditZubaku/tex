@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
 )
@@ -16,6 +17,7 @@ const (
 	methodReferences      = "textDocument/references"
 	methodDocumentSymbol  = "textDocument/documentSymbol"
 	methodWorkspaceSymbol = "workspace/symbol"
+	methodHover           = "textDocument/hover"
 )
 
 // A Location is somewhere in a file as a server names it: a URI, and a range
@@ -49,6 +51,14 @@ func (s Symbol) At() Position {
 }
 
 func (s Symbol) In() string { return Path(s.Location.URI) }
+
+// A hover is what a server has to say about what is under the cursor. Its
+// contents are one of the three shapes the protocol has grown through — a
+// marked-up block, a string, or a list of either — so the text is pulled out of
+// whichever came rather than decoded into one of them.
+type hover struct {
+	Contents json.RawMessage `json:"contents"`
+}
 
 type positionParams struct {
 	TextDocument ident    `json:"textDocument"`
@@ -117,6 +127,23 @@ func WorkspaceSymbols(path, query string, answer func([]Symbol, error)) {
 			}
 			answer(symbolsFrom(result))
 		})
+}
+
+// Hover is what the server knows about the identifier at row and col: a doc
+// comment, a signature, a type — as markup, in whichever of the protocol's
+// three shapes for it the server chose.
+func Hover(path string, b *buffer.Buffer, row, col int, answer func(string, error)) {
+	askServer(path, methodHover, positionParams{
+		TextDocument: ident{URI: FileURI(path)},
+		Position:     PositionEncoding().Pos(b, row, col),
+	}, func(result json.RawMessage, err error) {
+		if err != nil {
+			answer("", err)
+
+			return
+		}
+		answer(hoverFrom(result))
+	})
 }
 
 func locate(path, method string, params any, answer func([]Location, error)) {
@@ -191,4 +218,51 @@ func flattened(into, symbols []Symbol) []Symbol {
 
 func empty(result json.RawMessage) bool {
 	return len(result) == 0 || string(result) == "null"
+}
+
+func hoverFrom(result json.RawMessage) (string, error) {
+	if empty(result) {
+		return "", nil
+	}
+
+	var got hover
+	if err := json.Unmarshal(result, &got); err != nil {
+		return "", err
+	}
+
+	return markupText(got.Contents), nil
+}
+
+// A list is joined with blank lines between its blocks, which is how a server
+// that still sends one means it to read.
+func markupText(contents json.RawMessage) string {
+	if empty(contents) {
+		return ""
+	}
+
+	var many []json.RawMessage
+	if err := json.Unmarshal(contents, &many); err == nil {
+		blocks := make([]string, 0, len(many))
+		for _, one := range many {
+			if text := markupText(one); text != "" {
+				blocks = append(blocks, text)
+			}
+		}
+
+		return strings.Join(blocks, "\n\n")
+	}
+
+	var text string
+	if err := json.Unmarshal(contents, &text); err == nil {
+		return text
+	}
+
+	var block struct {
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(contents, &block); err != nil {
+		return ""
+	}
+
+	return block.Value
 }

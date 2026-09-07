@@ -207,3 +207,53 @@ func TestALookupWithNoServerIsRefusedRatherThanLeftWaiting(t *testing.T) {
 		t.Fatal("the lookup was never answered at all")
 	}
 }
+
+func TestAHoverIsReadOutOfWhicheverShapeTheServerSentIt(t *testing.T) {
+	for _, one := range []struct {
+		shape    string
+		contents any
+		want     string
+	}{
+		{"a marked-up block", map[string]any{"kind": "markdown", "value": "func Run()"}, "func Run()"},
+		{"a bare string", "func Run()", "func Run()"},
+		{"a list of blocks", []any{
+			map[string]any{"language": "go", "value": "func Run()"},
+			"Run is the editor.",
+		}, "func Run()\n\nRun is the editor."},
+	} {
+		t.Run(one.shape, func(t *testing.T) {
+			h, path := asking(t, "main.go", "package main\n")
+			b := opening(t, path)
+
+			var got string
+			Hover(path, b, 0, 8, func(text string, _ error) { got = text })
+
+			asked := h.sent()
+			if asked.Method != methodHover {
+				t.Fatalf("the server was asked %q, want %q", asked.Method, methodHover)
+			}
+
+			h.server.answer(asked.ID, map[string]any{"contents": one.contents})
+			h.poll()
+
+			if got != one.want {
+				t.Errorf("the hover read as %q, want %q", got, one.want)
+			}
+		})
+	}
+}
+
+func TestAServerWithNothingToSayAboutTheCursorAnswersEmpty(t *testing.T) {
+	h, path := asking(t, "main.go", "package main\n")
+	b := opening(t, path)
+
+	got, failed := "unset", ErrStopped
+	Hover(path, b, 0, 8, func(text string, err error) { got, failed = text, err })
+
+	h.server.answer(h.sent().ID, nil)
+	h.poll()
+
+	if got != "" || failed != nil {
+		t.Errorf("nothing to say came back as %q, %v", got, failed)
+	}
+}
