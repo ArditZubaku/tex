@@ -19,7 +19,19 @@ import (
 )
 
 func Read(e *state.Editor) {
-	keyEvent, _ := screen.Key()
+	keyEvent, isKey := screen.Key()
+
+	Handle(e, keyEvent, isKey)
+}
+
+// Handle is one event off the terminal. Anything that was not a key is a frame
+// owed and nothing else: a chord half typed, a count, and what the last command
+// reported all outlive a resize, and outlive the interrupt a language server's
+// answer wakes the loop with.
+func Handle(e *state.Editor, keyEvent termbox.Event, isKey bool) {
+	if !isKey {
+		return
+	}
 	e.StatusMsg = "" // whatever the last command reported has had its redraw
 
 	Dispatch(e, keyEvent)
