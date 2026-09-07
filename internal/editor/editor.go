@@ -44,9 +44,15 @@ func Run(args []string) {
 
 	ed.Lang = syntax.Detect(ed.SourceFile)
 	lsp.Wake(screen.StartWaker())
-	// Nothing below state may reach back up to what holds the diagnostics, so
-	// the loop is what joins the two.
+	// Nothing below state may reach back up to what holds the diagnostics, and
+	// nothing in the language server may reach the editor at all, so the loop
+	// is what joins them.
 	state.OnEdit = diag.Edited
+	lsp.Published = diag.Publish
+	lsp.Gone = func(err error) {
+		diag.Reset()
+		ed.Note.Show("language server", err.Error())
+	}
 
 	for !ed.Quitting {
 		// Fetch current screen dimensions
