@@ -30,6 +30,11 @@ func Run(args []string) {
 	// colour below is unchanged by this, since termbox numbers the first
 	// sixteen of the 256 the same way it numbers the eight.
 	termbox.SetOutputMode(termbox.Output256)
+	// The mouse is only ever the lines between the windows, but asking for it
+	// asks for all of it: the terminal stops selecting text on a plain drag,
+	// which is what Shift held down goes on doing in every terminal worth the
+	// name.
+	termbox.SetInputMode(termbox.InputEsc | termbox.InputMouse)
 
 	ed := state.New()
 

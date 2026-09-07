@@ -29,6 +29,12 @@ func Read(e *state.Editor) {
 // reported and the box a server's answer went in all outlive a resize, and
 // outlive the interrupt that answer wakes the loop with.
 func Handle(e *state.Editor, keyEvent termbox.Event, isKey bool) {
+	if keyEvent.Type == termbox.EventMouse {
+		e.Hov.Clear()
+		view.Mouse(e, keyEvent)
+
+		return
+	}
 	if !isKey {
 		return
 	}
