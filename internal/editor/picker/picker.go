@@ -184,12 +184,12 @@ func (p *Picker) Draw(within layout.Rect, palette *theme.Palette) {
 			break
 		}
 
-		foreground, background := palette.Plain, palette.Background
+		background := palette.Background
 		if at == p.sel {
-			foreground, background = palette.TabActiveFg, palette.TabActiveBg
+			background = palette.VisualBg
 		}
 		entry := p.entries[p.matches[at].at]
-		screen.Print(frame.Col+1, frame.Row+3+i, foreground, background,
+		screen.Print(frame.Col+1, frame.Row+3+i, palette.Plain, background,
 			screen.Pad(" "+screen.Truncate(entry.Label, frame.Cols-3, entry.Row < 0), frame.Cols-2))
 	}
 }
