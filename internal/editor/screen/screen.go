@@ -91,3 +91,32 @@ func Key() (termbox.Event, bool) {
 
 	return event, event.Type == termbox.EventKey
 }
+
+// StartWaker is how something off the loop's goroutine asks for a frame: it
+// returns the function to call, which never blocks and never draws anything
+// itself.
+//
+// termbox's own interrupt channel is unbuffered, so Interrupt blocks until a
+// PollEvent takes it — which is why exactly one goroutine ever waits there, and
+// why what asks for a frame goes through a channel of one instead. A burst of
+// answers arriving is a single wake-up, and the loop draws once for all of them.
+//
+// It is returned rather than installed because the editor's own loop is the
+// only thing that may call it: a test drives the dispatcher directly, never
+// initialises termbox, and must therefore never have a waker at all.
+func StartWaker() func() {
+	asked := make(chan struct{}, 1)
+
+	go func() {
+		for range asked {
+			termbox.Interrupt()
+		}
+	}()
+
+	return func() {
+		select {
+		case asked <- struct{}{}:
+		default:
+		}
+	}
+}

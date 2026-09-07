@@ -11,9 +11,11 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/keys"
 	"github.com/ArditZubaku/tex/internal/editor/render"
+	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/gutter"
+	"github.com/ArditZubaku/tex/internal/lsp"
 	"github.com/ArditZubaku/tex/internal/syntax"
 )
 
@@ -40,6 +42,7 @@ func Run(args []string) {
 	}
 
 	ed.Lang = syntax.Detect(ed.SourceFile)
+	lsp.Wake(screen.StartWaker())
 
 	for !ed.Quitting {
 		// Fetch current screen dimensions
@@ -50,6 +53,8 @@ func Run(args []string) {
 			ed.ScreenCols = 80
 		}
 		view.Layout(ed)
+		lsp.Poll()
+		tellServer(ed)
 
 		if err := termbox.Clear(ed.Palette.Plain, ed.Palette.Background); err != nil {
 			slog.Error("Could not clear terminal", "error", err)
@@ -81,6 +86,25 @@ func Run(args []string) {
 		keys.Read(ed)
 	}
 
+	lsp.Stop()
 	view.CloseAll(ed)
 	termbox.Close()
+}
+
+// open is the list handed to the reconciler, kept between frames so that saying
+// what is open costs nothing per frame.
+var open []lsp.File
+
+// tellServer is where the editor's own idea of what is open meets the server's.
+// It is the loop that does it rather than the edit commands because reading a
+// buffer moves its window, so only this goroutine may, and because a frame is
+// the one place every way text can have changed has already happened.
+func tellServer(e *state.Editor) {
+	view.SyncBuffer(e)
+
+	open = open[:0]
+	for _, entry := range view.Buffers() {
+		open = append(open, lsp.File{Path: entry.Path, Buf: entry.Buf, Modified: entry.Modified})
+	}
+	lsp.Sync(open)
 }

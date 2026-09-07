@@ -22,6 +22,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/render"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
+	"github.com/ArditZubaku/tex/internal/lsp"
 	"github.com/ArditZubaku/tex/internal/search"
 	"github.com/ArditZubaku/tex/internal/theme"
 )
@@ -88,6 +89,7 @@ func InReadMode(t *testing.T, e *state.Editor, content string, row, col int) *bu
 	e.ExplorerOpen, e.Exp = false, filetree.Tree{}
 	view.Reset()
 	render.Reset()
+	lsp.Reset()
 	e.WinRow, e.WinCol = state.TabBarRows, 0
 
 	return b
