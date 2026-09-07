@@ -15,7 +15,9 @@ import (
 func mask(t *testing.T, s *Syntax, line string, inBlock bool) (string, bool) {
 	t.Helper()
 
-	palette := theme.Default()
+	// Default() is github-dark, which paints several kinds the same colour by
+	// design; the mask needs one colour per kind to tell them apart.
+	palette := theme.Themes[0]
 
 	runes := []rune(line)
 	out := make([]termbox.Attribute, len(runes))
