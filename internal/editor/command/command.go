@@ -159,6 +159,7 @@ func reformat(e *state.Editor, path string) string {
 	}
 
 	e.Buf.Reload(path)
+	state.Edited(path, 0, state.FileRewritten)
 	// Reindenting leaves every line where it was, so what undo remembers still
 	// names the line it was recorded against. Adding or removing one moves every
 	// row below it, and replaying that would put lines back in the wrong places.
@@ -233,6 +234,7 @@ func reformatEntry(entry *view.Entry, note *notify.Note) {
 	}
 
 	entry.Buf.Reload(entry.Path)
+	state.Edited(entry.Path, 0, state.FileRewritten)
 	if entry.Buf.LineCount() != rows {
 		entry.Hist = history.History{}
 	}
