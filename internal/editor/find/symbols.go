@@ -70,14 +70,56 @@ func symbolsInText(e *state.Editor) {
 	showPicker(e, "Symbols in "+filepath.Base(e.SourceFile), entries)
 }
 
-// '<leader>sS' is the same listing widened to the project: the file being
-// edited first, then the ones of the same kind beside it, which is as far as
-// 'gd' and 'gr' reach too.
+// '<leader>sS' is the same listing widened to the project. A language server is
+// asked for it whole, which is the one place the two do not fit each other: the
+// protocol's own workspace symbols are query-driven, while the popup lists
+// everything and narrows locally. An empty query is what asks for all of it —
+// gopls answers that in full — and a server that will not is a server the text
+// listing answers for.
 func OpenWorkspaceSymbols(e *state.Editor) {
+	if lsp.Ready(e.SourceFile) {
+		askWorkspaceSymbols(e)
+
+		return
+	}
+
+	workspaceSymbolsInText(e)
+}
+
+func askWorkspaceSymbols(e *state.Editor) {
+	token, from := ask(e)
+	path := e.SourceFile
+	lsp.WorkspaceSymbols(path, "", func(found []lsp.Symbol, err error) {
+		if !stale(e, token, from) {
+			listWorkspaceSymbols(e, path, found, err)
+		}
+	})
+}
+
+// A server that answered an empty query with nothing has declined to list the
+// project rather than found none, so the text listing is what answers: a
+// project with no declarations anywhere in it is not a thing that happens.
+func listWorkspaceSymbols(e *state.Editor, path string, found []lsp.Symbol, err error) {
+	if err != nil || len(found) == 0 {
+		workspaceSymbolsInText(e)
+
+		return
+	}
+
+	showWorkspaceSymbols(e, path, symbolRows(path, found[:min(len(found), maxSymbols)]))
+}
+
+func workspaceSymbolsInText(e *state.Editor) {
 	entries := bufferSymbols(e)
 	entries = append(entries, symbolsInFiles(e, maxSymbols-len(entries))...)
+
+	showWorkspaceSymbols(e, e.SourceFile, entries)
+}
+
+func showWorkspaceSymbols(e *state.Editor, path string, entries []picker.Entry) {
+	root := filepath.Base(project.Root(path))
 	if len(entries) == 0 {
-		e.StatusMsg = "no symbols under " + filepath.Base(project.Root(e.SourceFile))
+		e.StatusMsg = "no symbols under " + root
 		return
 	}
 
@@ -87,7 +129,7 @@ func OpenWorkspaceSymbols(e *state.Editor) {
 		entries[at].Label = fmt.Sprintf("%s  %s:%d", entry.Label, filepath.Base(entry.Path), entry.Row+1)
 	}
 
-	showPicker(e, "Symbols under "+filepath.Base(project.Root(e.SourceFile)), entries)
+	showPicker(e, "Symbols under "+root, entries)
 }
 
 func bufferSymbols(e *state.Editor) []picker.Entry {

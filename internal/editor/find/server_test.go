@@ -276,3 +276,38 @@ func TestAServerThatRefusedTheSymbolsLeavesTheTextToList(t *testing.T) {
 		t.Errorf("the text listing found %d symbols, want 1", got)
 	}
 }
+
+func TestTheProjectsSymbolsFromAServerCarryTheFileTheyAreIn(t *testing.T) {
+	e, one := answered(t, "one.go", "package main\n")
+	two := filepath.Join(filepath.Dir(one), "two.go")
+	if err := os.WriteFile(two, []byte("package main\n\nfunc use() {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	listWorkspaceSymbols(e, one, []lsp.Symbol{{
+		Name:     "use",
+		Kind:     12,
+		Location: lsp.Location{URI: lsp.FileURI(two), Range: lsp.Range{Start: lsp.Position{Line: 2, Character: 5}}},
+	}}, nil)
+
+	entries := e.Pick.Matched()
+	if len(entries) != 1 {
+		t.Fatalf("the popup lists %d rows, want 1", len(entries))
+	}
+	if want := "Function  use  two.go:3"; entries[0].Label != want {
+		t.Errorf("the row reads %q, want %q", entries[0].Label, want)
+	}
+}
+
+func TestAServerThatWillNotListTheProjectLeavesTheTextToDoIt(t *testing.T) {
+	e, path := answered(t, "one.go", "package main\n\nfunc use() {}\n")
+
+	listWorkspaceSymbols(e, path, nil, nil)
+
+	if e.Mode != state.PickerMode {
+		t.Fatalf("the text listing did not open the popup: %q", e.StatusMsg)
+	}
+	if want := "Function  use  one.go:3"; e.Pick.Matched()[0].Label != want {
+		t.Errorf("the row reads %q, want %q", e.Pick.Matched()[0].Label, want)
+	}
+}
