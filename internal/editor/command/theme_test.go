@@ -54,7 +54,7 @@ func TestThemeCommandRejectsWhatIsNotAThemeNumber(t *testing.T) {
 
 		edtest.Press(t, e, ":theme="+arg+"\n")
 
-		if e.Palette.Name != "default" {
+		if e.Palette.Name != "github-dark" {
 			t.Errorf("theme=%s changed the palette to %q", arg, e.Palette.Name)
 		}
 		if want := "E474: Invalid argument: theme=" + arg; e.StatusMsg != want {
@@ -70,7 +70,7 @@ func TestBareThemeCommandNamesWhatIsInUse(t *testing.T) {
 
 	edtest.Press(t, e, ":theme\n")
 
-	if want := "theme=1 (1=default, 2=gruvbox, 3=github-dark)"; e.StatusMsg != want {
+	if want := "theme=3 (1=default, 2=gruvbox, 3=github-dark)"; e.StatusMsg != want {
 		t.Errorf("statusMsg = %q, want %q", e.StatusMsg, want)
 	}
 }
