@@ -62,6 +62,7 @@ internal/
   search/               a literal pattern matched over a buffer
   decl/                 what a declaration looks like: gd, gr and the symbols
   project/              the tree the file sits in, and the files beside it
+  lsp/                  a language server: the framing, the handshake, the documents
   layout/               the window tree: splits, closes and rectangles
   editor/               the loop: draw a frame, read a key, repeat
     screen/             putting text on the terminal, and taking a key off it
@@ -75,6 +76,7 @@ internal/
     edit/               typing, deleting, yank and put, the Visual selection
     rename/             <leader>cr: a name, and how far it reaches
     view/               the buffer list and the window tree
+    diag/               what a language server said about a line, and where it moved to
     command/            the ':' commands, and the file writing they share
     find/               search, gd, gr, the symbols and the picker's popup
     explorer/           <leader>e: the file tree as the editor drives it
@@ -86,12 +88,12 @@ internal/
 Nothing below `editor` imports it, and nothing imports `editor` but `main`, so
 the dependencies run one way. Under `internal/`, `chars`, `theme`, `buffer`,
 `gutter`, `project` and `layout` depend on nothing of the editor's, `syntax` on
-`chars` and `theme`, `fuzzy` and `decl` on `chars`, `search` on `buffer` and
-`motion` on both. Under `editor/`, `screen`, `history`, `register`, `picker`,
-`filetree`, `tabbar` and `prompt` are leaves in the same way; `state` holds them
-and is what every command below takes as its one argument — `edit` first, then
-`view` on top of it, then `rename`, with `command`, `find` and `explorer` above
-them and `render` and `keys` reading all of them.
+`chars` and `theme`, `fuzzy` and `decl` on `chars`, `search` and `lsp` on
+`buffer`, and `motion` on both. Under `editor/`, `screen`, `history`, `register`,
+`picker`, `filetree`, `tabbar` and `prompt` are leaves in the same way; `state`
+holds them and is what every command below takes as its one argument — `edit` first, then
+`view` on top of it, then `rename` and `diag`, with `command`, `find` and
+`explorer` above them and `render` and `keys` reading all of them.
 
 What is left in `editor` itself is the loop: it makes the one `state.Editor`,
 draws a frame from it and hands the next key to `keys`. Every test lives in the
@@ -159,6 +161,22 @@ otherwise close a cycle.
 
   **Nothing is written.** A file the rename reached joins the buffer list with its changes unsaved — the way `:e` and `gd` put a file there — and only if it actually changed, so it can be read through with `Tab`, put back with its own `u` (one undo step per file), and written when it is right: `:w` for one, `:wa` for all of them at once. The cursor never leaves the file the rename was asked for in, and stays on the name it was on, wherever a shorter or longer name has moved it along the line. The status line reports how far it went — `renamed target to handle: 9 changes in 4 files, none written (:wa)`, `2 changes on 2 lines` when it never left the buffer, or `3 changes, local to this block`. A new name that is not an identifier is refused (`E474`), as is a rename with no name to give (`E471`) or no identifier under the cursor (`E349`). `:rename handle` is the same command typed out, which is what the chord is a shortcut for.
 
+- **Diagnostics from a language server** — the errors and warnings `gopls` publishes, drawn under the text. The server is spoken to over JSON-RPC on its own standard input the way any editor speaks to one: found on the `PATH` the same way a formatter is, started once for the project the file being edited sits in, handed the document, and shut down with the editor. **Nothing is required.** With no `gopls` installed there are no diagnostics and nothing else about the editor changes — `gd`, `gr`, the symbol lists and `<leader>cr` go on reading the text, which is what they have always done. Go files with a `go.mod` above them are all that is sent so far.
+
+  A diagnostic is drawn as an underline in the severity's own colour — red for an error, yellow for a warning, blue for a hint — over the text as it already is, so the syntax colours stay legible under it, and the cursor line's band and a visual selection still win, since those are things being done rather than things being reported. The line number in the gutter is recoloured to match, which is what makes a diagnostic below the window findable; nothing widens, so there is no sign column and the text does not shift along when an error appears. A span across lines underlines from its start column on the first row, whole rows in the middle and up to the end column on the last; a range of no width takes the single rune it points at; and a span longer than eight rows — a syntax error the server could not place, reported over the rest of the file — draws only its first eight, since underlining a screenful says nothing.
+
+  The status line carries two things, both read off where the cursor is each time a frame is drawn rather than stored: the count, `[2E 1W]`, in the run of flags beside `[Copy]` and `[Undo]`, and the worst message on the line the cursor is on, cut to the room left beside the row and column. Neither is ever in the way of what a command has to say — a write, a pattern that matched nothing, a cancelled quit takes the line as it always has, and the message comes back once the line is free again. Moving off the line takes the message with it.
+
+  `]d` and `[d` walk the file's diagnostics forward and back, wrapping at the ends the way `n` and `N` do — and like them they are a move rather than a jump, so `Ctrl-O` is left meaning where you last came from and the window is not recentred out from under you. `:diag` lists all of them in the picker's own popup, worst first and then by file, line and column, each row marked `E`/`W`/`I`/`H` with the file, the line and the message; what is typed narrows the listing, and `Enter` opens that file and goes to the diagnostic. A message that runs over several lines is put back onto one, since a picker row and a status line each have one.
+
+  **A diagnostic that has stopped being true does not have to be redrawn to be right.** The server reports against a version of the document, and the document goes on being typed into while it thinks. So an underline moves with the line it is pinned to: a line inserted above it shifts it down, a line deleted above it shifts it up, and the notes on a deleted line go with it. The one case that drops them is the line being typed on, where the columns could have moved anywhere — an underline three runes out is worse than none, and it is the one line whose errors are already known about. An undo, a redo or a formatter having been over the file drops that file's notes: too much moved to follow, and the server's next answer is about 200ms away.
+
+  Which is the other half of it: **the diagnostic appears without a key being pressed.** The editor's loop blocks on the keyboard, so a server answering into an idle editor has to interrupt it, which is what the one goroutine parked in the terminal library is for; the document itself is sent no more often than every 200ms, however fast the typing is. It is streamed to the server through the same 64KB window everything else reads through rather than being loaded, and a file over a megabyte is not sent at all — the editor's own memory is what the section below is about, and handing a document over is not the place to give it up. What the server writes to its own standard error goes to a file in the temporary directory: the terminal belongs to the editor, and anything drawn on it by something else lands over the file being edited.
+
+  **The one cost that is real is the server's own memory, and it is not small.** The 8.8MB a 23MB file costs is unchanged by any of this — every number in [Memory model](#memory-model) still holds, because the editor still never loads the file. `gopls` is another matter: on a real module it holds the type information for every package it loads, which is **300MB to 1GB**, and no amount of care on this side changes that. So it is a trade rather than a free feature, and one made per project and only when the binary is there: what the editor costs is what it costs, and what a language server costs is what a language server costs. `gopls -remote=auto` shares one of them across every editor open on the machine, which is the right eventual answer to it.
+
+  A server that dies is reported once in the box in the corner, its underlines come off, and it is not started again — a language server restarting itself in a loop against a project it cannot load is worse than not having one. Everything the editor does from the text goes on working, which is the state it is in anyway when `gopls` was never there to begin with.
+
 - **Status bar** — one line at the foot of the screen for the window being worked in: its mode, file name, line count, modified/saved state, whether the register and the undo/redo stacks hold anything, the count being typed, and cursor row/column. The prompt takes the line over while a search or a `:` command is being typed, and what a command has to report — a write, a pattern that matched nothing, a cancelled quit — is shown there.
 - **Constant-memory file loading** — the file is never held in memory. Opening it builds an index of where each line starts (8 bytes per line) and nothing else; lines are read through one fixed 64KB window and decoded to runes only when they're on screen or under the cursor. Opening a 23MB file of 202,000 lines and jumping to the end costs **8.8MB of RSS**, and that figure doesn't move however far you scroll — 5.2MB of it is the Go runtime floor a one-line file also pays, so the file itself accounts for 2.6MB. See [Memory model](#memory-model).
 
@@ -221,6 +239,8 @@ otherwise close a cycle.
 | `<leader><leader>` | Normal | open the file picker on the project root |
 | `<leader>ss` | Normal | list the declarations of the file being edited |
 | `<leader>sS` | Normal | list the declarations of every file of the same kind under the project root |
+| `]d` `[d` | Normal | jump to the next / previous diagnostic in the file, wrapping at the ends |
+| `:diag` | Normal | list every diagnostic a language server has published, worst first |
 | any letter | Picker | narrow the listing to the files matching what is typed |
 | `Ctrl-N` `Ctrl-P` | Picker | move down / up the listing |
 | `Enter` | Picker | open the file settled on |
