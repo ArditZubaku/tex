@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"time"
@@ -55,7 +56,17 @@ var (
 	starts []int64
 
 	waking time.Time
+
+	// A server that died is reported once. Nothing is restarted: a retry on
+	// every frame is a process started sixty times a second.
+	toldGone bool
 )
+
+// Gone is a server that died mid-session, so that what it had said can be
+// dropped and the editor can say so. A server that was never installed is not
+// reported: the editor going on doing what it does without one is the point of
+// the fallback, not something to interrupt anybody about.
+var Gone func(err error)
 
 // Wake is where a goroutine off the loop asks for a frame, and nothing here
 // does anything until it is set. That is what keeps a language server out of
@@ -123,8 +134,8 @@ func Stop() {
 func Reset() {
 	Stop()
 
-	wake, waking, starts = nil, time.Time{}, nil
-	Published = nil
+	wake, waking, starts, toldGone = nil, time.Time{}, nil, false
+	Gone, Published = nil, nil
 	dialFor = Server
 	clear(resolvedPaths)
 	clear(projectRoots)
@@ -244,8 +255,9 @@ func running(name, at string) bool {
 			return false
 		}
 	}
-	if client.Err() != nil {
+	if err := client.Err(); err != nil {
 		clear(docs)
+		reportGone(err)
 
 		return false
 	}
@@ -253,6 +265,15 @@ func running(name, at string) bool {
 	// One server, one root: a file outside it would be answered about the
 	// module it is not in, which is worse than not being answered at all.
 	return client.Ready() && at == root
+}
+
+func reportGone(err error) {
+	if toldGone || Gone == nil || errors.Is(err, ErrNotInstalled) {
+		return
+	}
+
+	toldGone = true
+	Gone(err)
 }
 
 // A change the throttle held back needs a frame of its own to go out on, since
