@@ -64,7 +64,7 @@ var exCommands = exCommandTable()
 func exCommandTable() map[string]exCommand {
 	commands := map[string]exCommand{
 		"w write": func(e *state.Editor, arg string, _ bool) { Write(e, arg) },
-		"wa wall": func(e *state.Editor, _ string, _ bool) { WriteAll(e) },
+		"wa wall": func(e *state.Editor, _ string, _ bool) { _ = WriteAll(e) },
 		"e edit":  func(e *state.Editor, arg string, force bool) { Edit(e, cmp.Or(arg, e.SourceFile), force) },
 		"wq x xit": func(e *state.Editor, arg string, _ bool) {
 			if Write(e, arg) {
@@ -181,8 +181,10 @@ func reasonOf(err error) string {
 
 // WriteAll is ':wa': every buffer holding unsaved changes written back where it
 // came from, which is how a rename across files — or an edit made in several of
-// them — is committed in one command rather than one buffer at a time.
-func WriteAll(e *state.Editor) {
+// them — is committed in one command rather than one buffer at a time. It
+// reports whether every one of them landed, which is what a caller that means
+// to act on the write — quitting once it is safe to — needs to know.
+func WriteAll(e *state.Editor) bool {
 	view.SyncBuffer(e)
 	e.Note.Clear()
 
@@ -195,7 +197,7 @@ func WriteAll(e *state.Editor) {
 			slog.Error("Failed to save file", "path", entry.Path, "error", err)
 			e.StatusMsg = "E212: Can't open file for writing: " + entry.Path
 			e.Modified = view.CurrentEntry(e).Modified
-			return
+			return false
 		}
 		entry.Modified = false
 		reformatEntry(entry, &e.Note)
@@ -208,6 +210,8 @@ func WriteAll(e *state.Editor) {
 	if written == 1 {
 		e.StatusMsg = "1 file written"
 	}
+
+	return true
 }
 
 // reformatEntry is reformat for a file ':wa' wrote that is not the one under
