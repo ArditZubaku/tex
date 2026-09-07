@@ -101,6 +101,8 @@ type Editor struct {
 	Palette theme.Palette
 
 	Hist history.History
+	// Clip is VIM's unnamed register. Write it through SetClip, not directly,
+	// so every yank and delete reaches the system clipboard too.
 	Clip register.Register
 
 	Prompt       prompt.Line
