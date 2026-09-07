@@ -15,6 +15,9 @@ lint:
 		-w /app \
 		golangci/golangci-lint:latest-alpine golangci-lint run -v
 
+test:
+	@go test -v ./...
+
 format:
 	docker run --rm \
 		-v $$(pwd):/app \
