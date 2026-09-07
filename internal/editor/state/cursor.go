@@ -86,12 +86,20 @@ func (e *Editor) CenterView() {
 		e.Row = min(e.Count()-1, e.Buf.LineCount()-1)
 		e.ClampCol()
 	}
+	e.Center()
+}
+
+// Center is the window moved so that the cursor's line is the middle row of it,
+// and nothing else. It is separate from CenterView because a jump that lands
+// off screen centres on where it landed: reading the count there would take
+// '3gd' — three jumps to a declaration — as a jump to line three.
+func (e *Editor) Center() {
 	e.OffsetRow = max(e.Row-e.Rows/2, 0)
 }
 
 func (e *Editor) CenterIfOffScreen() {
 	if e.Row < e.OffsetRow || e.Row >= e.OffsetRow+e.Rows {
-		e.CenterView()
+		e.Center()
 	}
 }
 
