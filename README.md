@@ -204,6 +204,7 @@ otherwise close a cycle.
 | `w` | Normal | jump to the start of the next word |
 | `b` | Normal | jump to the start of the previous word |
 | `e` | Normal | jump to the end of the (next) word |
+| `$` | Normal | jump to the end of the line |
 | `x` | Normal | delete the character under the cursor |
 | `dw` | Normal | delete to the start of the next word (stops at end of line) |
 | `de` | Normal | delete to the end of the current word (stops at end of line) |
