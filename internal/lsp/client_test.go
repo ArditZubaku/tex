@@ -351,7 +351,7 @@ func TestEveryRequestTheServerMakesIsAnswered(t *testing.T) {
 	}
 }
 
-func TestWhatTheServerPublishesGoesToTheHandler(t *testing.T) {
+func TestANotificationTheClientDoesNotAnswerGoesToTheHandler(t *testing.T) {
 	h := dialed(t)
 	h.shake("")
 
@@ -359,10 +359,10 @@ func TestWhatTheServerPublishesGoesToTheHandler(t *testing.T) {
 	var params json.RawMessage
 	h.client.Handler = func(m string, p json.RawMessage) { method, params = m, p }
 
-	h.server.notify("textDocument/publishDiagnostics", map[string]any{"uri": "file:///x.go"})
+	h.server.notify("window/logMessage", map[string]any{"uri": "file:///x.go"})
 	h.poll()
 
-	if method != "textDocument/publishDiagnostics" {
+	if method != "window/logMessage" {
 		t.Fatalf("the handler was given %q", method)
 	}
 	if string(params) != `{"uri":"file:///x.go"}` {

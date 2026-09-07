@@ -333,3 +333,102 @@ func TestOnlyAServerThatHoldsTheFileIsWorthAsking(t *testing.T) {
 		t.Error("a file the server was never told about was worth asking about")
 	}
 }
+
+func TestWhatTheServerPublishesReachesTheEditor(t *testing.T) {
+	h := reconciling(t)
+	path := project(t, "main.go", "package main\n")
+	b := opening(t, path)
+
+	var got []Diagnostic
+	var about string
+	Published = func(p string, notes []Diagnostic) { about, got = p, notes }
+
+	h.up(File{Path: path, Buf: b})
+	openedIn(t, h.sent())
+
+	h.server.notify(methodPublishDiagnostics, publishDiagnosticsParams{
+		URI:     FileURI(path),
+		Version: 1,
+		Diagnostics: []Diagnostic{{
+			Range:    Range{Start: Position{Line: 0, Character: 8}, End: Position{Line: 0, Character: 12}},
+			Severity: 1,
+			Source:   "compiler",
+			Message:  "undefined: fooBar",
+		}},
+	})
+	h.poll()
+
+	if about != resolved(path) {
+		t.Errorf("published about %q, want %q", about, resolved(path))
+	}
+	if len(got) != 1 || got[0].Message != "undefined: fooBar" || got[0].Severity != 1 {
+		t.Fatalf("published %+v", got)
+	}
+	if got[0].Range.Start.Character != 8 || got[0].Range.End.Character != 12 {
+		t.Errorf("published range %+v, want the server's own", got[0].Range)
+	}
+}
+
+// A payload that crossed a newer document on the wire is about text that is
+// already gone, and drawing it would put every underline a line out.
+func TestAPublishAboutTextAlreadyGoneIsDropped(t *testing.T) {
+	pass := held(t)
+	h := reconciling(t)
+	path := project(t, "main.go", "package main\n")
+	b := opening(t, path)
+
+	published := 0
+	Published = func(string, []Diagnostic) { published++ }
+
+	files := []File{{Path: path, Buf: b}}
+	h.up(files...)
+	openedIn(t, h.sent())
+
+	b.SetLine(0, []rune("package other"))
+	pass(throttle)
+	Sync(files)
+	h.sent()
+
+	h.server.notify(methodPublishDiagnostics, publishDiagnosticsParams{
+		URI: FileURI(path), Version: 1,
+		Diagnostics: []Diagnostic{{Severity: 1, Message: "about the text before it"}},
+	})
+	h.poll()
+
+	if published != 0 {
+		t.Errorf("a payload about version 1 was taken while version 2 was out")
+	}
+
+	h.server.notify(methodPublishDiagnostics, publishDiagnosticsParams{
+		URI: FileURI(path), Version: 2,
+		Diagnostics: []Diagnostic{{Severity: 1, Message: "about the text now"}},
+	})
+	h.poll()
+
+	if published != 1 {
+		t.Errorf("the payload about the current version was published %d times", published)
+	}
+}
+
+func TestAPublishForAFileTheEditorNeverOpenedIsStillTaken(t *testing.T) {
+	h := reconciling(t)
+	path := project(t, "main.go", "package main\n")
+	b := opening(t, path)
+
+	var about string
+	Published = func(p string, _ []Diagnostic) { about = p }
+
+	h.up(File{Path: path, Buf: b})
+	openedIn(t, h.sent())
+
+	sibling := filepath.Join(filepath.Dir(path), "other.go")
+	h.server.notify(methodPublishDiagnostics, publishDiagnosticsParams{
+		URI:         FileURI(sibling),
+		Diagnostics: []Diagnostic{{Severity: 1, Message: "the package around it"}},
+	})
+	h.poll()
+
+	if about != resolved(sibling) {
+		t.Errorf("published about %q, want %q", about, resolved(sibling))
+	}
+}

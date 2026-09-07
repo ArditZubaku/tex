@@ -96,6 +96,17 @@ func Ready(path string) bool {
 	return open
 }
 
+// PositionEncoding is how the running server counts columns, chosen during the
+// handshake. With no server it is UTF-16, the protocol's own default, which is
+// what anything left over would have been counted in anyway.
+func PositionEncoding() Encoding {
+	if client == nil {
+		return UTF16
+	}
+
+	return client.Encoding()
+}
+
 // Stop is the editor going.
 func Stop() {
 	if client == nil {
@@ -113,6 +124,7 @@ func Reset() {
 	Stop()
 
 	wake, waking, starts = nil, time.Time{}, nil
+	Published = nil
 	dialFor = Server
 	clear(resolvedPaths)
 	clear(projectRoots)
@@ -227,6 +239,7 @@ func stillOpen(files []File, uri string) bool {
 func running(name, at string) bool {
 	if client == nil {
 		root, client = at, New(dialFor(name), wake)
+		client.Handler = handle
 		if err := client.Start(at); err != nil {
 			return false
 		}

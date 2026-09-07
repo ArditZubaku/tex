@@ -19,6 +19,7 @@ const (
 	methodDidChange            = "textDocument/didChange"
 	methodDidSave              = "textDocument/didSave"
 	methodDidClose             = "textDocument/didClose"
+	methodPublishDiagnostics   = "textDocument/publishDiagnostics"
 )
 
 // FileURI is a path as a server names it. Symlinks are resolved because a
