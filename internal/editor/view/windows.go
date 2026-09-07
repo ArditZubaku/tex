@@ -35,6 +35,7 @@ func Focused() *Window { return current }
 func Reset() {
 	buffers, currentBuffer, altPath = nil, 0, ""
 	root, current, separators = nil, nil, nil
+	dragging.on = false
 }
 
 func Separators() []layout.Separator { return separators }
@@ -171,6 +172,62 @@ func OnlyWindow(e *state.Editor) {
 	root = layout.Leaf(current)
 	Layout(e)
 	applyWindow(e, current)
+}
+
+// A drag is the separator the pointer took hold of, and where that separator
+// stands now. What is followed between one event and the next is the edge
+// rather than the pointer: a pointer run past what the windows either side of
+// it can give would otherwise come back with the edge owing it the difference.
+var dragging struct {
+	on       bool
+	vertical bool
+	row, col int
+}
+
+// Mouse is the pointer on the lines between the windows: pressing on one takes
+// hold of it, moving with the button down drags it, and letting go lets it be.
+// Anything else drops what was being dragged, so a drag cannot outlive the
+// button that started it.
+func Mouse(e *state.Editor, event termbox.Event) {
+	switch {
+	case event.Key != termbox.MouseLeft:
+		dragging.on = false
+	case event.Mod&termbox.ModMotion == 0:
+		takeEdge(e, event.MouseY, event.MouseX)
+	default:
+		dragEdge(e, event.MouseY, event.MouseX)
+	}
+}
+
+func takeEdge(e *state.Editor, row, col int) {
+	CurrentWindow(e)
+	vertical, ok := root.EdgeAt(e.ScreenArea(), row, col)
+	dragging.on, dragging.vertical, dragging.row, dragging.col = ok, vertical, row, col
+}
+
+func dragEdge(e *state.Editor, row, col int) {
+	if !dragging.on {
+		return
+	}
+
+	delta, least := row-dragging.row, minWindowRows
+	if dragging.vertical {
+		delta, least = col-dragging.col, minWindowCols
+	}
+	if delta == 0 {
+		return
+	}
+
+	moved := root.MoveEdge(e.ScreenArea(), dragging.row, dragging.col, delta, least)
+	if moved == 0 {
+		return
+	}
+	if dragging.vertical {
+		dragging.col += moved
+	} else {
+		dragging.row += moved
+	}
+	Layout(e)
 }
 
 // MoveKeys are Ctrl-hjkl, which is all it takes to leave a window. Only outside
