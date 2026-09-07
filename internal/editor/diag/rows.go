@@ -60,11 +60,15 @@ func (r Rows) Under(col int) Severity {
 	return worst
 }
 
+func (n Note) covers(row int) bool {
+	return row >= n.Row && row <= min(n.EndRow, n.Row+maxRows-1)
+}
+
 // on is where along a row one note reaches, if it reaches it at all: its own
 // column on the row it starts, the whole of every row between, and up to its
 // end on the row it ends.
 func (n Note) on(row int) (from, to int, ok bool) {
-	if row < n.Row || row > min(n.EndRow, n.Row+maxRows-1) {
+	if !n.covers(row) {
 		return 0, 0, false
 	}
 	// A range whose end is the start of a row ends where that row begins, so

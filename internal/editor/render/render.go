@@ -233,10 +233,24 @@ func Status(e *state.Editor) string {
 	if e.Hist.CanRedo() {
 		line = append(line, " [Redo]"...)
 	}
+	line = diagFlag(e.SourceFile, line)
 
-	// Everything in the left half but the file name is ASCII, so only the
-	// name's own width has to be measured.
+	// Everything in the left half but the file name and the message is ASCII,
+	// so only their own widths have to be measured.
 	width := len(line) - len(shown) + screen.Width(shown)
+
+	// Derived from the store every frame rather than put into StatusMsg, so
+	// that it stays as long as the cursor is on the line, goes the moment the
+	// cursor leaves it, and never takes the line from what a command reported.
+	if note, ok := diag.At(e.SourceFile, e.Row); ok {
+		if room := e.ScreenCols - len(right) - width - 1; room > minMessage {
+			msg := screen.Truncate(note.Message, room, false)
+			line = append(line, ' ')
+			line = append(line, msg...)
+			width += 1 + screen.Width(msg)
+		}
+	}
+
 	for ; width < e.ScreenCols-len(right); width++ {
 		line = append(line, ' ')
 	}
@@ -244,6 +258,35 @@ func Status(e *state.Editor) string {
 	lineScratch = line
 
 	return string(line)
+}
+
+// A message with less room than this left is not a message, it is the first
+// two words of one, so the bar keeps what it was already saying instead.
+const minMessage = 12
+
+// The count is a flag beside [Copy] and [Undo] rather than a line of its own,
+// and stops at warnings: a bar reporting eleven hints has spent the width that
+// mattered.
+func diagFlag(path string, into []byte) []byte {
+	errors, warnings := diag.Count(path)
+	if errors+warnings == 0 {
+		return into
+	}
+
+	into = append(into, " ["...)
+	if errors > 0 {
+		into = strconv.AppendInt(into, int64(errors), 10)
+		into = append(into, 'E')
+	}
+	if warnings > 0 {
+		if errors > 0 {
+			into = append(into, ' ')
+		}
+		into = strconv.AppendInt(into, int64(warnings), 10)
+		into = append(into, 'W')
+	}
+
+	return append(into, ']')
 }
 
 // The status bar is rebuilt on every frame, so its two halves are assembled in

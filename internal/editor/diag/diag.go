@@ -83,6 +83,24 @@ func Count(path string) (errors, warnings int) {
 	return errors, warnings
 }
 
+// At is the worst thing said about the row the cursor is on, for the status
+// line to report. The row rather than the exact column: a message is worth
+// reading while the cursor is anywhere on the line it belongs to, and hunting
+// for the rune a range starts at is not something anybody does on purpose.
+func At(path string, row int) (Note, bool) {
+	best, found := Note{}, false
+	for _, note := range Of(path) {
+		if !note.covers(row) {
+			continue
+		}
+		if !found || note.Severity < best.Severity {
+			best, found = note, true
+		}
+	}
+
+	return best, found
+}
+
 func worse(of, than Severity) Severity {
 	if than == None || (of != None && of < than) {
 		return of
