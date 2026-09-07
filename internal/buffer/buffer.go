@@ -35,7 +35,18 @@ type Buffer struct {
 	cacheOK        bool
 
 	overlay []edit // lines edited in Insert mode, shadowing the file
+
+	revision int
 }
+
+// Revision counts the changes made to the buffer. It is what tells something
+// holding a copy of the text — a language server, which is handed the whole
+// document rather than the edit — whether what it holds is still what the
+// buffer says. It is counted here rather than by the callers because there are
+// two dozen of those, and one that forgot to say would leave the copy silently,
+// permanently stale. A change reached through another counts twice, which
+// nothing minds: the number is compared, never subtracted.
+func (b *Buffer) Revision() int { return b.revision }
 
 // An edit is one line the overlay holds, together with the row it is on. They
 // are kept in row order rather than in a map so that inserting or deleting a
@@ -314,7 +325,11 @@ func (b *Buffer) reopen(path string, starts []int64, size int64) {
 		return
 	}
 
-	endsWithNewline := b.endsWithNewline
+	// The count has to survive being pointed at another file, and go up: what
+	// holds a copy of the text compares the two, and a count that started again
+	// from nothing would read as a copy that is already current — leaving it
+	// stale for as long as the buffer is open.
+	revision, endsWithNewline := b.revision+1, b.endsWithNewline
 	b.Close()
 
 	*b = Buffer{
@@ -326,6 +341,7 @@ func (b *Buffer) reopen(path string, starts []int64, size int64) {
 		win:             make([]byte, 0, WindowBytes),
 		winFrom:         -1,
 		winTo:           -1,
+		revision:        revision,
 	}
 }
 
@@ -334,8 +350,10 @@ func (b *Buffer) reopen(path string, starts []int64, size int64) {
 // still points at the file the rename replaced, and what a formatter rewriting
 // the file underneath the buffer leaves it needing.
 func (b *Buffer) Reload(path string) {
+	revision := b.revision + 1
 	b.Close()
 	*b = *Open(path)
+	b.revision = revision
 }
 
 func (b *Buffer) Close() {
@@ -509,6 +527,7 @@ func (b *Buffer) SetLine(i int, line []rune) {
 	if i < 0 || i >= b.count {
 		return
 	}
+	b.revision++
 
 	b.setEdit(i, line)
 	if b.cacheOK && b.cacheRow == i {
@@ -523,6 +542,7 @@ func (b *Buffer) SetLine(i int, line []rune) {
 func (b *Buffer) InsertRune(i, col int, ch rune) {
 	line := b.Line(i)
 	col = min(max(col, 0), len(line))
+	b.revision++
 
 	if at, ok := b.editAt(i); ok {
 		b.overlay[at].line = slices.Insert(b.overlay[at].line, col, ch)
@@ -545,6 +565,7 @@ func (b *Buffer) DeleteRunes(i, from, to int) {
 	if from >= to {
 		return
 	}
+	b.revision++
 
 	if at, ok := b.editAt(i); ok {
 		b.overlay[at].line = slices.Delete(b.overlay[at].line, from, to)
@@ -567,6 +588,7 @@ func (b *Buffer) InsertLine(i int) {
 		return
 	}
 	b.cacheOK = false
+	b.revision++
 
 	off := b.size
 	switch {
@@ -593,6 +615,7 @@ func (b *Buffer) SplitLine(i, col int) {
 	if i < 0 || i >= b.count {
 		return
 	}
+	b.revision++
 
 	line := b.Line(i)
 	col = min(max(col, 0), len(line))
@@ -610,6 +633,7 @@ func (b *Buffer) JoinLine(i int) {
 	if i < 0 || i+1 >= b.count {
 		return
 	}
+	b.revision++
 
 	line, ok := b.edited(i)
 	if !ok {
@@ -628,6 +652,7 @@ func (b *Buffer) DeleteLine(i int) {
 		return
 	}
 	b.cacheOK = false
+	b.revision++
 
 	// VIM leaves an empty line behind rather than an empty buffer
 	if b.count == 1 {
