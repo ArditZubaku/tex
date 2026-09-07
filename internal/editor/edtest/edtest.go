@@ -92,6 +92,9 @@ func InReadMode(t *testing.T, e *state.Editor, content string, row, col int) *bu
 	render.Reset()
 	diag.Reset()
 	lsp.Reset()
+	// Without this a test that wired the hook leaves every later test's 'dd'
+	// mutating a store it knows nothing about.
+	state.OnEdit = nil
 	e.WinRow, e.WinCol = state.TabBarRows, 0
 
 	return b

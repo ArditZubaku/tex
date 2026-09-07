@@ -7,6 +7,7 @@ import (
 	"github.com/nsf/termbox-go"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/diag"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
 	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/keys"
@@ -43,6 +44,9 @@ func Run(args []string) {
 
 	ed.Lang = syntax.Detect(ed.SourceFile)
 	lsp.Wake(screen.StartWaker())
+	// Nothing below state may reach back up to what holds the diagnostics, so
+	// the loop is what joins the two.
+	state.OnEdit = diag.Edited
 
 	for !ed.Quitting {
 		// Fetch current screen dimensions
