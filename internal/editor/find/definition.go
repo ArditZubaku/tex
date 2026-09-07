@@ -34,12 +34,12 @@ func GoToDefinition(e *state.Editor) {
 	}
 
 	if found, ok := definitionAbove(e, forms); ok {
-		jumpTo(e, found)
+		view.Goto(e, found.path, found.row, found.col)
 		return
 	}
 
 	if found, ok := definitionInBuffer(e, forms); ok {
-		jumpTo(e, found)
+		view.Goto(e, found.path, found.row, found.col)
 		return
 	}
 
@@ -49,17 +49,7 @@ func GoToDefinition(e *state.Editor) {
 		return
 	}
 
-	jumpTo(e, found)
-}
-
-func jumpTo(e *state.Editor, found definition) {
-	e.PushJump()
-	if found.path != e.SourceFile {
-		view.Open(e, found.path)
-	}
-	e.Row, e.Col = found.row, found.col
-	e.ClampCol()
-	e.CenterIfOffScreen()
+	view.Goto(e, found.path, found.row, found.col)
 }
 
 // JumpBack is Ctrl-O: the cursor goes back to where the last jump left from,

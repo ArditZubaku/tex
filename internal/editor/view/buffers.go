@@ -15,6 +15,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
+	"github.com/ArditZubaku/tex/internal/project"
 	"github.com/ArditZubaku/tex/internal/syntax"
 )
 
@@ -140,6 +141,27 @@ func Open(e *state.Editor, path string) {
 	}
 	buffers = append(buffers, &Entry{Buf: buffer.Open(path), Path: path, Lang: syntax.Detect(path)})
 	loadBuffer(e, len(buffers)-1)
+}
+
+// Goto is where a lookup lands. Every answer the editor looks something up for
+// — a declaration, a reference, a symbol, a row in a listing — comes back as a
+// file, a row and a column and lands the same way: the jump is remembered so
+// that Ctrl-O comes back, the file is opened if it is not the one being edited,
+// and the row is centred only if it fell off screen. A negative row is a file
+// with nowhere in particular to be in it, which is what the file picker's own
+// rows are.
+func Goto(e *state.Editor, path string, row, col int) {
+	e.PushJump()
+	if !project.Same(path, e.SourceFile) {
+		Open(e, path)
+	}
+	if row < 0 {
+		return
+	}
+
+	e.Row, e.Col = min(row, e.Buf.LineCount()-1), col
+	e.ClampCol()
+	e.CenterIfOffScreen()
 }
 
 // Buffer is the entry a path is open as, or nil when it is not open at all. A

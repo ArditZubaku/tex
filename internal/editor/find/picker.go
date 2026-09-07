@@ -45,15 +45,7 @@ func openPicked(e *state.Editor) {
 	}
 
 	closePicker(e)
-	e.PushJump()
-	if !project.Same(entry.Path, e.SourceFile) {
-		view.Open(e, entry.Path)
-	}
-	if entry.Row >= 0 {
-		e.Row, e.Col = min(entry.Row, e.Buf.LineCount()-1), entry.Col
-		e.ClampCol()
-		e.CenterIfOffScreen()
-	}
+	view.Goto(e, entry.Path, entry.Row, entry.Col)
 }
 
 func PickerKey(e *state.Editor, event termbox.Event) {
