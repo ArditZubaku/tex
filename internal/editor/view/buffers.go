@@ -5,6 +5,7 @@ package view
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -173,6 +174,25 @@ func Buffer(path string) *Entry {
 	}
 
 	return nil
+}
+
+// TextOf is the text of a file whether or not the editor holds it: what the
+// buffer holds when it does, so that unsaved changes are what is read, and
+// otherwise the file itself, opened for as long as the caller needs it and
+// closed by the func it is handed back with. A file that is not there answers
+// nil, and the stat is what asks: opening one that is missing logs, and the log
+// goes to the terminal the editor is drawn on.
+func TextOf(path string) (*buffer.Buffer, func()) {
+	if entry := Buffer(path); entry != nil {
+		return entry.Buf, func() {}
+	}
+	if _, err := os.Stat(path); err != nil {
+		return nil, nil
+	}
+
+	text := buffer.Open(path)
+
+	return text, text.Close
 }
 
 // Adopt puts a buffer changed without ever being opened into the list, which is

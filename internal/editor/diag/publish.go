@@ -1,9 +1,6 @@
 package diag
 
 import (
-	"os"
-
-	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/lsp"
 )
@@ -19,7 +16,7 @@ func Publish(path string, notes []lsp.Diagnostic) {
 		return
 	}
 
-	text, done := textOf(path)
+	text, done := view.TextOf(path)
 	if text == nil {
 		Set(path, nil)
 
@@ -44,26 +41,6 @@ func Publish(path string, notes []lsp.Diagnostic) {
 	}
 
 	Set(path, file)
-}
-
-// The text to count columns in: what the editor holds if it holds the file, and
-// otherwise the file itself. Most publishes are about files no buffer holds — a
-// server reports the whole package around a broken one — and those are the
-// files ':diag' is for.
-//
-// The stat is not redundant: opening a file that is not there logs, and the log
-// goes to the terminal termbox owns.
-func textOf(path string) (*buffer.Buffer, func()) {
-	if entry := view.Buffer(path); entry != nil {
-		return entry.Buf, func() {}
-	}
-	if _, err := os.Stat(path); err != nil {
-		return nil, nil
-	}
-
-	text := buffer.Open(path)
-
-	return text, text.Close
 }
 
 // A server that did not say how bad it is means it to be seen.
