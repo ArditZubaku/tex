@@ -27,3 +27,21 @@ func TestThemesPaintingTheirOwnBackgroundAreComplete(t *testing.T) {
 		}
 	}
 }
+
+// A colour that marks a row out — the selection the picker draws, the match a
+// search lands on, the visual range — has to differ from the background it is
+// drawn over, or it marks nothing out at all.
+func TestThemesDrawTheirHighlightsOverTheirBackground(t *testing.T) {
+	for _, palette := range Themes {
+		highlights := map[string]termbox.Attribute{
+			"VisualBg":     palette.VisualBg,
+			"MatchBg":      palette.MatchBg,
+			"CursorLineBg": palette.CursorLineBg,
+		}
+		for name, colour := range highlights {
+			if colour == palette.Background {
+				t.Errorf("theme %q draws %s in its own background colour", palette.Name, name)
+			}
+		}
+	}
+}
