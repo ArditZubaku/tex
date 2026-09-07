@@ -289,6 +289,7 @@ otherwise close a cycle.
 | `)` `]` `}` | Insert | step over the closing bracket when it is the one already under the cursor, insert it otherwise |
 | `Backspace` | Insert | delete the character before the cursor, taking the closing bracket too when it sits in an empty pair, and joining onto the line above at column 0 |
 | `Enter` | Insert | split the line at the cursor (in Normal mode it moves down a line) |
+| `Ctrl-J` | Insert | the same as `Enter` — with no bracketed-paste mode, a pasted line ending arrives as `Enter`'s CR, this LF, or both together, and all three split the line exactly once |
 | `gg` | Normal | jump to the top of the buffer |
 | `G` | Normal | jump to the bottom of the buffer |
 | `I` | Normal | jump to start of line and enter Insert mode |
