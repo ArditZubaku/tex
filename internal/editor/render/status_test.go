@@ -73,34 +73,37 @@ func TestTheStatusLineCountsWhatAServerSaid(t *testing.T) {
 	}
 }
 
-func TestTheStatusLineReportsTheWorstThingSaidAboutTheCursorsLine(t *testing.T) {
+func TestNoteDiagnosticShowsTheWorstThingSaidAboutTheCursorsLine(t *testing.T) {
 	e := onLine(t, 3,
 		diag.Note{Severity: diag.Hint, Message: "this is only a hint", Row: 3, EndRow: 3, EndCol: 4},
 		diag.Note{Severity: diag.Error, Message: "undefined: fooBar", Row: 3, EndRow: 3, EndCol: 9},
 	)
 
-	got := render.Status(e)
-	if !strings.Contains(got, "undefined: fooBar") {
-		t.Errorf("status line %q, want the error on the cursor's line", got)
+	render.NoteDiagnostic(e)
+
+	if !strings.Contains(e.Note.Text(), "undefined: fooBar") {
+		t.Errorf("note %q, want the error on the cursor's line", e.Note.Text())
 	}
-	if strings.Contains(got, "only a hint") {
-		t.Errorf("status line %q carries the milder of the two", got)
+	if strings.Contains(e.Note.Text(), "only a hint") {
+		t.Errorf("note %q carries the milder of the two", e.Note.Text())
 	}
 }
 
-func TestTheMessageGoesTheMomentTheCursorLeavesTheLine(t *testing.T) {
+func TestNoteDiagnosticGoesTheMomentTheCursorLeavesTheLine(t *testing.T) {
 	e := onLine(t, 3, diag.Note{
 		Severity: diag.Error, Message: "undefined: fooBar", Row: 3, EndRow: 3, EndCol: 9,
 	})
 
-	if !strings.Contains(render.Status(e), "undefined: fooBar") {
-		t.Fatal("the message was not there to leave")
+	render.NoteDiagnostic(e)
+	if !e.Note.Showing() {
+		t.Fatal("the note was not there to leave")
 	}
 
 	e.Down()
+	render.NoteDiagnostic(e)
 
-	if got := render.Status(e); strings.Contains(got, "undefined: fooBar") {
-		t.Errorf("status line %q still carries it a line down", got)
+	if e.Note.Showing() {
+		t.Error("note still showing a line down")
 	}
 }
 
@@ -116,31 +119,16 @@ func TestWhatACommandReportsStillTakesTheWholeStatusLine(t *testing.T) {
 	}
 }
 
-func TestALongMessageIsCutRatherThanPushingTheRowAndColumnOff(t *testing.T) {
+func TestALongDiagnosticIsCutToTheRowsTheNoteBoxHas(t *testing.T) {
 	e := onLine(t, 3, diag.Note{
 		Severity: diag.Error,
 		Message:  strings.Repeat("something the server had a great deal to say about ", 8),
 		Row:      3, EndRow: 3, EndCol: 9,
 	})
 
-	got := render.Status(e)
-	if screen.Width(got) != e.ScreenCols {
-		t.Errorf("status line is %d columns wide, want %d: %q", screen.Width(got), e.ScreenCols, got)
-	}
-	if !strings.Contains(got, "Row 4, Col 1") {
-		t.Errorf("status line %q, want it still to say where the cursor is", got)
-	}
-}
+	render.NoteDiagnostic(e)
 
-// A message is not worth the two words that would fit in what a narrow screen
-// leaves once everything else has had its width.
-func TestANarrowScreenKeepsWhatTheBarAlreadySaid(t *testing.T) {
-	e := onLine(t, 3, diag.Note{
-		Severity: diag.Error, Message: "undefined: fooBar", Row: 3, EndRow: 3, EndCol: 9,
-	})
-	e.ScreenCols = 46
-
-	if got := render.Status(e); strings.Contains(got, "undefi") {
-		t.Errorf("status line %q, want no room found for a message", got)
+	if got := render.Status(e); screen.Width(got) != e.ScreenCols || !strings.Contains(got, "Row 4, Col 1") {
+		t.Errorf("status line %q, want it unaffected by the diagnostic and still at %d columns", got, e.ScreenCols)
 	}
 }

@@ -235,21 +235,9 @@ func Status(e *state.Editor) string {
 	}
 	line = diagFlag(e.SourceFile, line)
 
-	// Everything in the left half but the file name and the message is ASCII,
-	// so only their own widths have to be measured.
+	// Everything in the left half but the file name is ASCII, so only its own
+	// width has to be measured.
 	width := len(line) - len(shown) + screen.Width(shown)
-
-	// Derived from the store every frame rather than put into StatusMsg, so
-	// that it stays as long as the cursor is on the line, goes the moment the
-	// cursor leaves it, and never takes the line from what a command reported.
-	if note, ok := diag.At(e.SourceFile, e.Row); ok {
-		if room := e.ScreenCols - len(right) - width - 1; room > minMessage {
-			msg := screen.Truncate(note.Message, room, false)
-			line = append(line, ' ')
-			line = append(line, msg...)
-			width += 1 + screen.Width(msg)
-		}
-	}
 
 	for ; width < e.ScreenCols-len(right); width++ {
 		line = append(line, ' ')
@@ -259,10 +247,6 @@ func Status(e *state.Editor) string {
 
 	return string(line)
 }
-
-// A message with less room than this left is not a message, it is the first
-// two words of one, so the bar keeps what it was already saying instead.
-const minMessage = 12
 
 // The count is a flag beside [Copy] and [Undo] rather than a line of its own,
 // and stops at warnings: a bar reporting eleven hints has spent the width that
@@ -287,6 +271,33 @@ func diagFlag(path string, into []byte) []byte {
 	}
 
 	return append(into, ']')
+}
+
+// NoteDiagnostic keeps the box in the corner over the worst thing said about
+// the cursor's line, called every frame so that it lasts exactly as long as
+// the cursor sits there and goes the moment it leaves.
+func NoteDiagnostic(e *state.Editor) {
+	note, ok := diag.At(e.SourceFile, e.Row)
+	if !ok {
+		e.Note.ClearDiagnostic()
+
+		return
+	}
+
+	e.Note.ShowDiagnostic(severityTitle(note.Severity), note.Message)
+}
+
+func severityTitle(severity diag.Severity) string {
+	switch severity {
+	case diag.Error:
+		return "error"
+	case diag.Warning:
+		return "warning"
+	case diag.Info:
+		return "info"
+	default:
+		return "hint"
+	}
 }
 
 // The status bar is rebuilt on every frame, so its two halves are assembled in
