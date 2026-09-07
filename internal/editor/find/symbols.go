@@ -7,18 +7,60 @@ import (
 	"github.com/ArditZubaku/tex/internal/decl"
 	"github.com/ArditZubaku/tex/internal/editor/picker"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/lsp"
 	"github.com/ArditZubaku/tex/internal/project"
 )
 
-// '<leader>ss' is LazyVim's document symbols with no language server behind it:
-// the declarations of the file being edited, recognised in the text the way
-// 'gd' recognises one, listed in the popup in the order they appear.
+// '<leader>ss' is LazyVim's document symbols: the declarations of the file being
+// edited, listed in the popup in the order they appear. A language server knows
+// them properly and is asked when there is one; failing that they are
+// recognised in the text the way 'gd' recognises a declaration.
 
 // A file with more declarations than this has more than anybody scrolls
 // through, and the filter is what finds the one being looked for anyway.
 const maxSymbols = 2000
 
 func OpenSymbols(e *state.Editor) {
+	if lsp.Ready(e.SourceFile) {
+		askSymbols(e)
+
+		return
+	}
+
+	symbolsInText(e)
+}
+
+func askSymbols(e *state.Editor) {
+	token, from := ask(e)
+	path := e.SourceFile
+	lsp.DocumentSymbols(path, func(found []lsp.Symbol, err error) {
+		if !stale(e, token, from) {
+			listSymbols(e, path, found, err)
+		}
+	})
+}
+
+// A file a server has nothing to say about is a file with no declarations in
+// it, which is what the message says: reading the text after that would only
+// turn up lines a parser has already decided were not declarations.
+func listSymbols(e *state.Editor, path string, found []lsp.Symbol, err error) {
+	if err != nil {
+		symbolsInText(e)
+
+		return
+	}
+
+	entries := symbolRows(path, found[:min(len(found), maxSymbols)])
+	if len(entries) == 0 {
+		e.StatusMsg = "no symbols in " + filepath.Base(path)
+
+		return
+	}
+
+	showPicker(e, "Symbols in "+filepath.Base(path), entries)
+}
+
+func symbolsInText(e *state.Editor) {
 	entries := bufferSymbols(e)
 	if len(entries) == 0 {
 		e.StatusMsg = "no symbols in " + filepath.Base(e.SourceFile)
@@ -68,7 +110,7 @@ func symbolEntries(path string, symbols []decl.Symbol) []picker.Entry {
 	entries := make([]picker.Entry, 0, len(symbols))
 	for _, one := range symbols {
 		entries = append(entries, picker.Entry{
-			Label: fmt.Sprintf("%-9s %s", one.Kind, one.Name),
+			Label: symbolLabel(one.Kind, one.Name),
 			Path:  path,
 			Row:   one.Row,
 			Col:   one.Col,

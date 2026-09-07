@@ -1,6 +1,9 @@
 package find
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/ArditZubaku/tex/internal/editor/picker"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
@@ -104,4 +107,49 @@ func place(found lsp.Location) (string, int, int, bool) {
 	row, col := lsp.PositionEncoding().RowCol(text, found.Range.Start)
 
 	return path, row, col, true
+}
+
+// The protocol's own SymbolKind, named as the text-based listing names what it
+// recognises, so that the two lists read the same whichever answered. The
+// spellings are cut to the nine columns that listing gives the kind: Go has no
+// constructors, so 'New' never stands for one here.
+var kindNames = [...]string{
+	1: "File", 2: "Module", 3: "Namespace", 4: "Package", 5: "Class",
+	6: "Method", 7: "Property", 8: "Field", 9: "New", 10: "Enum",
+	11: "Interface", 12: "Function", 13: "Variable", 14: "Constant",
+	15: "String", 16: "Number", 17: "Boolean", 18: "Array", 19: "Object",
+	20: "Key", 21: "Null", 22: "EnumValue", 23: "Struct", 24: "Event",
+	25: "Operator", 26: "TypeParam",
+}
+
+// A kind the protocol grew after this list is drawn as the number the server
+// sent: it still says that two rows are different kinds of thing.
+func kindName(kind int) string {
+	if kind < 1 || kind >= len(kindNames) {
+		return strconv.Itoa(kind)
+	}
+
+	return kindNames[kind]
+}
+
+// Both listings label a row the same way, so that the popup reads the same
+// whether a server or the text answered it.
+func symbolLabel(kind, name string) string {
+	return fmt.Sprintf("%-9s %s", kind, name)
+}
+
+// symbolRows is a server's declarations as the popup's own rows. The shape that
+// names no file is a listing of one file, which is the one that was asked
+// about.
+func symbolRows(path string, found []lsp.Symbol) []picker.Entry {
+	out := make([]answer, 0, len(found))
+	for _, one := range found {
+		in := one.In()
+		if in == "" {
+			in = path
+		}
+		out = append(out, answer{path: in, at: one.At(), label: symbolLabel(kindName(one.Kind), one.Name)})
+	}
+
+	return rows(out)
 }

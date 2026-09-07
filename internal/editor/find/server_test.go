@@ -195,3 +195,84 @@ func TestAServerThatRefusedTheReferencesLeavesTheTextToList(t *testing.T) {
 		t.Errorf("the text search listed %d mentions, want 2", got)
 	}
 }
+
+func TestSymbolsFromAServerAreLabelledWithTheKindItCalledThem(t *testing.T) {
+	e, path := answered(t, "theme.go", "package theme\n\ntype Palette struct {\n\tName string\n}\n")
+
+	listSymbols(e, path, []lsp.Symbol{
+		{Name: "Palette", Kind: 23, SelectionRange: lsp.Range{Start: lsp.Position{Line: 2, Character: 5}}},
+		{Name: "Palette.Name", Kind: 8, SelectionRange: lsp.Range{Start: lsp.Position{Line: 3, Character: 1}}},
+	}, nil)
+
+	if e.Mode != state.PickerMode {
+		t.Fatalf("the symbols did not open the popup: %q", e.StatusMsg)
+	}
+
+	entries := e.Pick.Matched()
+	if len(entries) != 2 {
+		t.Fatalf("the popup lists %d rows, want 2", len(entries))
+	}
+	if want := "Struct    Palette"; entries[0].Label != want {
+		t.Errorf("the first row reads %q, want %q", entries[0].Label, want)
+	}
+	if entries[1].Row != 3 || entries[1].Col != 1 {
+		t.Errorf("the second row goes to %d,%d, want 3,1", entries[1].Row, entries[1].Col)
+	}
+}
+
+func TestASymbolTheServerGaveAFileOfItsOwnKeepsIt(t *testing.T) {
+	e, one := answered(t, "one.go", "package main\n")
+	two := filepath.Join(filepath.Dir(one), "two.go")
+	if err := os.WriteFile(two, []byte("package main\n\nfunc use() {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	listSymbols(e, one, []lsp.Symbol{{
+		Name:     "use",
+		Kind:     12,
+		Location: lsp.Location{URI: lsp.FileURI(two), Range: lsp.Range{Start: lsp.Position{Line: 2, Character: 5}}},
+	}}, nil)
+
+	entries := e.Pick.Matched()
+	if len(entries) != 1 {
+		t.Fatalf("the popup lists %d rows, want 1", len(entries))
+	}
+	if filepath.Base(entries[0].Path) != "two.go" {
+		t.Errorf("the row points at %q, want two.go", entries[0].Path)
+	}
+}
+
+func TestAKindTheEditorDoesNotKnowIsStillDrawnAsOne(t *testing.T) {
+	if got := kindName(99); got != "99" {
+		t.Errorf("kind 99 is drawn as %q, want %q", got, "99")
+	}
+	if got := kindName(0); got != "0" {
+		t.Errorf("kind 0 is drawn as %q, want %q", got, "0")
+	}
+}
+
+func TestAServerWithNoSymbolsSaysSoRatherThanReadingTheText(t *testing.T) {
+	e, path := answered(t, "main.go", "package main\n\nfunc main() {}\n")
+
+	listSymbols(e, path, nil, nil)
+
+	if e.Mode == state.PickerMode {
+		t.Fatal("nothing found still opened the popup")
+	}
+	if want := "no symbols in main.go"; e.StatusMsg != want {
+		t.Errorf("it reported %q, want %q", e.StatusMsg, want)
+	}
+}
+
+func TestAServerThatRefusedTheSymbolsLeavesTheTextToList(t *testing.T) {
+	e, path := answered(t, "main.go", "package main\n\nfunc main() {}\n")
+
+	listSymbols(e, path, nil, lsp.ErrStopped)
+
+	if e.Mode != state.PickerMode {
+		t.Fatalf("the text listing did not open the popup: %q", e.StatusMsg)
+	}
+	if got := len(e.Pick.Matched()); got != 1 {
+		t.Errorf("the text listing found %d symbols, want 1", got)
+	}
+}
