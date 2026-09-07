@@ -102,14 +102,21 @@ func Text(e *state.Editor) {
 }
 
 func StatusBar(e *state.Editor) {
+	screen.Print(0, e.StatusRow(), e.Palette.StatusFg, e.Palette.StatusBg, Status(e))
+}
+
+// Status is the bottom line as text, padded out to the width so that the bar
+// takes the whole of it in the status colours. It is built as a string rather
+// than drawn straight onto the screen so that what it says can be read back:
+// termbox is never initialised under test, and a cell nothing was drawn into
+// cannot be told from one drawn off screen.
+func Status(e *state.Editor) string {
 	if txt, ok := e.PromptStatus(); ok {
-		screen.Print(0, e.StatusRow(), e.Palette.StatusFg, e.Palette.StatusBg, screen.Pad(txt, e.ScreenCols))
-		return
+		return screen.Pad(txt, e.ScreenCols)
 	}
 
 	if e.ExplorerOpen {
-		screen.Print(0, e.StatusRow(), e.Palette.StatusFg, e.Palette.StatusBg, screen.Pad(explorer.Status(e), e.ScreenCols))
-		return
+		return screen.Pad(explorer.Status(e), e.ScreenCols)
 	}
 
 	var modeStatus string
@@ -164,9 +171,8 @@ func StatusBar(e *state.Editor) {
 		line = append(line, " [Redo]"...)
 	}
 
-	// The left half is padded out to where the right half starts, so that the
-	// bar takes the whole width in the status colours. Everything in it but the
-	// file name is ASCII, so only the name's own width has to be measured.
+	// Everything in the left half but the file name is ASCII, so only the
+	// name's own width has to be measured.
 	width := len(line) - len(shown) + screen.Width(shown)
 	for ; width < e.ScreenCols-len(right); width++ {
 		line = append(line, ' ')
@@ -174,7 +180,7 @@ func StatusBar(e *state.Editor) {
 	line = append(line, right...)
 	lineScratch = line
 
-	screen.Print(0, e.StatusRow(), e.Palette.StatusFg, e.Palette.StatusBg, string(line))
+	return string(line)
 }
 
 // The status bar is rebuilt on every frame, so its two halves are assembled in
