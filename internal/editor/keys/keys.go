@@ -68,7 +68,7 @@ var readModeActions = map[rune]func(*state.Editor){
 	'w': (*state.Editor).NextWord,
 	'b': (*state.Editor).PrevWord,
 	'e': (*state.Editor).EndOfWord,
-	'q': (*state.Editor).Close,
+	'q': command.Quit,
 	'i': (*state.Editor).EditBeforeWord,
 	'x': edit.DeleteRune,
 	'o': edit.OpenLineBelow,
