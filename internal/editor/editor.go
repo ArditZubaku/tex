@@ -73,6 +73,7 @@ func Run(args []string) {
 		render.BufferLine(ed)
 		render.Windows(ed)
 		find.DrawPicker(ed)
+		ed.Hov.Draw(ed.ScreenArea(), ed.CursorScreenRow(), ed.CursorScreenCol(), &ed.Palette)
 		ed.Note.Draw(ed.ScreenArea(), &ed.Palette)
 		render.StatusBar(ed)
 

@@ -74,3 +74,31 @@ func TestWhatTheLastCommandReportedSurvivesTheLoopBeingWoken(t *testing.T) {
 		t.Error("StatusMsg was cleared by a wake-up, want it left to be redrawn")
 	}
 }
+
+func TestTheBoxAServerAnswerLandedInSurvivesTheWakeUpThatBroughtIt(t *testing.T) {
+	e := state.New()
+
+	edtest.InReadMode(t, e, "a\n", 0, 0)
+	edtest.SingleWindow(e, 20, 80)
+	e.Hov.Show("Run is the editor.", e.ScreenArea())
+
+	wake(t, e)
+
+	if !e.Hov.Showing() {
+		t.Error("the box was cleared by the wake-up that put it there")
+	}
+}
+
+func TestTheNextKeyTakesTheBoxDown(t *testing.T) {
+	e := state.New()
+
+	edtest.InReadMode(t, e, "a\nb\n", 0, 0)
+	edtest.SingleWindow(e, 20, 80)
+	e.Hov.Show("Run is the editor.", e.ScreenArea())
+
+	keys.Handle(e, termbox.Event{Ch: 'j'}, true)
+
+	if e.Hov.Showing() {
+		t.Errorf("the box is still showing %q", e.Hov.Text())
+	}
+}

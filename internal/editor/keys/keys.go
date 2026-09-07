@@ -25,14 +25,16 @@ func Read(e *state.Editor) {
 }
 
 // Handle is one event off the terminal. Anything that was not a key is a frame
-// owed and nothing else: a chord half typed, a count, and what the last command
-// reported all outlive a resize, and outlive the interrupt a language server's
-// answer wakes the loop with.
+// owed and nothing else: a chord half typed, a count, what the last command
+// reported and the box a server's answer went in all outlive a resize, and
+// outlive the interrupt that answer wakes the loop with.
 func Handle(e *state.Editor, keyEvent termbox.Event, isKey bool) {
 	if !isKey {
 		return
 	}
-	e.StatusMsg = "" // whatever the last command reported has had its redraw
+	// whatever the last command reported has had its redraw
+	e.StatusMsg = ""
+	e.Hov.Clear()
 
 	Dispatch(e, keyEvent)
 }
@@ -95,6 +97,7 @@ var readModeActions = map[rune]func(*state.Editor){
 	':': startExPrompt,
 	'v': edit.StartVisualChar,
 	'V': edit.StartVisualLine,
+	'K': find.ShowHover,
 }
 
 // Visual mode reuses Read mode's motions — a motion there drags the far end of
