@@ -46,6 +46,12 @@ func Handle(e *state.Editor, keyEvent termbox.Event, isKey bool) {
 }
 
 func Dispatch(e *state.Editor, keyEvent termbox.Event) {
+	sawCR := e.SawCR
+	e.SawCR = keyEvent.Ch == 0 && keyEvent.Key == termbox.KeyEnter
+	if sawCR && keyEvent.Ch == 0 && keyEvent.Key == termbox.KeyCtrlJ {
+		return
+	}
+
 	switch {
 	case e.Mode == state.PromptMode:
 		handlePromptKey(e, keyEvent)
@@ -269,6 +275,7 @@ func runCommand(e *state.Editor, action func(*state.Editor), countAware bool) {
 var specialKeyActions = map[termbox.Key]func(*state.Editor){
 	termbox.KeyCtrlS:      command.Save,
 	termbox.KeyEnter:      edit.Enter,
+	termbox.KeyCtrlJ:      edit.Enter, // a pasted Unix line ending, absent CRLF's CR
 	termbox.KeyBackspace:  edit.Backspace,
 	termbox.KeyBackspace2: edit.Backspace,
 	termbox.KeyArrowUp:    (*state.Editor).Up,

@@ -91,6 +91,13 @@ type Editor struct {
 	PendingKeys []rune
 	PendingTime time.Time
 
+	// SawCR marks that the key just handled was a bare CR. There is no
+	// bracketed-paste mode telling a paste's bytes apart from typing, so a
+	// pasted CRLF line ending arrives as two key events; SawCR is what lets
+	// the LF half be told apart from a paste's own bare LF and dropped rather
+	// than splitting the line twice.
+	SawCR bool
+
 	Palette theme.Palette
 
 	Hist history.History
