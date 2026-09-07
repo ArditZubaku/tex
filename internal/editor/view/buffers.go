@@ -311,19 +311,6 @@ func UnsavedBuffers(e *state.Editor) []*Entry {
 	return unsaved
 }
 
-// ModifiedBuffer names a buffer other than the current one with unsaved
-// changes, which is what keeps ':q' from taking them down with it.
-func ModifiedBuffer(e *state.Editor) *Entry {
-	SyncBuffer(e)
-	for i, entry := range buffers {
-		if i != currentBuffer && entry.Modified {
-			return entry
-		}
-	}
-
-	return nil
-}
-
 func Unwritten(entry *Entry) string {
 	return fmt.Sprintf("E162: No write since last change for buffer %q", entry.Path)
 }

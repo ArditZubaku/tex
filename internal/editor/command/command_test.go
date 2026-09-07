@@ -5,6 +5,7 @@ package command_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/editor/edtest"
@@ -56,7 +57,7 @@ func TestWriteCommandWithANameContinuesEditingIt(t *testing.T) {
 	}
 }
 
-func TestQuitCommandRefusesToDropChanges(t *testing.T) {
+func TestQuitCommandAsksBeforeDroppingChanges(t *testing.T) {
 	e := state.New()
 
 	edtest.InReadMode(t, e, "one\n", 0, 0)
@@ -67,8 +68,11 @@ func TestQuitCommandRefusesToDropChanges(t *testing.T) {
 	if e.Quitting {
 		t.Error("quit with unsaved changes")
 	}
-	if e.StatusMsg != "E37: No write since last change (add ! to override)" {
-		t.Errorf("statusMsg = %q", e.StatusMsg)
+	if e.Mode != state.PromptMode {
+		t.Fatalf("mode = %v, want PromptMode", e.Mode)
+	}
+	if want := filepath.Base(e.SourceFile); !strings.Contains(e.Prompt.Text(), want) {
+		t.Errorf("prompt = %q, want it to name %q", e.Prompt.Text(), want)
 	}
 }
 

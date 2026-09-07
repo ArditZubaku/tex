@@ -39,11 +39,14 @@ func submitPrompt(e *state.Editor) {
 		return
 	}
 
-	if delimiter == ':' {
+	switch delimiter {
+	case ':':
 		command.Run(e, string(input))
-		return
+	case command.QuitPrompt:
+		command.ConfirmQuit(e, string(input))
+	default:
+		find.CommitSearch(e, input, delimiter == '?')
 	}
-	find.CommitSearch(e, input, delimiter == '?')
 }
 
 // endPrompt is what Esc reaches, so it leaves the explorer's listing as it was

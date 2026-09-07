@@ -68,7 +68,7 @@ func exCommandTable() map[string]exCommand {
 		"e edit":  func(e *state.Editor, arg string, force bool) { Edit(e, cmp.Or(arg, e.SourceFile), force) },
 		"wq x xit": func(e *state.Editor, arg string, _ bool) {
 			if Write(e, arg) {
-				quitWindow(e, true)
+				quitWindow(e, false)
 			}
 		},
 		"q quit":                 func(e *state.Editor, _ string, force bool) { quitWindow(e, force) },
@@ -323,17 +323,12 @@ func quitWindow(e *state.Editor, force bool) {
 	quit(e, force)
 }
 
+// quit is the editor going, whatever asked: '!' takes the unsaved buffers down
+// with it, and anything else asks about them first.
 func quit(e *state.Editor, force bool) {
-	switch {
-	case force:
-	case e.Modified:
-		e.StatusMsg = state.NoWriteSinceChange
+	if force {
+		e.Close()
 		return
-	default:
-		if entry := view.ModifiedBuffer(e); entry != nil {
-			e.StatusMsg = view.Unwritten(entry)
-			return
-		}
 	}
-	e.Close()
+	Quit(e)
 }

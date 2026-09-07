@@ -5,6 +5,7 @@ package view_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ArditZubaku/tex/internal/editor/edtest"
@@ -314,7 +315,7 @@ func TestDeletingTheLastBufferLeavesAnEmptyOne(t *testing.T) {
 	}
 }
 
-func TestQuitRefusesWhileAnotherBufferHasUnsavedChanges(t *testing.T) {
+func TestQuitAsksAboutABufferItIsNotEvenShowing(t *testing.T) {
 	e := state.New()
 
 	paths := inBuffers(t, e, "a.txt")
@@ -326,10 +327,11 @@ func TestQuitRefusesWhileAnotherBufferHasUnsavedChanges(t *testing.T) {
 	if e.Quitting {
 		t.Error("quit with another buffer unsaved")
 	}
-	if want := `E162: No write since last change for buffer "` + view.Buffers()[0].Path + `"`; e.StatusMsg != want {
-		t.Errorf("statusMsg = %q, want %q", e.StatusMsg, want)
+	if want := filepath.Base(view.Buffers()[0].Path); !strings.Contains(e.Prompt.Text(), want) {
+		t.Errorf("prompt = %q, want it to name %q", e.Prompt.Text(), want)
 	}
 
+	edtest.Press(t, e, "\x1b")
 	edtest.Press(t, e, ":q!\n")
 
 	if !e.Quitting {
