@@ -165,6 +165,7 @@ func chordKeys() map[string]func(*state.Editor) {
 		" sS": find.OpenWorkspaceSymbols,
 		" wd": view.CloseWindow,
 		"  ":  find.OpenFiles,
+		" /":  find.OpenGrep,
 	}
 
 	return chords

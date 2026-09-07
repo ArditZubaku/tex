@@ -44,6 +44,8 @@ func submitPrompt(e *state.Editor) {
 		command.Run(e, string(input))
 	case command.QuitPrompt:
 		command.ConfirmQuit(e, string(input))
+	case find.GrepPrompt:
+		find.RunGrep(e, string(input))
 	default:
 		find.CommitSearch(e, input, delimiter == '?')
 	}
