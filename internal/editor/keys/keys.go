@@ -88,6 +88,7 @@ var readModeActions = map[rune]func(*state.Editor){
 	'w': (*state.Editor).NextWord,
 	'b': (*state.Editor).PrevWord,
 	'e': (*state.Editor).EndOfWord,
+	'$': (*state.Editor).EndOfLine,
 	'q': command.Quit,
 	'i': (*state.Editor).EditBeforeWord,
 	'x': edit.DeleteRune,
@@ -122,7 +123,7 @@ func visualKeys() map[rune]func(*state.Editor) {
 		'c': edit.ChangeSelection,
 		'y': edit.YankSelection,
 	}
-	for _, ch := range "hjklwbeG" {
+	for _, ch := range "hjklwbeG$" {
 		actions[ch] = readModeActions[ch]
 	}
 

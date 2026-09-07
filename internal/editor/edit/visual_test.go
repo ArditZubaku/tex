@@ -96,6 +96,16 @@ func TestVisualYankAcrossLinesPutsBackAsARun(t *testing.T) {
 	edtest.WantLines(t, b, "fooo", "bao", "bar")
 }
 
+func TestVisualDollarSelectsToEndOfLine(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "abcdef\n", 0, 1)
+
+	edtest.Press(t, e, "v$d")
+
+	edtest.WantLines(t, b, "a")
+}
+
 func TestCountedMotionExtendsTheSelection(t *testing.T) {
 	e := state.New()
 
