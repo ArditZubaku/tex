@@ -294,6 +294,23 @@ func CloseAll(e *state.Editor) {
 	}
 }
 
+// UnsavedBuffers is every buffer holding changes that are not on disk, the one
+// being edited included, in the order the buffer line lists them. Quitting asks
+// for this rather than for the current file alone: a buffer left behind by Tab
+// or by the picker holds its changes just as the one on screen does.
+func UnsavedBuffers(e *state.Editor) []*Entry {
+	SyncBuffer(e)
+
+	unsaved := make([]*Entry, 0, len(buffers))
+	for _, entry := range buffers {
+		if entry.Modified {
+			unsaved = append(unsaved, entry)
+		}
+	}
+
+	return unsaved
+}
+
 // ModifiedBuffer names a buffer other than the current one with unsaved
 // changes, which is what keeps ':q' from taking them down with it.
 func ModifiedBuffer(e *state.Editor) *Entry {
