@@ -226,35 +226,8 @@ func (b *Buffer) Save(path string) error {
 		}
 	}
 
-	// bufio's error is sticky, so it is enough to check it once at the Flush.
-	// The overlay is in row order, so it is walked alongside the index rather
-	// than looked up once per line, and the index of what is being written is
-	// built as it goes: every line's offset is known here, and reading the file
-	// back to work them out again would cost as much as the write did.
-	w := bufio.NewWriterSize(tmp, WindowBytes)
-	starts := make([]int64, 0, b.count)
-	written, next := int64(0), 0
-	for i := range b.count {
-		starts = append(starts, written)
-
-		if next < len(b.overlay) && b.overlay[next].row == i {
-			for _, ch := range b.overlay[next].line {
-				n, _ := w.WriteRune(ch)
-				written += int64(n)
-			}
-			next++
-		} else {
-			n, _ := w.Write(b.rawLine(i))
-			written += int64(n)
-		}
-
-		if i < b.count-1 || b.endsWithNewline {
-			_ = w.WriteByte('\n')
-			written++
-		}
-	}
-
-	if err := w.Flush(); err != nil {
+	out, err := b.WriteLines(tmp, nil)
+	if err != nil {
 		_ = tmp.Close()
 		return err
 	}
@@ -269,9 +242,60 @@ func (b *Buffer) Save(path string) error {
 		return err
 	}
 
-	b.reopen(path, starts, written)
+	b.reopen(path, out.Starts, out.Size)
 
 	return nil
+}
+
+// Written is what a write left behind: how long the file is now, and where each
+// of its lines begins. Both are known while writing, and reading the result
+// back to work them out again would cost as much as the write did.
+type Written struct {
+	Size   int64
+	Starts []int64
+}
+
+// WriteLines writes the buffer out as a file would hold it: an unedited line as
+// the raw bytes it was read as, so a write holds no more memory than scrolling
+// does, an edited one as the runes the overlay holds, and each terminated as the
+// file it came from was. The index is appended into starts, which a caller that
+// writes often — a language server is handed the whole document on every change
+// — passes back in so that it is not reallocated per write; Save passes nil,
+// since what it gets back is the index the buffer goes on reading through.
+//
+// Not WriteTo: that name belongs to io.WriterTo, whose signature this is not.
+func (b *Buffer) WriteLines(w io.Writer, starts []int64) (Written, error) {
+	// bufio's error is sticky, so it is enough to check it once at the Flush.
+	// The overlay is in row order, so it is walked alongside the index rather
+	// than looked up once per line.
+	out := bufio.NewWriterSize(w, WindowBytes)
+	starts = slices.Grow(starts[:0], b.count)
+	written, next := int64(0), 0
+	for i := range b.count {
+		starts = append(starts, written)
+
+		if next < len(b.overlay) && b.overlay[next].row == i {
+			for _, ch := range b.overlay[next].line {
+				n, _ := out.WriteRune(ch)
+				written += int64(n)
+			}
+			next++
+		} else {
+			n, _ := out.Write(b.rawLine(i))
+			written += int64(n)
+		}
+
+		if i < b.count-1 || b.endsWithNewline {
+			_ = out.WriteByte('\n')
+			written++
+		}
+	}
+
+	if err := out.Flush(); err != nil {
+		return Written{}, err
+	}
+
+	return Written{Size: written, Starts: starts}, nil
 }
 
 // reopen points the buffer at what Save has just written, keeping the index it
