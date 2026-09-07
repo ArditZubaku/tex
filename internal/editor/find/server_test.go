@@ -311,3 +311,53 @@ func TestAServerThatWillNotListTheProjectLeavesTheTextToDoIt(t *testing.T) {
 		t.Errorf("the row reads %q, want %q", e.Pick.Matched()[0].Label, want)
 	}
 }
+
+func TestWhatTheServerKnowsGoesInTheBox(t *testing.T) {
+	e, _ := answered(t, "main.go", "package main\n")
+
+	showHover(e, "```go\nfunc Run(args []string)\n```\n\nRun is the editor.\n", nil)
+
+	want := "func Run(args []string)\n\nRun is the editor."
+	if e.Hov.Text() != want {
+		t.Errorf("the box reads %q, want %q", e.Hov.Text(), want)
+	}
+	if e.StatusMsg != "" {
+		t.Errorf("it also reported %q", e.StatusMsg)
+	}
+}
+
+func TestNothingKnownAboutTheCursorIsSaidRatherThanShownAsAnEmptyBox(t *testing.T) {
+	e, _ := answered(t, "main.go", "package main\n")
+
+	showHover(e, "", nil)
+
+	if e.Hov.Showing() {
+		t.Errorf("an empty answer put %q on the screen", e.Hov.Text())
+	}
+	if want := "nothing known about what is under the cursor"; e.StatusMsg != want {
+		t.Errorf("it reported %q, want %q", e.StatusMsg, want)
+	}
+}
+
+func TestAServerThatDidNotAnswerTheHoverSaysSo(t *testing.T) {
+	e, _ := answered(t, "main.go", "package main\n")
+
+	showHover(e, "", lsp.ErrNoAnswer)
+
+	if e.Hov.Showing() {
+		t.Error("a refused hover still opened the box")
+	}
+	if want := "the language server did not answer"; e.StatusMsg != want {
+		t.Errorf("it reported %q, want %q", e.StatusMsg, want)
+	}
+}
+
+func TestPressingKWithNoServerSaysSoRatherThanNothing(t *testing.T) {
+	e, path := answered(t, "notes.txt", "some prose\n")
+
+	ShowHover(e)
+
+	if want := "no language server for " + filepath.Base(path); e.StatusMsg != want {
+		t.Errorf("it reported %q, want %q", e.StatusMsg, want)
+	}
+}
