@@ -38,6 +38,18 @@ func TestEditModeReachesTheGapAfterTheLastRune(t *testing.T) {
 	}
 }
 
+func TestEndOfLineStopsOnTheLastRune(t *testing.T) {
+	e := state.New()
+	edtest.AtCursor(t, e, "package main\n", 0, 0)
+	e.Mode = state.ReadMode
+
+	e.EndOfLine()
+
+	if e.Row != 0 || e.Col != 11 {
+		t.Errorf("cursor at %d,%d, want 0,11", e.Row, e.Col)
+	}
+}
+
 func TestEmptyLineClampsToColumnZero(t *testing.T) {
 	e := state.New()
 	edtest.AtCursor(t, e, "package main\n\n", 0, 11)

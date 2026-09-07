@@ -116,6 +116,12 @@ func (e *Editor) GoToEndOfLine() {
 	e.EnterEditMode()
 }
 
+// EndOfLine is VIM's '$', landing on the last rune of the line rather than the
+// gap past it that GoToEndOfLine's Insert-mode append needs.
+func (e *Editor) EndOfLine() {
+	e.Col = e.MaxCol(e.Row)
+}
+
 func (e *Editor) GoToStartOfLine() {
 	e.Col = 0
 	e.EnterEditMode()
