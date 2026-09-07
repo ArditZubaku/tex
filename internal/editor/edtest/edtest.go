@@ -149,6 +149,30 @@ func PressKey(t *testing.T, e *state.Editor, key termbox.Key) {
 	keys.Dispatch(e, termbox.Event{Key: key})
 }
 
+// PressMouse, DragMouse and ReleaseMouse are the mouse arriving the way the
+// terminal sends it: a button down where the pointer is, the motion reported
+// while it is held, and the release that ends it.
+func PressMouse(t *testing.T, e *state.Editor, row, col int) {
+	t.Helper()
+
+	keys.Handle(e, termbox.Event{Type: termbox.EventMouse, Key: termbox.MouseLeft, MouseY: row, MouseX: col}, false)
+}
+
+func DragMouse(t *testing.T, e *state.Editor, row, col int) {
+	t.Helper()
+
+	keys.Handle(e, termbox.Event{
+		Type: termbox.EventMouse, Key: termbox.MouseLeft, Mod: termbox.ModMotion,
+		MouseY: row, MouseX: col,
+	}, false)
+}
+
+func ReleaseMouse(t *testing.T, e *state.Editor, row, col int) {
+	t.Helper()
+
+	keys.Handle(e, termbox.Event{Type: termbox.EventMouse, Key: termbox.MouseRelease, MouseY: row, MouseX: col}, false)
+}
+
 // Esc is what leaving a mode, a pending chord or a pending count goes through.
 func Esc(t *testing.T, e *state.Editor) {
 	t.Helper()

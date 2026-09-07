@@ -393,3 +393,108 @@ func TestClosingABufferLeavesNoWindowShowingIt(t *testing.T) {
 		}
 	}
 }
+
+func TestADraggedLayoutKeepsItsProportionsWhenTheScreenGrows(t *testing.T) {
+	e := state.New()
+
+	inWindows(t, e)
+
+	edtest.Press(t, e, ":sp\n")
+	edtest.PressMouse(t, e, state.TabBarRows+10, 0)
+	edtest.DragMouse(t, e, state.TabBarRows+9, 0)
+	e.ScreenRows = 40
+	view.Layout(e)
+
+	list := view.List(e)
+	wantRect(t, list[0], state.TabBarRows, 0, 19, 80)
+	wantRect(t, list[1], state.TabBarRows+20, 0, 20, 80)
+}
+
+func TestDraggingTheLineBetweenTwoWindowsMovesIt(t *testing.T) {
+	e := state.New()
+
+	inWindows(t, e)
+
+	edtest.Press(t, e, ":sp\n")
+	edtest.PressMouse(t, e, state.TabBarRows+10, 4) // the separator the split drew
+	edtest.DragMouse(t, e, state.TabBarRows+14, 4)
+	edtest.ReleaseMouse(t, e, state.TabBarRows+14, 4)
+
+	list := view.List(e)
+	wantRect(t, list[0], state.TabBarRows, 0, 14, 80)
+	wantRect(t, list[1], state.TabBarRows+15, 0, 5, 80)
+}
+
+func TestDraggingAVerticalLineMovesItSidewaysOnly(t *testing.T) {
+	e := state.New()
+
+	inWindows(t, e)
+
+	edtest.Press(t, e, ":vs\n")
+	edtest.PressMouse(t, e, state.TabBarRows+3, 40)
+	edtest.DragMouse(t, e, state.TabBarRows+9, 30) // the row it wanders onto means nothing
+
+	list := view.List(e)
+	wantRect(t, list[0], state.TabBarRows, 0, 20, 30)
+	wantRect(t, list[1], state.TabBarRows, 31, 20, 49)
+}
+
+func TestADragStopsWhereTheWindowItTakesFromRunsOut(t *testing.T) {
+	e := state.New()
+
+	inWindows(t, e)
+
+	edtest.Press(t, e, ":sp\n")
+	edtest.PressMouse(t, e, state.TabBarRows+10, 0)
+	edtest.DragMouse(t, e, state.TabBarRows+40, 0) // far past the foot of the screen
+	edtest.DragMouse(t, e, state.TabBarRows+10, 0) // and back to where it was taken
+
+	list := view.List(e)
+	wantRect(t, list[0], state.TabBarRows, 0, 10, 80)
+	wantRect(t, list[1], state.TabBarRows+11, 0, 9, 80)
+}
+
+func TestPressingInsideAWindowStartsNoDrag(t *testing.T) {
+	e := state.New()
+
+	inWindows(t, e)
+
+	edtest.Press(t, e, ":sp\n")
+	edtest.PressMouse(t, e, state.TabBarRows+4, 10) // in the upper window, not on its edge
+	edtest.DragMouse(t, e, state.TabBarRows+14, 10)
+
+	list := view.List(e)
+	wantRect(t, list[0], state.TabBarRows, 0, 10, 80)
+	wantRect(t, list[1], state.TabBarRows+11, 0, 9, 80)
+}
+
+func TestLettingGoEndsTheDrag(t *testing.T) {
+	e := state.New()
+
+	inWindows(t, e)
+
+	edtest.Press(t, e, ":sp\n")
+	edtest.PressMouse(t, e, state.TabBarRows+10, 0)
+	edtest.ReleaseMouse(t, e, state.TabBarRows+10, 0)
+	edtest.DragMouse(t, e, state.TabBarRows+14, 0)
+
+	list := view.List(e)
+	wantRect(t, list[0], state.TabBarRows, 0, 10, 80)
+	wantRect(t, list[1], state.TabBarRows+11, 0, 9, 80)
+}
+
+func TestDraggingTheLineOfANestedSplitMovesThatOneAlone(t *testing.T) {
+	e := state.New()
+
+	inWindows(t, e)
+
+	edtest.Press(t, e, ":vs\n")
+	edtest.Press(t, e, ":sp\n")
+	edtest.PressMouse(t, e, state.TabBarRows+10, 50) // the line inside the right column
+	edtest.DragMouse(t, e, state.TabBarRows+5, 50)
+
+	list := view.List(e)
+	wantRect(t, list[0], state.TabBarRows, 0, 20, 40)
+	wantRect(t, list[1], state.TabBarRows, 41, 5, 39)
+	wantRect(t, list[2], state.TabBarRows+6, 41, 14, 39)
+}
