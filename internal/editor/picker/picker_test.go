@@ -127,3 +127,26 @@ func TestNarrowingTheListingAgainSelectsItsFirstRow(t *testing.T) {
 		t.Fatalf("selected %q, want %q", got, want)
 	}
 }
+
+func TestShowingAListingIntoAPopupAlreadyUpKeepsWhatWasTypedIntoIt(t *testing.T) {
+	p := show(t, "Palette", "Default")
+	typeQuery(t, p, "p")
+
+	p.Show("Symbols", []Entry{{Label: "Palette"}, {Label: "Themes"}})
+
+	if got := p.Matched(); len(got) != 1 || got[0].Label != "Palette" {
+		t.Errorf("the refreshed listing is %v, want the query still narrowing it", got)
+	}
+}
+
+func TestShowingAListingIntoAClosedPopupStartsWithNoQuery(t *testing.T) {
+	p := show(t, "Palette", "Default")
+	typeQuery(t, p, "p")
+	p.Close()
+
+	p.Show("Symbols", []Entry{{Label: "Palette"}, {Label: "Default"}})
+
+	if got := len(p.Matched()); got != 2 {
+		t.Errorf("the new listing shows %d rows, want both", got)
+	}
+}

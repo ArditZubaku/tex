@@ -66,9 +66,14 @@ const chromeRows = 4
 
 func (p *Picker) Open() bool { return p.open }
 
+// Show on a popup that is already up keeps what has been typed into it, so that
+// a listing refreshed under the query — a server asked again as it is typed —
+// does not throw the typing away.
 func (p *Picker) Show(title string, entries []Entry) {
+	if !p.open {
+		p.query = p.query[:0]
+	}
 	p.open, p.title, p.entries = true, title, entries
-	p.query = p.query[:0]
 	p.filter()
 }
 
