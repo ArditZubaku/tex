@@ -16,6 +16,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/diag"
 	"github.com/ArditZubaku/tex/internal/editor/filetree"
+	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/keys"
 	"github.com/ArditZubaku/tex/internal/editor/prompt"
@@ -91,6 +92,7 @@ func InReadMode(t *testing.T, e *state.Editor, content string, row, col int) *bu
 	view.Reset()
 	render.Reset()
 	diag.Reset()
+	find.Reset()
 	lsp.Reset()
 	// Without this a test that wired the hook leaves every later test's 'dd'
 	// mutating a store it knows nothing about.

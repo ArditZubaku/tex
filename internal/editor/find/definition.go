@@ -6,12 +6,14 @@ import (
 	"github.com/ArditZubaku/tex/internal/decl"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/view"
+	"github.com/ArditZubaku/tex/internal/lsp"
 	"github.com/ArditZubaku/tex/internal/project"
 )
 
-// 'gd' is VIM's jump to a declaration, read from the text rather than from a
-// language server: the identifier under the cursor is looked for in the shapes
-// a declaration takes, strongest first, nearest above the cursor first of all.
+// 'gd' is VIM's jump to a declaration. A language server knows the answer
+// properly and is asked when there is one; failing that the identifier under
+// the cursor is looked for in the text, in the shapes a declaration takes,
+// strongest first and nearest above the cursor first of all.
 
 type definition struct {
 	path string
@@ -21,6 +23,46 @@ type definition struct {
 }
 
 func GoToDefinition(e *state.Editor) {
+	if lsp.Ready(e.SourceFile) {
+		askDefinition(e)
+
+		return
+	}
+
+	definitionInText(e)
+}
+
+// A server that finds nothing, refuses, or never answers at all leaves the
+// text search to answer instead, which is what the editor does when there is
+// no server: a hung one degrades to that after a couple of seconds rather than
+// to nothing at all.
+func askDefinition(e *state.Editor) {
+	token, from := ask(e)
+	lsp.Definition(e.SourceFile, e.Buf, e.Row, e.Col, func(found []lsp.Location, err error) {
+		if !stale(e, token, from) {
+			goToFirst(e, found, err)
+		}
+	})
+}
+
+func goToFirst(e *state.Editor, found []lsp.Location, err error) {
+	if err != nil || len(found) == 0 {
+		definitionInText(e)
+
+		return
+	}
+
+	path, row, col, ok := place(found[0])
+	if !ok {
+		definitionInText(e)
+
+		return
+	}
+
+	view.Goto(e, path, row, col)
+}
+
+func definitionInText(e *state.Editor) {
 	word, ok := wordUnderCursor(e)
 	if !ok {
 		e.StatusMsg = "E349: No identifier under the cursor"
