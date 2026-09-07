@@ -1,12 +1,18 @@
-.PHONY: lint run hooks
+.PHONY: lint run hooks install
 
 FILE ?= main.go
+PREFIX ?= $(HOME)/bin
 
 run:
 	@go build -o tex . && (trap 'go clean; exit' INT TERM EXIT; ./tex $(FILE)) # runs clean no matter how the program exits
 
 build:
 	@go build -o tex .
+
+install: build
+	@mkdir -p $(PREFIX)
+	@mv tex $(PREFIX)/tex
+	@echo "installed to $(PREFIX)/tex — ensure $(PREFIX) is on PATH"
 
 lint:
 	docker run --rm \
