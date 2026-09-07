@@ -78,15 +78,16 @@ func Truncate(txt string, width int, fromFront bool) string {
 	return string(runes[:width-1]) + "…"
 }
 
-func Key() termbox.Event {
-	var keyEvent termbox.Event
-
-	switch event := termbox.PollEvent(); event.Type {
-	case termbox.EventKey:
-		keyEvent = event
-	case termbox.EventError:
+// Key is the next event off the terminal, and whether it was a key at all.
+// What comes off it that is not one — a resize, or the interrupt something off
+// the loop's goroutine asks for a frame with — is a frame owed and nothing
+// more: handing it to the dispatcher as a key clears a chord half typed, drops
+// a count, and wipes what the last command reported.
+func Key() (termbox.Event, bool) {
+	event := termbox.PollEvent()
+	if event.Type == termbox.EventError {
 		panic(event.Err) // TODO: Will think of something better in such a case
 	}
 
-	return keyEvent
+	return event, event.Type == termbox.EventKey
 }

@@ -19,7 +19,7 @@ import (
 )
 
 func Read(e *state.Editor) {
-	keyEvent := screen.Key()
+	keyEvent, _ := screen.Key()
 	e.StatusMsg = "" // whatever the last command reported has had its redraw
 
 	Dispatch(e, keyEvent)
