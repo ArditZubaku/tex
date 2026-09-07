@@ -9,6 +9,7 @@ package diag
 import (
 	"cmp"
 	"slices"
+	"strings"
 
 	"github.com/ArditZubaku/tex/internal/lsp"
 )
@@ -57,8 +58,52 @@ func Set(path string, notes File) {
 		return
 	}
 
+	for at := range notes {
+		notes[at].Message = oneLine(notes[at].Message)
+	}
 	inOrder(notes)
 	files[key] = notes
+}
+
+// A Found is one note and the file it was said about, which is what a listing
+// over every file needs and one over a single file does not.
+type Found struct {
+	Path string
+	Note
+}
+
+// All is everything said about every file, worst first. The order is total
+// rather than merely worst-first, since the store is a map and a listing that
+// reordered itself between two openings would be unreadable.
+func All() []Found {
+	found := make([]Found, 0, len(files)*4)
+	for uri, notes := range files {
+		path := lsp.Path(uri)
+		for _, note := range notes {
+			found = append(found, Found{Path: path, Note: note})
+		}
+	}
+
+	slices.SortFunc(found, func(a, b Found) int {
+		return cmp.Or(
+			cmp.Compare(a.Severity, b.Severity),
+			cmp.Compare(a.Path, b.Path),
+			cmp.Compare(a.Row, b.Row),
+			cmp.Compare(a.Col, b.Col),
+		)
+	})
+
+	return found
+}
+
+// A server is free to say several lines; nothing the editor draws is more than
+// one, so they are joined rather than cut at the first break.
+func oneLine(msg string) string {
+	if !strings.ContainsAny(msg, "\n\r\t") {
+		return msg
+	}
+
+	return strings.Join(strings.Fields(msg), " ")
 }
 
 // Of is what was said about a file, which is nothing at all for most of them.

@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nsf/termbox-go"
+
+	"github.com/ArditZubaku/tex/internal/editor/command"
 	"github.com/ArditZubaku/tex/internal/editor/diag"
 	"github.com/ArditZubaku/tex/internal/editor/edtest"
 	"github.com/ArditZubaku/tex/internal/editor/state"
@@ -69,5 +72,71 @@ func TestADiagnosticPastTheEndOfTheFileLandsOnItsLastLine(t *testing.T) {
 
 	if e.Row != e.Buf.LineCount()-1 {
 		t.Errorf("cursor on line %d, want the last line %d", e.Row, e.Buf.LineCount()-1)
+	}
+}
+
+func TestListingEveryDiagnosticPutsTheWorstFirst(t *testing.T) {
+	e := markedUp(t,
+		diag.Note{Severity: diag.Warning, Message: "unused variable", Row: 4},
+		diag.Note{Severity: diag.Error, Message: "undefined: fooBar", Row: 9},
+		diag.Note{Severity: diag.Hint, Message: "could be simplified", Row: 1},
+	)
+
+	command.Run(e, "diag")
+
+	if e.Mode != state.PickerMode {
+		t.Fatalf("':diag' left the editor in %v", e.Mode)
+	}
+
+	labels := matchedLabels(e)
+	if len(labels) != 3 {
+		t.Fatalf("':diag' listed %v, want three rows", labels)
+	}
+	for i, want := range []string{"E ", "W ", "H "} {
+		if !strings.HasPrefix(labels[i], want) {
+			t.Errorf("row %d is %q, want it to start %q", i, labels[i], want)
+		}
+	}
+	if !strings.Contains(labels[0], "undefined: fooBar") {
+		t.Errorf("the first row is %q, want the error's own message", labels[0])
+	}
+}
+
+func TestListingWithNothingSaidAboutAnythingReportsSo(t *testing.T) {
+	e := markedUp(t)
+
+	command.Run(e, "diag")
+
+	if e.Mode == state.PickerMode {
+		t.Error("':diag' opened an empty popup")
+	}
+	if e.StatusMsg == "" {
+		t.Error("':diag' said nothing at all")
+	}
+}
+
+func TestChoosingADiagnosticLandsOnIt(t *testing.T) {
+	e := markedUp(t, diag.Note{Severity: diag.Error, Message: "undefined: fooBar", Row: 7, Col: 3})
+
+	command.Run(e, "diag")
+	edtest.PressKey(t, e, termbox.KeyEnter)
+
+	edtest.WantCursor(t, e, 7, 3)
+	if e.Mode != state.ReadMode {
+		t.Errorf("choosing a row left the editor in %v", e.Mode)
+	}
+}
+
+// A server says several lines often enough — a type mismatch spelled out over
+// three — and nothing the editor draws is more than one.
+func TestAMessageOfSeveralLinesIsJoinedIntoOne(t *testing.T) {
+	e := markedUp(t, diag.Note{
+		Severity: diag.Error,
+		Message:  "cannot use x\n\t(variable of type int)\n\tas string value",
+		Row:      2,
+	})
+
+	if got := diag.Of(e.SourceFile)[0].Message; strings.ContainsAny(got, "\n\t") {
+		t.Errorf("the message is %q, want it on one line", got)
 	}
 }

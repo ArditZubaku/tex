@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/find"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/notify"
 	"github.com/ArditZubaku/tex/internal/editor/rename"
@@ -83,6 +84,7 @@ func exCommandTable() map[string]exCommand {
 		"on only":                func(e *state.Editor, _ string, _ bool) { view.OnlyWindow(e) },
 		"rename ren":             func(e *state.Editor, arg string, _ bool) { rename.Run(e, arg) },
 		"noh nohl nohlsearch":    func(e *state.Editor, _ string, _ bool) { e.HlSearch = false },
+		"diag diagnostics":       func(e *state.Editor, _ string, _ bool) { find.OpenDiagnostics(e) },
 		"theme colorscheme colo": func(e *state.Editor, arg string, _ bool) { setTheme(e, arg) },
 	}
 
