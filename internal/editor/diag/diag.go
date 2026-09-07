@@ -101,6 +101,39 @@ func At(path string, row int) (Note, bool) {
 	return best, found
 }
 
+// Next is the first thing said about the file past where the cursor is, and
+// Prev the last one before it, both wrapping at the end the way 'n' and 'N'
+// wrap a search.
+func Next(path string, row, col int) (Note, bool) {
+	notes := Of(path)
+	if len(notes) == 0 {
+		return Note{}, false
+	}
+
+	for _, note := range notes {
+		if note.Row > row || (note.Row == row && note.Col > col) {
+			return note, true
+		}
+	}
+
+	return notes[0], true
+}
+
+func Prev(path string, row, col int) (Note, bool) {
+	notes := Of(path)
+	if len(notes) == 0 {
+		return Note{}, false
+	}
+
+	for i := len(notes) - 1; i >= 0; i-- {
+		if note := notes[i]; note.Row < row || (note.Row == row && note.Col < col) {
+			return note, true
+		}
+	}
+
+	return notes[len(notes)-1], true
+}
+
 func worse(of, than Severity) Severity {
 	if than == None || (of != None && of < than) {
 		return of

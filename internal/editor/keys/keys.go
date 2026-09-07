@@ -139,6 +139,8 @@ func chordKeys() map[string]func(*state.Editor) {
 		"ye":  edit.YankToWordEnd,
 		"yb":  edit.YankToPrevWord,
 		"zz":  (*state.Editor).CenterView,
+		"]d":  find.NextDiagnostic,
+		"[d":  find.PrevDiagnostic,
 		" e":  explorer.Open,
 		" bb": view.AlternateBuffer,
 		" bd": view.CloseCurrentBuffer,
