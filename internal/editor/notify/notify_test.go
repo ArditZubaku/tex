@@ -79,3 +79,57 @@ func TestClearTakesTheNoteDown(t *testing.T) {
 		t.Errorf("note = %q, want nothing left", n.Text())
 	}
 }
+
+func TestShowDiagnosticStartsShowingLikeAnyOtherNote(t *testing.T) {
+	var n Note
+	n.ShowDiagnostic("error", "undefined: fooBar")
+
+	if !n.Showing() || n.Text() != "undefined: fooBar" {
+		t.Errorf("note = %q, showing = %v, want the diagnostic up", n.Text(), n.Showing())
+	}
+}
+
+func TestShowDiagnosticNeverInterruptsAnExplicitNote(t *testing.T) {
+	var n Note
+	n.Show("gofmt", "expected declaration")
+	n.ShowDiagnostic("error", "undefined: fooBar")
+
+	if n.Text() != "expected declaration" {
+		t.Errorf("note = %q, want the explicit note left alone", n.Text())
+	}
+}
+
+func TestShowDiagnosticTakesOverOnceTheExplicitNoteHasRunOut(t *testing.T) {
+	raised := time.Now()
+	at(t, raised)
+
+	var n Note
+	n.Show("gofmt", "expected declaration")
+
+	at(t, raised.Add(ttl))
+	n.ShowDiagnostic("error", "undefined: fooBar")
+
+	if n.Text() != "undefined: fooBar" {
+		t.Errorf("note = %q, want the diagnostic once the explicit note expired", n.Text())
+	}
+}
+
+func TestClearDiagnosticDropsAnAutoNote(t *testing.T) {
+	var n Note
+	n.ShowDiagnostic("error", "undefined: fooBar")
+	n.ClearDiagnostic()
+
+	if n.Showing() {
+		t.Error("still showing after the cursor left the line")
+	}
+}
+
+func TestClearDiagnosticLeavesAnExplicitNoteAlone(t *testing.T) {
+	var n Note
+	n.Show("gofmt", "expected declaration")
+	n.ClearDiagnostic()
+
+	if !n.Showing() {
+		t.Error("an explicit note should not be dropped by a diagnostic clearing")
+	}
+}

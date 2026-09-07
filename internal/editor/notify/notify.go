@@ -1,6 +1,7 @@
-// Package notify is the box in the top-right corner: one error, drawn over
-// whatever is on screen, for something that went wrong away from the status
-// line — a formatter refusing the file a save has just written.
+// Package notify is the box in the top-right corner: one note, drawn over
+// whatever is on screen, for something away from the status line — a
+// formatter refusing the file a save has just written, the language server
+// going away, or a diagnostic on the line the cursor sits on.
 package notify
 
 import (
@@ -38,13 +39,33 @@ type Note struct {
 	title  string
 	text   string
 	raised time.Time
+	auto   bool
 }
 
 func (n *Note) Show(title, text string) {
 	*n = Note{title: title, text: text, raised: now()}
 }
 
+// ShowDiagnostic is the box's other source: the diagnostic on the cursor's own
+// line, meant to be called every frame so it lasts exactly as long as the
+// cursor sits there. It never interrupts a note something explicit just
+// raised.
+func (n *Note) ShowDiagnostic(title, text string) {
+	if n.Showing() && !n.auto {
+		return
+	}
+	*n = Note{title: title, text: text, raised: now(), auto: true}
+}
+
 func (n *Note) Clear() { *n = Note{} }
+
+// ClearDiagnostic drops the box the moment the cursor leaves the line that
+// raised it, leaving an explicit note to run out its own time undisturbed.
+func (n *Note) ClearDiagnostic() {
+	if n.auto {
+		n.Clear()
+	}
+}
 
 // Text is what the box is showing, which is what a test reads it by.
 func (n *Note) Text() string { return n.text }
