@@ -72,6 +72,7 @@ func exCommandTable() map[string]exCommand {
 			}
 		},
 		"q quit":                 func(e *state.Editor, _ string, force bool) { quitWindow(e, force) },
+		"qa qall quita quitall":  func(e *state.Editor, _ string, force bool) { quit(e, force) },
 		"bn bnext":               func(e *state.Editor, _ string, _ bool) { view.NextBuffer(e) },
 		"bp bprev bprevious bN":  func(e *state.Editor, _ string, _ bool) { view.PrevBuffer(e) },
 		"bd bdel bdelete":        func(e *state.Editor, _ string, force bool) { view.CloseBuffer(e, force) },
