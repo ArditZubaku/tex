@@ -96,6 +96,44 @@ func TestVisualYankAcrossLinesPutsBackAsARun(t *testing.T) {
 	edtest.WantLines(t, b, "fooo", "bao", "bar")
 }
 
+func TestVisualPasteReplacesTheSelection(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "foo bar\n", 0, 0)
+
+	edtest.Press(t, e, "vlly")
+	edtest.Press(t, e, "llllvllp")
+
+	edtest.WantLines(t, b, "foo foo")
+	if got := string(e.Clip.Content()[0]); got != "bar" {
+		t.Errorf("register = %q, want %q", got, "bar")
+	}
+}
+
+func TestVisualLinePasteReplacesTheLine(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "foo\nbar\nbaz\n", 0, 0)
+
+	edtest.Press(t, e, "yy")
+	edtest.Press(t, e, "jVp")
+
+	edtest.WantLines(t, b, "foo", "foo", "baz")
+}
+
+func TestVisualPasteWithAnEmptyRegisterDoesNothing(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "foo\n", 0, 0)
+
+	edtest.Press(t, e, "vlp")
+
+	edtest.WantLines(t, b, "foo")
+	if e.Mode != state.VisualMode {
+		t.Errorf("mode = %v, want VisualMode", e.Mode)
+	}
+}
+
 func TestVisualDollarSelectsToEndOfLine(t *testing.T) {
 	e := state.New()
 
