@@ -128,7 +128,7 @@ otherwise close a cycle.
 - **Auto-pairs** — typing `(`, `[` or `{` in Insert mode writes the closing bracket after the cursor, so the pair is never left half-written. Typing the closer the editor already wrote steps over it rather than doubling it, and `Backspace` between an empty pair takes both brackets at once. A closer typed where there is nothing of its own kind to step over is inserted like any other character, which is what leaves unbalanced text still typeable.
 - **Line structure** — `o`/`O` open a line, `Enter` splits one at the cursor and `Backspace` at column 0 joins it back. Each shifts the line index in place rather than rebuilding it, and a split copies only the tail: the half before the cursor keeps the array it already had.
 - **Yank and put** — `yy`, `yw`, `ye` and `yb` copy into VIM's unnamed register, which the delete operators fill too, and `p`/`P` put it back after or before the cursor. A line yank puts whole lines below or above the cursor; a word yank puts the run of characters back into the line the cursor is on. Every one of them also reaches the system clipboard through `OSC 52`, the escape sequence a terminal reads it from directly rather than a tool like `pbcopy` that would need installing and cannot cross an SSH session; a terminal that does not understand it just discards the sequence. A linewise yank carries a trailing line break, a charwise one does not — pasting either outside the editor reads the same as pasting it back inside.
-- **Visual mode** — `v` selects runes and `V` whole lines, from where the mode was entered to wherever a motion has taken the cursor since; both ends are part of the selection, as VIM's `selection=inclusive` has them. `d` (or `x`) deletes it, `y` yanks it, `c` changes it, and `o` swaps the end that the next motion drags along. `v` and `V` switch between the two shapes and leave the mode when pressed on the shape it already has, and `Esc` drops the selection. The selection is drawn as a band in the theme's own colour over the text, keeping the syntax colours under it, and it takes in the line break of every line it carries on past. A run that spans lines fills the register as a run — `p` splits the line it is put into and joins the register's ends onto the halves — so a selection can be moved from one place to another whatever it covers.
+- **Visual mode** — `v` selects runes and `V` whole lines, from where the mode was entered to wherever a motion has taken the cursor since; both ends are part of the selection, as VIM's `selection=inclusive` has them. `d` (or `x`) deletes it, `y` yanks it, `c` changes it, and `o` swaps the end that the next motion drags along. `v` and `V` switch between the two shapes and leave the mode when pressed on the shape it already has, and `Esc` drops the selection. The selection is drawn as a band in the theme's own colour over the text, keeping the syntax colours under it, and it takes in the line break of every line it carries on past. A run that spans lines fills the register as a run — `p` splits the line it is put into and joins the register's ends onto the halves — so a selection can be moved from one place to another whatever it covers. `p` (or `Ctrl-V`) over a selection replaces it with the register instead of putting alongside it: the selection is removed the way `d` removes it, and what the register held before that goes in its place — the register itself is left holding the removed text, same trade VIM makes for it.
 - **Undo and redo** — `u` and `Ctrl-R`, with an insert session (from `i` to `Esc`) undone in one step the way VIM does it. Nothing snapshots the buffer: a change remembers only the lines the command actually touched, so the undo history costs the text that was edited rather than the size of the file. The last 500 changes are kept.
 - **Counts** — a command can be prefixed with a repeat count, as in `3j`, `3x`, `2dd` or `yy3p`. Commands where the count says *how much text* rather than *how many times* (`x`, `dd`, `yy`, `p`, `P`) act on that much text in a single step, so one `u` takes the whole thing back.
 - **Word-class-aware word motions** — `w`/`b`/`e` classify runs of characters into whitespace / word (`[A-Za-z0-9_]`) / punctuation, so e.g. `"foo` is treated as two words (`"` then `foo`), matching VIM's default word boundaries.
@@ -220,6 +220,7 @@ otherwise close a cycle.
 | `d` `x` | Visual | delete the selection |
 | `y` | Visual | yank the selection |
 | `c` | Visual | delete the selection and start typing where it was |
+| `p` `Ctrl-V` | Visual | replace the selection with the register, leaving the register holding what was replaced |
 | `/` | Normal | open the search prompt; `Enter` jumps to the next match, `Esc` cancels |
 | `?` | Normal | the same, searching backwards |
 | `n` | Normal | jump to the next match in the search's direction |
@@ -302,6 +303,7 @@ otherwise close a cycle.
 | `zz` | Normal | redraw with the cursor's line in the middle of the window, keeping the column (`[count]zz` centres on that line) |
 | `Ctrl-U` | Either | scroll up half a screen |
 | `Ctrl-D` | Either | scroll down half a screen |
+| `Ctrl-V` | Normal | the same as `p` |
 | `Esc` | Insert | return to Normal mode (cursor steps back a column, VIM-style), taking down the error box with it |
 
 Arrow keys, `Home`, `End`, `PgUp`, and `PgDn` also work in either mode. Left and
@@ -363,7 +365,7 @@ text: what is left is the status bar and the buffer line, a handful of short str
 ### Goals not yet implemented
 
 - The rest of `:` command mode — ranges (`:1,5d`), `:s`, `:r`, `:set` and the like; the write and quit family (`:w`, `:q`, `:qa`, `:wq`, `:x`, `:q!`), `:e`, the buffer commands (`:bn`, `:bp`, `:bd`, `:ls`), the window commands (`:sp`, `:vs`, `:clo`, `:on`), `:noh`, `:theme` and a bare line address are all that is there
-- The rest of Visual mode — blockwise `Ctrl-V`, `gv`, the text objects (`vi(`, `vip`) and the operators beyond `d`/`x`/`y`/`c` (`>`, `~`, `J`, `p` over a selection)
+- The rest of Visual mode — blockwise selection (its own key now that `Ctrl-V` pastes), `gv`, the text objects (`vi(`, `vip`) and the operators beyond `d`/`x`/`y`/`c`/`p` (`>`, `~`, `J`)
 - Regular expressions in a search pattern — `/` matches literal text, so `\v`, `*`, character classes and `:s` are not there; nor are `ignorecase`/`smartcase`, `*` and `#` (search for the word under the cursor), or a search used as an operator's motion (`d/foo`)
 - The rest of the operators and text objects (`cw`, `dj`, `di(`, ...) — only `x`, `dw`, `de`, `db`, `dd`, the `y` operators and what Visual mode selects for exist so far, and they stop at the line boundary instead of running onto the next line
 - Named registers (`"a`) — there is only the unnamed one
