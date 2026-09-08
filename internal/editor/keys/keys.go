@@ -128,6 +128,7 @@ func visualKeys() map[rune]func(*state.Editor) {
 		'x': edit.DeleteSelection,
 		'c': edit.ChangeSelection,
 		'y': edit.YankSelection,
+		'p': edit.PasteSelection,
 	}
 	for _, ch := range "hjklwbeG$" {
 		actions[ch] = readModeActions[ch]
@@ -318,6 +319,12 @@ func handleSpecialKey(e *state.Editor, keyEvent termbox.Event) {
 		e.Col = 0
 	case termbox.KeyEnd:
 		e.Col = e.MaxCol(e.Row)
+	case termbox.KeyCtrlV:
+		if e.Mode == state.VisualMode {
+			runCommand(e, edit.PasteSelection, true)
+		} else {
+			runCommand(e, edit.PasteAfter, true)
+		}
 	default:
 		if action, ok := specialKeyActions[keyEvent.Key]; ok {
 			action(e)
