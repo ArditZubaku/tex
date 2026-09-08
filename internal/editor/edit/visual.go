@@ -138,6 +138,38 @@ func YankSelection(e *state.Editor) {
 	e.ClampCol()
 }
 
+// PasteSelection is visual mode's 'p': the selection is removed like 'd'
+// would remove it, and the register's previous contents are put in its place.
+// The register itself is left holding the removed text, same as any other
+// delete — pasting over a selection is VIM's own trade for that convenience.
+func PasteSelection(e *state.Editor) {
+	s := Selection(e)
+	if !s.Active || e.Clip.Empty() {
+		return
+	}
+	toInsert := e.Clip
+
+	ExitVisual(e)
+	e.Row = s.startRow
+
+	if s.linewise {
+		DeleteLines(e, s.endRow-s.startRow+1)
+	} else {
+		deleteSpan(e, s)
+	}
+
+	removed := e.Clip
+	e.Clip = toInsert
+	if s.linewise {
+		pasteLines(e, false)
+	} else {
+		pasteChars(e, false)
+	}
+	e.Clip = removed
+
+	e.ClampCol()
+}
+
 // ChangeSelection is 'c': the selection goes into the register the way 'd'
 // takes it, and typing carries on where it was.
 func ChangeSelection(e *state.Editor) {
