@@ -31,6 +31,7 @@ func Read(e *state.Editor) {
 func Handle(e *state.Editor, keyEvent termbox.Event, isKey bool) {
 	if keyEvent.Type == termbox.EventMouse {
 		e.Hov.Clear()
+		e.Comp.Close()
 		view.Mouse(e, keyEvent)
 
 		return
@@ -46,9 +47,17 @@ func Handle(e *state.Editor, keyEvent termbox.Event, isKey bool) {
 }
 
 func Dispatch(e *state.Editor, keyEvent termbox.Event) {
+	typing := e.Mode == state.EditMode
 	sawCR := e.SawCR
 	e.SawCR = keyEvent.Ch == 0 && keyEvent.Key == termbox.KeyEnter
 	if sawCR && keyEvent.Ch == 0 && keyEvent.Key == termbox.KeyCtrlJ {
+		return
+	}
+
+	// The completion menu takes its own keys before anything else does, since
+	// Tab and the arrows all mean something else in Edit mode; everything it
+	// does not own is typed, and the menu narrows to what that left.
+	if find.CompletionKey(e, keyEvent) {
 		return
 	}
 
@@ -66,6 +75,8 @@ func Dispatch(e *state.Editor, keyEvent termbox.Event) {
 	default:
 		handleSpecialKey(e, keyEvent)
 	}
+
+	find.AfterKey(e, keyEvent, typing)
 }
 
 func handleCharKey(e *state.Editor, keyEvent termbox.Event) {
@@ -349,6 +360,7 @@ func esc(e *state.Editor) {
 		e.Col--
 	}
 	e.Mode = state.ReadMode
+	e.Comp.Close()
 	e.PendingKeys, e.PendingCount, e.HlSearch = e.PendingKeys[:0], 0, false
 	e.Note.Clear()
 	e.EndChange()
