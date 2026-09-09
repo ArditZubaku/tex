@@ -66,7 +66,7 @@ func TestUndoOpenedLine(t *testing.T) {
 	edtest.Press(t, e, "o")
 	edtest.TypeIn(t, e, "bar")
 	edtest.Esc(t, e)
-	edtest.WantLines(t, b, "foo", "bar")
+	edtest.WantLines(t, b, "foo", " bar")
 
 	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "foo")
@@ -80,13 +80,13 @@ func TestUndoSplit(t *testing.T) {
 	edtest.Press(t, e, "i")
 	edit.Enter(e)
 	edtest.Esc(t, e)
-	edtest.WantLines(t, b, "foo", "bar")
+	edtest.WantLines(t, b, "foo", " bar")
 
 	edtest.Press(t, e, "u")
 	edtest.WantLines(t, b, "foobar")
 
 	e.Redo()
-	edtest.WantLines(t, b, "foo", "bar")
+	edtest.WantLines(t, b, "foo", " bar")
 }
 
 func TestUndoJoinRestoresBothLines(t *testing.T) {

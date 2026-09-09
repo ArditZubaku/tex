@@ -22,7 +22,7 @@ func TestPastedUnixLineEndingSplitsTheLine(t *testing.T) {
 	edtest.PressKey(t, e, termbox.KeyCtrlJ)
 	edtest.Press(t, e, "cd")
 
-	edtest.WantLines(t, b, "ab", "cd")
+	edtest.WantLines(t, b, "ab", " cd")
 }
 
 // A pasted CRLF line ending arrives as Enter's CR followed immediately by the
@@ -38,5 +38,5 @@ func TestPastedCRLFLineEndingSplitsOnlyOnce(t *testing.T) {
 	edtest.PressKey(t, e, termbox.KeyCtrlJ)
 	edtest.Press(t, e, "cd")
 
-	edtest.WantLines(t, b, "ab", "cd")
+	edtest.WantLines(t, b, "ab", " cd")
 }

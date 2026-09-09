@@ -95,12 +95,14 @@ func OpenLineBelow(e *state.Editor) {
 	e.Buf.InsertLine(e.Row + 1)
 	e.Row++
 	startInsert(e)
+	indentNewLine(e)
 }
 
 func OpenLineAbove(e *state.Editor) {
 	e.TouchInsertLine(e.Row)
 	e.Buf.InsertLine(e.Row)
 	startInsert(e)
+	indentNewLine(e)
 }
 
 func startInsert(e *state.Editor) {
@@ -123,6 +125,14 @@ func Enter(e *state.Editor) {
 	e.Row++
 	e.Col = 0
 	e.Modified = true
+	indentNewLine(e)
+}
+
+// indentNewLine gives a line just split or opened one tab of indent — a
+// single space, the same width Tab types — regardless of the line above it.
+func indentNewLine(e *state.Editor) {
+	e.Buf.InsertRune(e.Row, 0, ' ')
+	e.Col = 1
 }
 
 // Backspace deletes behind the cursor in Edit mode, joining onto the line

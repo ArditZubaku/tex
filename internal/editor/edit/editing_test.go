@@ -158,13 +158,13 @@ func TestDeleteLineKeepsCursorInBuffer(t *testing.T) {
 func TestEnter(t *testing.T) {
 	e := state.New()
 
-	t.Run("splits in Edit mode", func(t *testing.T) {
+	t.Run("splits in Edit mode, indenting the new line by one tab", func(t *testing.T) {
 		b := edtest.AtCursor(t, e, "abcd\nlast\n", 0, 2)
 		e.Mode = state.EditMode
 
 		edit.Enter(e)
-		edtest.WantLines(t, b, "ab", "cd", "last")
-		if e.Row != 1 || e.Col != 0 || !e.Modified {
+		edtest.WantLines(t, b, "ab", " cd", "last")
+		if e.Row != 1 || e.Col != 1 || !e.Modified {
 			t.Errorf("cursor at %d,%d, modified %v", e.Row, e.Col, e.Modified)
 		}
 	})
@@ -180,11 +180,17 @@ func TestEnter(t *testing.T) {
 		}
 	})
 
-	t.Run("split then backspace is a round trip", func(t *testing.T) {
+	t.Run("split then backspace takes the auto-indent off before it joins the lines", func(t *testing.T) {
 		b := edtest.AtCursor(t, e, "abcd\n", 0, 2)
 		e.Mode = state.EditMode
 
 		edit.Enter(e)
+		edit.Backspace(e)
+		edtest.WantLines(t, b, "ab", "cd")
+		if e.Row != 1 || e.Col != 0 {
+			t.Errorf("cursor at %d,%d, want 1,0", e.Row, e.Col)
+		}
+
 		edit.Backspace(e)
 		edtest.WantLines(t, b, "abcd")
 		if e.Row != 0 || e.Col != 2 {
@@ -196,24 +202,24 @@ func TestEnter(t *testing.T) {
 func TestOpenLineOperators(t *testing.T) {
 	e := state.New()
 
-	t.Run("o opens below", func(t *testing.T) {
+	t.Run("o opens below, indented by one tab", func(t *testing.T) {
 		b := edtest.AtCursor(t, e, "a\nbb\n", 0, 1)
 		e.Mode = state.ReadMode
 
 		edit.OpenLineBelow(e)
-		edtest.WantLines(t, b, "a", "", "bb")
-		if e.Row != 1 || e.Col != 0 || e.Mode != state.EditMode || !e.Modified {
+		edtest.WantLines(t, b, "a", " ", "bb")
+		if e.Row != 1 || e.Col != 1 || e.Mode != state.EditMode || !e.Modified {
 			t.Errorf("cursor at %d,%d, mode %v, modified %v", e.Row, e.Col, e.Mode, e.Modified)
 		}
 	})
 
-	t.Run("O opens above", func(t *testing.T) {
+	t.Run("O opens above, indented by one tab", func(t *testing.T) {
 		b := edtest.AtCursor(t, e, "a\nbb\n", 1, 2)
 		e.Mode = state.ReadMode
 
 		edit.OpenLineAbove(e)
-		edtest.WantLines(t, b, "a", "", "bb")
-		if e.Row != 1 || e.Col != 0 || e.Mode != state.EditMode {
+		edtest.WantLines(t, b, "a", " ", "bb")
+		if e.Row != 1 || e.Col != 1 || e.Mode != state.EditMode {
 			t.Errorf("cursor at %d,%d, mode %v", e.Row, e.Col, e.Mode)
 		}
 	})
@@ -223,11 +229,26 @@ func TestOpenLineOperators(t *testing.T) {
 		e.Mode = state.ReadMode
 
 		edit.OpenLineBelow(e)
-		edtest.WantLines(t, b, "a", "bb", "")
+		edtest.WantLines(t, b, "a", "bb", " ")
 		if e.Row != 2 {
 			t.Errorf("currentRow = %d, want 2", e.Row)
 		}
 	})
+}
+
+// The indent is flat, not carried over: a new line gets exactly one tab
+// whatever the indent of the line it split or opened from.
+func TestNewLineIndentIgnoresWhatCameBefore(t *testing.T) {
+	e := state.New()
+
+	b := edtest.AtCursor(t, e, "    deep\n", 0, 8)
+	e.Mode = state.EditMode
+
+	edit.Enter(e)
+	edtest.WantLines(t, b, "    deep", " ")
+	if e.Col != 1 {
+		t.Errorf("currentCol = %d, want 1", e.Col)
+	}
 }
 
 func TestDeletingTheLastRunePullsTheCursorBack(t *testing.T) {
