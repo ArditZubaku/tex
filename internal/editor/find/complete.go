@@ -27,9 +27,11 @@ import (
 // short and the throttle has come round.
 
 const (
-	// A word shorter than this matches most of the package it is in, so the
-	// menu would be a list of everything and the request that built it wasted.
-	minPrefix = 3
+	// A menu is wanted from the first letter on rather than held back until a
+	// word is unambiguous: the narrowing past this point happens locally (see
+	// AfterKey and refine), so there is nothing saved by waiting for more of
+	// the word before asking.
+	minPrefix = 1
 
 	// A ceiling rather than a shortlist. The narrowing happens locally, over
 	// everything the server sent, and it has to: typescript-language-server
