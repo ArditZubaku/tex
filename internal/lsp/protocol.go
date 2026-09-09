@@ -22,12 +22,25 @@ const (
 	methodPublishDiagnostics   = "textDocument/publishDiagnostics"
 )
 
+// A path is turned into a URI on every frame's reconciling, once per open
+// buffer, and again on every key a completion is weighed against. Escaping one
+// allocates, so the answers are kept beside the resolved paths they are built
+// from.
+var fileURIs = map[string]string{}
+
 // FileURI is a path as a server names it. Symlinks are resolved because a
 // server does resolve them — on macOS /tmp is /private/tmp and a test's own
 // temporary directory is under /private/var — and a URI that does not match
 // leaves every answer attached to a document the editor does not have open.
 func FileURI(path string) string {
-	return "file://" + (&url.URL{Path: resolved(path)}).EscapedPath()
+	if uri, ok := fileURIs[path]; ok {
+		return uri
+	}
+
+	uri := "file://" + (&url.URL{Path: resolved(path)}).EscapedPath()
+	fileURIs[path] = uri
+
+	return uri
 }
 
 // Path is FileURI back, for the URIs a server sends.

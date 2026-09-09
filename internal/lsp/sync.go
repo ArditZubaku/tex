@@ -138,6 +138,7 @@ func Reset() {
 	Gone, Published = nil, nil
 	dialFor = Server
 	clear(resolvedPaths)
+	clear(fileURIs)
 	clear(projectRoots)
 	clear(refused)
 	clear(found)
