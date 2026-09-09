@@ -24,7 +24,10 @@ func completing(t *testing.T) (*harness, string) {
 		t.Fatalf("first message was %q, want %q", asked.Method, methodInitialize)
 	}
 	h.server.answer(asked.ID, initializeResult{Capabilities: serverCapability{
-		CompletionProvider: &completionProvider{TriggerCharacters: []string{".", "::"}},
+		CompletionProvider: &completionProvider{
+			TriggerCharacters: []string{".", "::"},
+			ResolveProvider:   true,
+		},
 	}})
 	h.poll()
 
@@ -273,4 +276,90 @@ func labels(items []Item) string {
 	}
 
 	return strings.Join(names, ",")
+}
+
+// A server willing to answer a thousand candidates cannot work out the import
+// line for every one of them, so it holds them back until one is settled on —
+// which is what typescript-language-server does with every auto-import it
+// offers.
+func TestTheImportHeldBackIsAskedForByItself(t *testing.T) {
+	h, path := completing(t)
+
+	if !Resolves(path) {
+		t.Fatal("a server that said it resolves is not being asked to")
+	}
+
+	var got []TextEdit
+	Resolve(path, Item{Label: "computeTotal", Data: json.RawMessage(`{"entry":7}`)},
+		func(extra []TextEdit, _ error) { got = extra })
+
+	asked := h.sent()
+	if asked.Method != methodResolve {
+		t.Fatalf("the server was asked %q, want %q", asked.Method, methodResolve)
+	}
+
+	var quoted completionItem
+	if err := json.Unmarshal(asked.Params, &quoted); err != nil {
+		t.Fatal(err)
+	}
+	if quoted.Label != "computeTotal" || string(quoted.Data) != `{"entry":7}` {
+		t.Errorf("the candidate went back as %+v, without the server's own bookmark", quoted)
+	}
+	// A kind of zero is a kind the protocol does not have, and a server reading
+	// its own candidate back is entitled to be confused by one.
+	if strings.Contains(string(asked.Params), `"kind"`) {
+		t.Errorf("the candidate went back as %s, naming a kind it never had", asked.Params)
+	}
+
+	h.server.answer(asked.ID, completionItem{
+		Label: "computeTotal",
+		AdditionalTextEdits: []TextEdit{{
+			Range:   Range{Start: Position{Line: 0}, End: Position{Line: 0}},
+			NewText: "import { computeTotal } from \"./helper\";\n\n",
+		}},
+	})
+	h.poll()
+
+	if len(got) != 1 || !strings.Contains(got[0].NewText, "computeTotal") {
+		t.Fatalf("the import came back as %v", got)
+	}
+}
+
+func TestAServerThatResolvesNothingIsNoComplaint(t *testing.T) {
+	h, path := completing(t)
+
+	var got []TextEdit
+	failed := ErrStopped
+	Resolve(path, Item{Label: "x"}, func(extra []TextEdit, err error) { got, failed = extra, err })
+
+	h.server.answer(h.sent().ID, nil)
+	h.poll()
+
+	if failed != nil {
+		t.Fatalf("a candidate with nothing more to it reported %v", failed)
+	}
+	if got != nil {
+		t.Errorf("nothing more came back as %v", got)
+	}
+}
+
+// A server that never said it resolves is one whose candidates are whole
+// already, and asking it is a round trip for an answer it has no method for.
+func TestAServerThatDoesNotResolveIsNeverAsked(t *testing.T) {
+	h := reconciling(t)
+	path := project(t, "main.go", "package main\n")
+	b := opening(t, path)
+	h.up(File{Path: path, Buf: b})
+	openedIn(t, h.sent())
+
+	if Resolves(path) {
+		t.Fatal("a server that never mentioned resolving is being asked to")
+	}
+
+	failed := error(nil)
+	Resolve(path, Item{Label: "x"}, func(_ []TextEdit, err error) { failed = err })
+
+	if failed == nil {
+		t.Error("the request went out to a server that does not answer it")
+	}
 }

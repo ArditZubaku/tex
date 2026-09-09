@@ -8,7 +8,10 @@ import (
 	"github.com/ArditZubaku/tex/internal/buffer"
 )
 
-const methodCompletion = "textDocument/completion"
+const (
+	methodCompletion = "textDocument/completion"
+	methodResolve    = "completionItem/resolve"
+)
 
 // A Trigger is why a completion was asked for — the protocol's own
 // CompletionTriggerKind, which a server reads rather than ignores: gopls offers
@@ -39,6 +42,10 @@ type TextEdit struct {
 // An Item is one candidate. Text is what goes into the file and Edit what it
 // replaces — nil where the server named no range at all, which leaves what the
 // typing so far covered to the caller, who can see the line.
+//
+// Data is the server's own bookmark for the candidate, meaningless here and
+// handed straight back to it: a server that held the import line back until the
+// candidate was settled on has no other way of knowing which one it was.
 type Item struct {
 	Label  string
 	Detail string
@@ -46,6 +53,7 @@ type Item struct {
 	Text   string
 	Edit   *Range
 	Extra  []TextEdit
+	Data   json.RawMessage
 }
 
 // A Completion is what a server offered. Incomplete is it saying the list was
@@ -72,15 +80,20 @@ type completionList struct {
 	Items        []completionItem `json:"items"`
 }
 
+// Everything but the label is omitted when it is empty, because this is the
+// shape a resolve request goes out in as well as the shape an answer comes back
+// in, and a candidate quoted back with "kind": 0 is a candidate naming a kind
+// the protocol does not have.
 type completionItem struct {
-	Label               string     `json:"label"`
-	Detail              string     `json:"detail"`
-	Kind                int        `json:"kind"`
-	SortText            string     `json:"sortText"`
-	InsertText          string     `json:"insertText"`
-	InsertTextFormat    int        `json:"insertTextFormat"`
-	TextEdit            *TextEdit  `json:"textEdit"`
-	AdditionalTextEdits []TextEdit `json:"additionalTextEdits"`
+	Label               string          `json:"label"`
+	Detail              string          `json:"detail,omitempty"`
+	Kind                int             `json:"kind,omitempty"`
+	SortText            string          `json:"sortText,omitempty"`
+	InsertText          string          `json:"insertText,omitempty"`
+	InsertTextFormat    int             `json:"insertTextFormat,omitempty"`
+	TextEdit            *TextEdit       `json:"textEdit,omitempty"`
+	AdditionalTextEdits []TextEdit      `json:"additionalTextEdits,omitempty"`
+	Data                json.RawMessage `json:"data,omitempty"`
 }
 
 // Complete is what the server offers for the word at row and col. Unlike every
@@ -168,6 +181,7 @@ func (c completionItem) item() Item {
 		Kind:   c.Kind,
 		Text:   c.plain(),
 		Extra:  c.AdditionalTextEdits,
+		Data:   c.Data,
 	}
 	if c.TextEdit != nil {
 		at := c.TextEdit.Range
@@ -191,4 +205,55 @@ func (c completionItem) plain() string {
 	default:
 		return c.Label
 	}
+}
+
+// Resolves says whether the server holding this file answers a second question
+// about one candidate, which is what a candidate with no edits of its own and a
+// bookmark to quote back is waiting on.
+func Resolves(path string) bool {
+	doc := held(path)
+
+	return doc != nil && doc.srv.client.Ready() && doc.srv.client.Resolves()
+}
+
+// Resolve is the rest of one candidate: the import line a server held back
+// until it knew which candidate was being settled on. It is asked after the
+// candidate has already gone in rather than before, since a round trip with the
+// keyboard held is a round trip felt.
+func Resolve(path string, item Item, answer func([]TextEdit, error)) {
+	doc := held(path)
+	if doc == nil || !doc.srv.client.Ready() || !doc.srv.client.Resolves() {
+		answer(nil, ErrStopped)
+
+		return
+	}
+
+	// The protocol has the candidate itself go back, and a server reads its own
+	// bookmark out of it. Nothing else here is worth the memory of holding a
+	// thousand candidates' raw JSON on the chance one is settled on.
+	asking := completionItem{Label: item.Label, Kind: item.Kind, Data: item.Data}
+	err := doc.srv.client.Request(methodResolve, asking, func(result json.RawMessage, err error) {
+		if err != nil {
+			answer(nil, err)
+
+			return
+		}
+		answer(resolvedFrom(result))
+	})
+	if err != nil {
+		answer(nil, err)
+	}
+}
+
+func resolvedFrom(result json.RawMessage) ([]TextEdit, error) {
+	if empty(result) {
+		return nil, nil
+	}
+
+	var got completionItem
+	if err := json.Unmarshal(result, &got); err != nil {
+		return nil, err
+	}
+
+	return got.AdditionalTextEdits, nil
 }

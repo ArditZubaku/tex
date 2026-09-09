@@ -47,14 +47,31 @@ type completionCapability struct {
 	CompletionItem completionItemCapability `json:"completionItem"`
 }
 
-// Both are declined rather than left unsaid. A snippet is a template with
-// placeholders and tab stops, and there is nothing here to expand one; an
+// The first two are declined rather than left unsaid. A snippet is a template
+// with placeholders and tab stops, and there is nothing here to expand one; an
 // insert-replace edit is two ranges for the caller to choose between, where one
 // is all a candidate settled on ever needs.
+//
+// resolveSupport is the other way round: it is leave holding back the edits a
+// candidate needs elsewhere until it is the one being settled on. Without it a
+// server willing to answer a thousand candidates has to work out the import
+// line for every one of them, so this is asked for rather than tolerated — and
+// it is what typescript-language-server does whether it is asked or not.
 type completionItemCapability struct {
-	SnippetSupport       bool `json:"snippetSupport"`
-	InsertReplaceSupport bool `json:"insertReplaceSupport"`
+	SnippetSupport       bool                     `json:"snippetSupport"`
+	InsertReplaceSupport bool                     `json:"insertReplaceSupport"`
+	ResolveSupport       resolveSupportCapability `json:"resolveSupport"`
 }
+
+type resolveSupportCapability struct {
+	Properties []string `json:"properties"`
+}
+
+// What a candidate may arrive without. The edits are the only one acted on: a
+// doc comment there is nowhere to show and a signature the menu manages without
+// are named because rust-analyzer will not offer to resolve anything at all
+// unless all three are, and the edits are what its 'use' line comes back in.
+var resolvable = []string{"detail", "documentation", "additionalTextEdits"}
 
 type publishDiagnosticsCapability struct {
 	VersionSupport bool `json:"versionSupport"`
@@ -100,6 +117,7 @@ type serverCapability struct {
 // added to the tables in sync.go bring its own along with it.
 type completionProvider struct {
 	TriggerCharacters []string `json:"triggerCharacters"`
+	ResolveProvider   bool     `json:"resolveProvider"`
 }
 
 func handshake(root string) initializeParams {
@@ -124,6 +142,7 @@ func handshake(root string) initializeParams {
 					CompletionItem: completionItemCapability{
 						SnippetSupport:       false,
 						InsertReplaceSupport: false,
+						ResolveSupport:       resolveSupportCapability{Properties: resolvable},
 					},
 				},
 			},
@@ -162,23 +181,26 @@ func (e *UnsupportedEncodingError) Error() string {
 		Encodings[0] + " or " + Encodings[1]
 }
 
-// triggersFrom are the characters the server asked to be woken on, folded to
-// the runes they are so that a keystroke is checked against them without
-// decoding anything. The protocol has them single characters; one that is not
-// is dropped rather than half-matched. A server offering no completion at all
-// leaves the second result false, which is what stops it being asked.
-func triggersFrom(result json.RawMessage) (string, bool) {
+// triggersFrom is what the server said about completion: the characters it
+// asked to be woken on, whether it will answer a second question about one
+// candidate, and whether it offers completion at all — the last of which is
+// what stops it being asked. The triggers are folded to the runes they are so
+// that a keystroke is checked against them without decoding anything; the
+// protocol has them single characters, and one that is not is dropped rather
+// than half-matched.
+func triggersFrom(result json.RawMessage) (string, bool, bool) {
 	var got initializeResult
 	if err := json.Unmarshal(result, &got); err != nil || got.Capabilities.CompletionProvider == nil {
-		return "", false
+		return "", false, false
 	}
 
-	triggers := make([]rune, 0, len(got.Capabilities.CompletionProvider.TriggerCharacters))
-	for _, ch := range got.Capabilities.CompletionProvider.TriggerCharacters {
+	offered := got.Capabilities.CompletionProvider
+	triggers := make([]rune, 0, len(offered.TriggerCharacters))
+	for _, ch := range offered.TriggerCharacters {
 		if runes := []rune(ch); len(runes) == 1 {
 			triggers = append(triggers, runes[0])
 		}
 	}
 
-	return string(triggers), true
+	return string(triggers), offered.ResolveProvider, true
 }
