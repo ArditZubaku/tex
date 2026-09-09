@@ -165,3 +165,54 @@ func TestAnImportThatOpensABlockAroundTheOneAlreadyThere(t *testing.T) {
 		"}")
 	edtest.WantCursor(t, e, 9, 7)
 }
+
+// The import typescript-language-server sends back for a candidate in a
+// one-line file goes in at the very start of the line being typed on, which is
+// the cursor's own row: it has to apply, and it has to carry the cursor with it.
+func TestAnImportOnTheCursorsOwnRowCarriesTheCursorDown(t *testing.T) {
+	e := state.New()
+	b := edtest.AtCursor(t, e, "const x = computeTotal\n", 0, 22)
+	e.Mode = state.EditMode
+
+	edit.Elsewhere(e, []complete.Edit{{
+		Row: 0, Col: 0, EndRow: 0, EndCol: 0,
+		Text: "import { computeTotal } from \"./helper\";\n\n",
+	}})
+
+	edtest.WantLines(t, b, "import { computeTotal } from \"./helper\";", "", "const x = computeTotal")
+	edtest.WantCursor(t, e, 2, 22)
+}
+
+func TestAnEditInFrontOfTheCursorOnItsOwnLineMovesItAlong(t *testing.T) {
+	e := state.New()
+	b := edtest.AtCursor(t, e, "let total\n", 0, 9)
+	e.Mode = state.EditMode
+
+	edit.Elsewhere(e, []complete.Edit{{Row: 0, Col: 0, EndRow: 0, EndCol: 3, Text: "const"}})
+
+	edtest.WantLines(t, b, "const total")
+	edtest.WantCursor(t, e, 0, 11)
+}
+
+func TestAnEditBehindTheCursorOnItsOwnLineLeavesTheColumnAlone(t *testing.T) {
+	e := state.New()
+	b := edtest.AtCursor(t, e, "let total = x\n", 0, 4)
+	e.Mode = state.EditMode
+
+	edit.Elsewhere(e, []complete.Edit{{Row: 0, Col: 12, EndRow: 0, EndCol: 13, Text: "yy"}})
+
+	edtest.WantLines(t, b, "let total = yy")
+	edtest.WantCursor(t, e, 0, 4)
+}
+
+// Two answers landing on top of each other is worse than one being dropped.
+func TestAnEditStraddlingTheCursorIsDroppedRatherThanApplied(t *testing.T) {
+	e := state.New()
+	b := edtest.AtCursor(t, e, "const x = compute\n", 0, 13)
+	e.Mode = state.EditMode
+
+	edit.Elsewhere(e, []complete.Edit{{Row: 0, Col: 10, EndRow: 0, EndCol: 17, Text: "nonsense"}})
+
+	edtest.WantLines(t, b, "const x = compute")
+	edtest.WantCursor(t, e, 0, 13)
+}
