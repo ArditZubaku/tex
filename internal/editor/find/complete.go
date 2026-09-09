@@ -156,7 +156,7 @@ func AfterKey(e *state.Editor, event termbox.Event, typing bool) {
 	}
 
 	switch {
-	case lsp.TriggerRune(event.Ch):
+	case lsp.TriggerRune(e.SourceFile, event.Ch):
 		request(e, lsp.TriggerChar, string(event.Ch))
 	case e.Col-start >= minPrefix && worthAsking(e, start):
 		request(e, lsp.Invoked, "")
@@ -247,7 +247,7 @@ func stillTyping(e *state.Editor) bool {
 // Go '.' is not — and only where it says nothing does the word under the cursor
 // answer for it.
 func candidates(e *state.Editor, found []lsp.Item, start int) []complete.Item {
-	encoding := lsp.PositionEncoding()
+	encoding := lsp.PositionEncoding(e.SourceFile)
 	items := make([]complete.Item, 0, len(found))
 
 	for _, one := range found {

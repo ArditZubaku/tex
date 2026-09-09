@@ -24,7 +24,7 @@ func Publish(path string, notes []lsp.Diagnostic) {
 	}
 	defer done()
 
-	encoding := lsp.PositionEncoding()
+	encoding := lsp.PositionEncoding(path)
 	file := make(File, 0, len(notes))
 	for _, note := range notes {
 		row, col := encoding.RowCol(text, note.Range.Start)

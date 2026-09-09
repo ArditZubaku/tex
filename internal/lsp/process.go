@@ -26,16 +26,17 @@ type process struct {
 	log *os.File
 }
 
-// Server is the Dial that starts a real language server, given the program to
-// run it as.
-func Server(name string) Dial {
+// Server is the Dial that starts a real language server, given the command line
+// to run it as: the program, and whatever it needs to be told before it will
+// speak over its standard input at all.
+func Server(argv []string) Dial {
 	return func(root string) (Transport, error) {
-		bin := lookPath(name)
+		bin := lookPath(argv[0])
 		if bin == "" {
 			return nil, ErrNotInstalled
 		}
 
-		cmd := exec.Command(bin)
+		cmd := exec.Command(bin, argv[1:]...)
 		cmd.Dir = root
 
 		out, err := cmd.StdoutPipe()
@@ -47,7 +48,7 @@ func Server(name string) Dial {
 			return nil, err
 		}
 
-		p := &process{cmd: cmd, in: in, out: out, log: stderrLog(name)}
+		p := &process{cmd: cmd, in: in, out: out, log: stderrLog(argv[0])}
 		if p.log != nil {
 			cmd.Stderr = p.log
 		}

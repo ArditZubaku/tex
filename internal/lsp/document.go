@@ -2,15 +2,25 @@ package lsp
 
 import "time"
 
-// A document is what one file was last said to be. The version is the
-// server's own count, which must only ever go up; the revision is the buffer's,
-// and the two differing is the whole of "this needs sending".
+// A document is what one file was last said to be, and which server it was said
+// to. The version is that server's own count, which must only ever go up; the
+// revision is the buffer's, and the two differing is the whole of "this needs
+// sending".
 type document struct {
 	uri      string
+	srv      *server
 	version  int
 	revision int
 	modified bool
 	sentAt   time.Time
+}
+
+// close is the server told to forget the file and the editor forgetting it was
+// ever told, which has to happen together or the next open would be refused as
+// one already open.
+func (d *document) close() {
+	delete(docs, d.uri)
+	d.srv.client.Notify(methodDidClose, identParams{TextDocument: ident{URI: d.uri}})
 }
 
 type textDocumentItem struct {

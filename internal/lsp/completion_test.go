@@ -17,10 +17,7 @@ func completing(t *testing.T) (*harness, string) {
 	b := opening(t, path)
 
 	Sync([]File{{Path: path, Buf: b}})
-	if client == nil {
-		t.Fatal("nothing started a server")
-	}
-	h.client = client
+	h.client = only(t)
 
 	asked := h.server.next()
 	if asked.Method != methodInitialize {
@@ -65,15 +62,15 @@ func TestTheTriggerCharactersAreTheServersOwn(t *testing.T) {
 	if !Completing(path) {
 		t.Fatal("a server offering completion is not being asked for it")
 	}
-	if !TriggerRune('.') {
+	if !TriggerRune(path, '.') {
 		t.Error("the '.' the server asked to be woken on does not wake it")
 	}
 	// "::" is two runes, which the protocol has no place for and half of which
 	// would fire on every ':' in a map literal.
-	if TriggerRune(':') {
+	if TriggerRune(path, ':') {
 		t.Error("half of a two-character trigger was taken for a trigger")
 	}
-	if TriggerRune('x') {
+	if TriggerRune(path, 'x') {
 		t.Error("a character the server never named wakes it")
 	}
 }

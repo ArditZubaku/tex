@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -18,15 +19,45 @@ type File struct {
 	Modified bool
 }
 
-// The servers the editor knows how to talk to, what marks the root of a project
-// each wants to be started in, and what each calls the language. Without a root
-// above the file every scratch .go file is answered with "no packages found for
-// open file", drawn as an error across its first line.
-var (
-	servers   = map[string]string{".go": "gopls"}
-	rootMarks = map[string]string{".go": "go.mod"}
-	languages = map[string]string{".go": "go"}
-)
+// A language is everything the editor knows about having a server for one: the
+// program to run and what it wants on its command line, what marks the root of
+// a project of that kind, and what the protocol calls the language. Adding one
+// is an entry in the table below and nothing else — everything above this is
+// the protocol rather than the language, the completion trigger characters
+// included, since those are the server's own.
+type language struct {
+	server []string
+	marks  []string
+	name   string
+}
+
+var languages = map[string]language{
+	".go": {server: []string{"gopls"}, marks: []string{"go.mod"}, name: "go"},
+
+	".rs": {server: []string{"rust-analyzer"}, marks: []string{"Cargo.toml"}, name: "rust"},
+
+	".ts":  web("typescript"),
+	".mts": web("typescript"),
+	".cts": web("typescript"),
+	".tsx": web("typescriptreact"),
+	".js":  web("javascript"),
+	".mjs": web("javascript"),
+	".cjs": web("javascript"),
+	".jsx": web("javascriptreact"),
+}
+
+// One server answers for JavaScript as readily as for TypeScript, and the
+// languageId is what tells it which — and whether JSX is parsed. It speaks over
+// its standard input only when told to.
+func web(name string) language {
+	return language{
+		server: []string{"typescript-language-server", "--stdio"},
+		// The nearest of these is the project: a package inside a monorepo is
+		// its own root, which is where its own tsconfig applies.
+		marks: []string{"tsconfig.json", "jsconfig.json", "package.json"},
+		name:  name,
+	}
+}
 
 // A document is sent no more often than this. Typing outruns any server, and
 // every send it did not need is a package parsed again for nothing.
@@ -34,11 +65,24 @@ var (
 // that waking the loop cannot keep a lone Esc from resolving.
 const throttle = 200 * time.Millisecond
 
-var (
+// A server is one language server the editor has running. There is one per
+// program rather than one in all: a Go backend and the TypeScript frontend
+// beside it are two servers, and neither is asked about the other's files.
+type server struct {
 	client *Client
-	wake   func()
+	name   string
 	root   string
-	docs   = map[string]*document{}
+
+	// told marks a server whose death has been dealt with, so that what it had
+	// said is dropped once and it is not started again. A retry on every frame
+	// is a process started sixty times a second.
+	told bool
+}
+
+var (
+	servers = map[string]*server{}
+	wake    func()
+	docs    = map[string]*document{}
 
 	// A file too large to send is left alone for the rest of the session rather
 	// than rendered again on every change: at that size the rendering costs
@@ -56,10 +100,6 @@ var (
 	starts []int64
 
 	waking time.Time
-
-	// A server that died is reported once. Nothing is restarted: a retry on
-	// every frame is a process started sixty times a second.
-	toldGone bool
 )
 
 // Gone is a server that died mid-session, so that what it had said can be
@@ -73,18 +113,19 @@ var Gone func(err error)
 // every test that drives the dispatcher directly instead of running the loop.
 func Wake(ask func()) { wake = ask }
 
-// Poll acts on everything the server has said since the last frame.
+// Poll acts on everything the servers have said since the last frame.
 func Poll() {
-	if client != nil {
-		client.Poll()
+	for _, srv := range servers {
+		srv.client.Poll()
 	}
 }
 
-// Sync is one pass over what the editor holds open, against what the server was
-// told. It is a reconciler rather than a hook on each edit because there are
-// two dozen places text changes and half a dozen ways a buffer joins or leaves
-// the list, and the one that got forgotten would leave a document silently,
-// permanently stale — which shows up as diagnostics on the wrong lines.
+// Sync is one pass over what the editor holds open, against what the servers
+// were told. It is a reconciler rather than a hook on each edit because there
+// are two dozen places text changes and half a dozen ways a buffer joins or
+// leaves the list, and the one that got forgotten would leave a document
+// silently, permanently stale — which shows up as diagnostics on the wrong
+// lines.
 func Sync(files []File) {
 	if wake == nil {
 		return
@@ -96,33 +137,38 @@ func Sync(files []File) {
 	closeGone(files)
 }
 
+// held is the document one path is open as, and nil where the file is not one
+// any server was told about. Everything a feature asks about a file goes
+// through it, since which server answers for a file is the document's to know.
+func held(path string) *document { return docs[FileURI(path)] }
+
 // Ready says whether there is a server up that holds this file, which is what a
 // feature asks before using one instead of reading the text itself.
 func Ready(path string) bool {
-	if client == nil || !client.Ready() {
-		return false
-	}
-	_, open := docs[FileURI(path)]
+	doc := held(path)
 
-	return open
+	return doc != nil && doc.srv.client.Ready()
 }
 
 // Completing says whether the server holding this file offers completion, which
 // is asked before a keystroke is allowed to turn into a request.
 func Completing(path string) bool {
-	return Ready(path) && client.Completes()
+	doc := held(path)
+
+	return doc != nil && doc.srv.client.Ready() && doc.srv.client.Completes()
 }
 
-// TriggerRune is a character the server asked to be woken on — the '.' that
-// starts a selector, and whatever else the language has. It is checked against
-// every rune typed, so it is a scan of a handful of runes rather than anything
-// that allocates.
-func TriggerRune(ch rune) bool {
-	if client == nil {
+// TriggerRune is a character the server holding this file asked to be woken on
+// — the '.' that starts a selector, and whatever else the language has. It is
+// checked against every rune typed, so it is a scan of a handful of runes
+// rather than anything that allocates.
+func TriggerRune(path string, ch rune) bool {
+	doc := held(path)
+	if doc == nil {
 		return false
 	}
 
-	for _, trigger := range client.Triggers() {
+	for _, trigger := range doc.srv.client.Triggers() {
 		if trigger == ch {
 			return true
 		}
@@ -131,64 +177,59 @@ func TriggerRune(ch rune) bool {
 	return false
 }
 
+// PositionEncoding is how the server holding this file counts columns, chosen
+// during its own handshake — two servers may well have chosen differently. With
+// no server it is UTF-16, the protocol's own default, which is what anything
+// left over would have been counted in anyway.
+func PositionEncoding(path string) Encoding {
+	doc := held(path)
+	if doc == nil {
+		return UTF16
+	}
+
+	return doc.srv.client.Encoding()
+}
+
 // freshen is the document sent now rather than whenever the throttle next lets
 // it: a completion is about the word as it stands this keystroke, and the
 // reconciler is deliberately a fifth of a second behind that. A document that
 // cannot be rendered is closed and refused, which is what reconcile would do
 // with it on its own next pass.
-func freshen(path string, b *buffer.Buffer) bool {
-	doc, open := docs[FileURI(path)]
-	if !open {
-		return false
-	}
+func freshen(doc *document, b *buffer.Buffer) bool {
 	if doc.revision == b.Revision() {
 		return true
 	}
 
 	body, err := text(b)
 	if err != nil {
-		refused[path] = true
-		delete(docs, doc.uri)
-		client.Notify(methodDidClose, identParams{TextDocument: ident{URI: doc.uri}})
+		refused[Path(doc.uri)] = true
+		doc.close()
 
 		return false
 	}
 
 	doc.version++
 	doc.revision, doc.sentAt = b.Revision(), now()
-	client.Notify(methodDidChange, doc.changed(body))
+	doc.srv.client.Notify(methodDidChange, doc.changed(body))
 
 	return true
 }
 
-// PositionEncoding is how the running server counts columns, chosen during the
-// handshake. With no server it is UTF-16, the protocol's own default, which is
-// what anything left over would have been counted in anyway.
-func PositionEncoding() Encoding {
-	if client == nil {
-		return UTF16
-	}
-
-	return client.Encoding()
-}
-
 // Stop is the editor going.
 func Stop() {
-	if client == nil {
-		return
+	for name, srv := range servers {
+		srv.client.Stop()
+		delete(servers, name)
 	}
-
-	client.Stop()
-	client, root = nil, ""
 	clear(docs)
 }
 
 // Reset puts the package back to never having run, so that one test is not
-// answered out of another one's server, paths or documents.
+// answered out of another one's servers, paths or documents.
 func Reset() {
 	Stop()
 
-	wake, waking, starts, toldGone = nil, time.Time{}, nil, false
+	wake, waking, starts = nil, time.Time{}, nil
 	Gone, Published = nil, nil
 	dialFor = Server
 	clear(resolvedPaths)
@@ -199,20 +240,25 @@ func Reset() {
 }
 
 func reconcile(file File) {
-	name, ok := servers[filepath.Ext(file.Path)]
+	lang, ok := languages[filepath.Ext(file.Path)]
 	if !ok || refused[file.Path] {
 		return
 	}
 
-	at := projectRoot(file.Path)
-	if at == "" || !running(name, at) {
+	at := projectRoot(file.Path, lang.marks)
+	if at == "" {
+		return
+	}
+
+	srv := running(lang.server, at)
+	if srv == nil {
 		return
 	}
 
 	uri := FileURI(file.Path)
 	doc, open := docs[uri]
 	if !open {
-		opened(uri, file)
+		opened(uri, srv, lang.name, file)
 
 		return
 	}
@@ -221,12 +267,12 @@ func reconcile(file File) {
 		return // held back by the throttle, or refused: the save waits with it
 	}
 	if doc.modified && !file.Modified {
-		client.Notify(methodDidSave, identParams{TextDocument: ident{URI: doc.uri}})
+		doc.srv.client.Notify(methodDidSave, identParams{TextDocument: ident{URI: doc.uri}})
 	}
 	doc.modified = file.Modified
 }
 
-func opened(uri string, file File) {
+func opened(uri string, srv *server, name string, file File) {
 	body, ok := rendered(file)
 	if !ok {
 		return
@@ -234,13 +280,14 @@ func opened(uri string, file File) {
 
 	doc := &document{
 		uri:      uri,
+		srv:      srv,
 		version:  1,
 		revision: file.Buf.Revision(),
 		modified: file.Modified,
 		sentAt:   now(),
 	}
 	docs[uri] = doc
-	client.Notify(methodDidOpen, doc.opened(languages[filepath.Ext(file.Path)], body))
+	srv.client.Notify(methodDidOpen, doc.opened(name, body))
 }
 
 func changed(doc *document, file File) bool {
@@ -252,15 +299,14 @@ func changed(doc *document, file File) bool {
 
 	body, ok := rendered(file)
 	if !ok {
-		delete(docs, doc.uri)
-		client.Notify(methodDidClose, identParams{TextDocument: ident{URI: doc.uri}})
+		doc.close()
 
 		return false
 	}
 
 	doc.version++
 	doc.revision, doc.sentAt = file.Buf.Revision(), now()
-	client.Notify(methodDidChange, doc.changed(body))
+	doc.srv.client.Notify(methodDidChange, doc.changed(body))
 
 	return true
 }
@@ -280,13 +326,11 @@ func rendered(file File) (string, bool) {
 // closing the others and quitting at once, with nothing to forget at any of
 // them.
 func closeGone(files []File) {
-	for uri := range docs {
+	for uri, doc := range docs {
 		if stillOpen(files, uri) {
 			continue
 		}
-
-		delete(docs, uri)
-		client.Notify(methodDidClose, identParams{TextDocument: ident{URI: uri}})
+		doc.close()
 	}
 }
 
@@ -300,35 +344,55 @@ func stillOpen(files []File, uri string) bool {
 	return false
 }
 
-// A server is started once. One that would not come up, or that died, is not
-// tried again: a retry on every frame is a process started sixty times a second.
-func running(name, at string) bool {
-	if client == nil {
-		root, client = at, New(dialFor(name), wake)
-		client.Handler = handle
-		if err := client.Start(at); err != nil {
-			return false
+// A server is started once, and pinned to the root it was started in. A file
+// outside that root would be answered about the project it is not in, and a
+// second server for it is another few hundred megabytes of the same language's
+// type information — which is what 'gd' into the standard library would cost if
+// the root were not pinned.
+func running(argv []string, at string) *server {
+	name := argv[0]
+
+	srv, up := servers[name]
+	if !up {
+		srv = &server{client: New(dialFor(argv), wake), name: name, root: at}
+		srv.client.Handler = handle
+		servers[name] = srv
+
+		if err := srv.client.Start(at); err != nil {
+			return nil
 		}
 	}
-	if err := client.Err(); err != nil {
-		clear(docs)
-		reportGone(err)
 
-		return false
+	if err := srv.client.Err(); err != nil {
+		srv.gone(err)
+
+		return nil
+	}
+	if !srv.client.Ready() || at != srv.root {
+		return nil
 	}
 
-	// One server, one root: a file outside it would be answered about the
-	// module it is not in, which is worse than not being answered at all.
-	return client.Ready() && at == root
+	return srv
 }
 
-func reportGone(err error) {
-	if toldGone || Gone == nil || errors.Is(err, ErrNotInstalled) {
+// gone is a server's death dealt with once: what it had said goes, and the
+// editor is told which of them it was.
+func (s *server) gone(err error) {
+	if s.told {
 		return
 	}
+	s.told = true
 
-	toldGone = true
-	Gone(err)
+	for uri, doc := range docs {
+		if doc.srv == s {
+			delete(docs, uri)
+		}
+	}
+
+	if Gone == nil || errors.Is(err, ErrNotInstalled) {
+		return
+	}
+	Gone(fmt.Errorf("%s: %w", s.name, err))
 }
 
 // A change the throttle held back needs a frame of its own to go out on, since
@@ -342,29 +406,31 @@ func armWake(after time.Duration) {
 	time.AfterFunc(after, wake)
 }
 
-func projectRoot(path string) string {
+func projectRoot(path string, marks []string) string {
 	if at, ok := projectRoots[path]; ok {
 		return at
 	}
 
-	at := ""
-	if mark, ok := rootMarks[filepath.Ext(path)]; ok {
-		at = above(path, mark)
-	}
+	at := above(path, marks)
 	projectRoots[path] = at
 
 	return at
 }
 
-func above(path, mark string) string {
+// The nearest directory holding any of the marks is the project. Without a root
+// above the file every scratch .go file is answered with "no packages found for
+// open file", drawn as an error across its first line.
+func above(path string, marks []string) string {
 	dir, err := filepath.Abs(filepath.Dir(path))
 	if err != nil {
 		return ""
 	}
 
 	for {
-		if _, err := os.Stat(filepath.Join(dir, mark)); err == nil {
-			return dir
+		for _, mark := range marks {
+			if _, err := os.Stat(filepath.Join(dir, mark)); err == nil {
+				return dir
+			}
 		}
 
 		parent := filepath.Dir(dir)

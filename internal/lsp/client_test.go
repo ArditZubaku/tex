@@ -16,14 +16,14 @@ type pipe struct{ net.Conn }
 
 func (p pipe) CloseSend() error { return p.Close() }
 
-// A server is the far end of the pipe, driven by the test a frame at a time.
-type server struct {
+// A farEnd is the other side of the pipe, driven by the test a frame at a time.
+type farEnd struct {
 	t    *testing.T
 	conn net.Conn
 	wire *bufio.Reader
 }
 
-func (s *server) next() Message {
+func (s *farEnd) next() Message {
 	s.t.Helper()
 
 	frame, err := readFrame(s.wire)
@@ -39,7 +39,7 @@ func (s *server) next() Message {
 	return msg
 }
 
-func (s *server) put(frame []byte, err error) {
+func (s *farEnd) put(frame []byte, err error) {
 	s.t.Helper()
 
 	if err != nil {
@@ -55,7 +55,7 @@ func (s *server) put(frame []byte, err error) {
 	}
 }
 
-func (s *server) answer(id json.RawMessage, result any) {
+func (s *farEnd) answer(id json.RawMessage, result any) {
 	s.t.Helper()
 
 	raw, err := json.Marshal(result)
@@ -65,19 +65,19 @@ func (s *server) answer(id json.RawMessage, result any) {
 	s.put(marshalResponse(id, raw, nil))
 }
 
-func (s *server) refuse(id json.RawMessage, failure *ResponseError) {
+func (s *farEnd) refuse(id json.RawMessage, failure *ResponseError) {
 	s.t.Helper()
 
 	s.put(marshalResponse(id, nil, failure))
 }
 
-func (s *server) notify(method string, params any) {
+func (s *farEnd) notify(method string, params any) {
 	s.t.Helper()
 
 	s.put(marshalRequest(nil, method, params))
 }
 
-func (s *server) ask(id json.RawMessage, method string, params any) {
+func (s *farEnd) ask(id json.RawMessage, method string, params any) {
 	s.t.Helper()
 
 	s.put(marshalRequest(id, method, params))
@@ -86,8 +86,13 @@ func (s *server) ask(id json.RawMessage, method string, params any) {
 type harness struct {
 	t      *testing.T
 	client *Client
-	server *server
+	server *farEnd
 	woken  chan struct{}
+
+	// argv is what each program was dialled with and ends the far end of its
+	// pipe, for the tests that drive more than one server at once.
+	argv map[string][]string
+	ends map[string]*farEnd
 }
 
 func dialed(t *testing.T) *harness {
@@ -106,7 +111,7 @@ func dialed(t *testing.T) *harness {
 
 	h := &harness{
 		t:      t,
-		server: &server{t: t, conn: far, wire: bufio.NewReader(far)},
+		server: &farEnd{t: t, conn: far, wire: bufio.NewReader(far)},
 		woken:  make(chan struct{}, 1),
 	}
 	h.client = New(func(string) (Transport, error) { return pipe{near}, nil }, h.wake)
@@ -140,32 +145,44 @@ func (h *harness) poll() {
 	case <-time.After(2 * time.Second):
 		h.t.Fatal("the loop was never woken")
 	}
-	h.client.Poll()
+
+	if h.client != nil {
+		h.client.Poll()
+
+		return
+	}
+	Poll() // a test driving more than one server takes what all of them said
 }
 
 // shake is the handshake done with, which every test but the handshake's own
 // starts from.
-func (h *harness) shake(encoding string) {
+func (h *harness) shake(encoding string) { h.shookBy(h.server, encoding) }
+
+// shakeWith is the same for a test driving more than one server, each of which
+// has its own handshake to get through.
+func (h *harness) shakeWith(end *farEnd) { h.shookBy(end, "") }
+
+func (h *harness) shookBy(end *farEnd, encoding string) {
 	h.t.Helper()
 
-	asked := h.server.next()
+	asked := end.next()
 	if asked.Method != methodInitialize {
 		h.t.Fatalf("first message was %q, want %q", asked.Method, methodInitialize)
 	}
 
-	h.server.answer(asked.ID, initializeResult{
+	end.answer(asked.ID, initializeResult{
 		Capabilities: serverCapability{PositionEncoding: encoding},
 	})
 	h.poll()
 
-	if got := h.server.next(); got.Method != methodInitialized {
+	if got := end.next(); got.Method != methodInitialized {
 		h.t.Fatalf("after the handshake the client sent %q, want %q", got.Method, methodInitialized)
 	}
 }
 
 // stopped is the clock, held still so that a deadline passes when the test says
 // it does rather than when the suite happens to be slow.
-func held(t *testing.T) func(time.Duration) {
+func stopped(t *testing.T) func(time.Duration) {
 	t.Helper()
 
 	at := time.Now()
@@ -232,7 +249,7 @@ func TestAnEncodingNeitherEndOfferedIsRefusedRatherThanGuessedAt(t *testing.T) {
 }
 
 func TestAHandshakeNeverAnsweredLeavesTheClientWithNoServer(t *testing.T) {
-	pass := held(t)
+	pass := stopped(t)
 	h := dialed(t)
 
 	h.client.Poll()
@@ -252,7 +269,7 @@ func TestAHandshakeNeverAnsweredLeavesTheClientWithNoServer(t *testing.T) {
 }
 
 func TestARequestNeverAnsweredIsAnsweredForExactlyOnce(t *testing.T) {
-	pass := held(t)
+	pass := stopped(t)
 	h := dialed(t)
 	h.shake("")
 
@@ -274,7 +291,7 @@ func TestARequestNeverAnsweredIsAnsweredForExactlyOnce(t *testing.T) {
 }
 
 func TestAnAnswerToARequestAlreadyGivenUpOnIsDropped(t *testing.T) {
-	pass := held(t)
+	pass := stopped(t)
 	h := dialed(t)
 	h.shake("")
 
@@ -438,7 +455,7 @@ func TestAServerThatIsNotInstalledIsNotAFailure(t *testing.T) {
 		t.Skipf("something called %q is on the PATH", missing)
 	}
 
-	_, err := Server(missing)(t.TempDir())
+	_, err := Server([]string{missing})(t.TempDir())
 	if !errors.Is(err, ErrNotInstalled) {
 		t.Fatalf("dialing something not installed gave %v, want %v", err, ErrNotInstalled)
 	}

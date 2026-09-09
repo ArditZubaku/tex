@@ -91,18 +91,19 @@ func Complete(
 	path string, b *buffer.Buffer, row, col int,
 	trigger Trigger, ch string, answer func(Completion, error),
 ) {
-	if !Completing(path) || !freshen(path, b) {
+	doc := held(path)
+	if !Completing(path) || !freshen(doc, b) {
 		answer(Completion{}, ErrStopped)
 
 		return
 	}
 
 	params := completionParams{
-		TextDocument: ident{URI: FileURI(path)},
-		Position:     PositionEncoding().Pos(b, row, col),
+		TextDocument: ident{URI: doc.uri},
+		Position:     doc.srv.client.Encoding().Pos(b, row, col),
 		Context:      completionContext{TriggerKind: trigger, TriggerCharacter: ch},
 	}
-	err := client.Request(methodCompletion, params, func(result json.RawMessage, err error) {
+	err := doc.srv.client.Request(methodCompletion, params, func(result json.RawMessage, err error) {
 		if err != nil {
 			answer(Completion{}, err)
 

@@ -81,7 +81,7 @@ func rowsIn(group []answer) []picker.Entry {
 	}
 	defer done()
 
-	encoding := lsp.PositionEncoding()
+	encoding := lsp.PositionEncoding(group[0].path)
 	entries := make([]picker.Entry, 0, len(group))
 	for _, one := range group {
 		row, col := encoding.RowCol(text, one.at)
@@ -107,7 +107,7 @@ func place(found lsp.Location) (string, int, int, bool) {
 	}
 	defer done()
 
-	row, col := lsp.PositionEncoding().RowCol(text, found.Range.Start)
+	row, col := lsp.PositionEncoding(path).RowCol(text, found.Range.Start)
 
 	return path, row, col, true
 }

@@ -87,7 +87,7 @@ type symbolQuery struct {
 func Definition(path string, b *buffer.Buffer, row, col int, answer func([]Location, error)) {
 	locate(path, methodDefinition, positionParams{
 		TextDocument: ident{URI: FileURI(path)},
-		Position:     PositionEncoding().Pos(b, row, col),
+		Position:     PositionEncoding(path).Pos(b, row, col),
 	}, answer)
 }
 
@@ -95,7 +95,7 @@ func Definition(path string, b *buffer.Buffer, row, col int, answer func([]Locat
 func References(path string, b *buffer.Buffer, row, col int, answer func([]Location, error)) {
 	locate(path, methodReferences, referenceParams{
 		TextDocument: ident{URI: FileURI(path)},
-		Position:     PositionEncoding().Pos(b, row, col),
+		Position:     PositionEncoding(path).Pos(b, row, col),
 		Context:      referenceContext{IncludeDeclaration: true},
 	}, answer)
 }
@@ -135,7 +135,7 @@ func WorkspaceSymbols(path, query string, answer func([]Symbol, error)) {
 func Hover(path string, b *buffer.Buffer, row, col int, answer func(string, error)) {
 	askServer(path, methodHover, positionParams{
 		TextDocument: ident{URI: FileURI(path)},
-		Position:     PositionEncoding().Pos(b, row, col),
+		Position:     PositionEncoding(path).Pos(b, row, col),
 	}, func(result json.RawMessage, err error) {
 		if err != nil {
 			answer("", err)
@@ -160,12 +160,13 @@ func locate(path, method string, params any, answer func([]Location, error)) {
 // askServer is the one place a lookup is refused for want of a server, so that
 // every caller has exactly one path back: the callback, with an error.
 func askServer(path, method string, params any, answer func(json.RawMessage, error)) {
-	if !Ready(path) {
+	doc := held(path)
+	if doc == nil || !doc.srv.client.Ready() {
 		answer(nil, ErrStopped)
 
 		return
 	}
-	if err := client.Request(method, params, answer); err != nil {
+	if err := doc.srv.client.Request(method, params, answer); err != nil {
 		answer(nil, err)
 	}
 }

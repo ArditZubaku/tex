@@ -59,23 +59,67 @@ func reconciling(t *testing.T) *harness {
 	Reset()
 	t.Cleanup(Reset)
 
-	near, far := net.Pipe()
-	if err := far.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = far.Close() })
-
 	h := &harness{
-		t:      t,
-		server: &server{t: t, conn: far, wire: bufio.NewReader(far)},
-		woken:  make(chan struct{}, 1),
+		t:     t,
+		argv:  map[string][]string{},
+		ends:  map[string]*farEnd{},
+		woken: make(chan struct{}, 1),
 	}
-	dialFor = func(string) Dial {
-		return func(string) (Transport, error) { return pipe{near}, nil }
+	// A pipe per program rather than one for the test, so that a Go file and
+	// the TypeScript file beside it are driven as the two servers they are.
+	dialFor = func(argv []string) Dial {
+		return func(string) (Transport, error) {
+			near, end := h.pipe()
+			h.argv[argv[0]], h.ends[argv[0]] = argv, end
+			if h.server == nil {
+				h.server = end
+			}
+
+			return pipe{near}, nil
+		}
 	}
 	Wake(h.wake)
 
 	return h
+}
+
+func (h *harness) pipe() (net.Conn, *farEnd) {
+	h.t.Helper()
+
+	near, far := net.Pipe()
+	if err := far.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		h.t.Fatal(err)
+	}
+	h.t.Cleanup(func() { _ = far.Close() })
+
+	return near, &farEnd{t: h.t, conn: far, wire: bufio.NewReader(far)}
+}
+
+// end is the far end of one program's pipe, for a test driving more than one.
+func (h *harness) end(name string) *farEnd {
+	h.t.Helper()
+
+	got, dialled := h.ends[name]
+	if !dialled {
+		h.t.Fatalf("%s was never started", name)
+	}
+
+	return got
+}
+
+// only is the one server a test starts, since every one of them drives a single
+// language.
+func only(t *testing.T) *Client {
+	t.Helper()
+
+	if len(servers) != 1 {
+		t.Fatalf("%d servers are running, want the one", len(servers))
+	}
+	for _, srv := range servers {
+		return srv.client
+	}
+
+	return nil
 }
 
 // up is the first pass, which finds the server rather than telling it anything,
@@ -84,11 +128,7 @@ func (h *harness) up(files ...File) {
 	h.t.Helper()
 
 	Sync(files)
-	if client == nil {
-		h.t.Fatal("nothing started a server")
-	}
-
-	h.client = client
+	h.client = only(h.t)
 	h.shake("")
 	Sync(files)
 }
@@ -139,7 +179,7 @@ func TestATrackedFileWithNoProjectAboveItIsLeftAlone(t *testing.T) {
 
 	Sync([]File{{Path: path, Buf: opening(t, path)}})
 
-	if client != nil {
+	if len(servers) != 0 {
 		t.Fatal("a server was started for a file in no project")
 	}
 }
@@ -150,7 +190,7 @@ func TestAFileNoServerAnswersForIsLeftAlone(t *testing.T) {
 
 	Sync([]File{{Path: path, Buf: opening(t, path)}})
 
-	if client != nil {
+	if len(servers) != 0 {
 		t.Fatal("a server was started for a file it knows nothing about")
 	}
 }
@@ -159,7 +199,7 @@ func TestNothingHappensUntilTheLoopSaysWhereToWakeIt(t *testing.T) {
 	Reset()
 	t.Cleanup(Reset)
 
-	dialFor = func(string) Dial {
+	dialFor = func([]string) Dial {
 		return func(string) (Transport, error) {
 			t.Fatal("a server was started with no loop to wake")
 
@@ -172,7 +212,7 @@ func TestNothingHappensUntilTheLoopSaysWhereToWakeIt(t *testing.T) {
 }
 
 func TestAChangeGoesOutOnlyOnceTheThrottleHasPassed(t *testing.T) {
-	pass := held(t)
+	pass := stopped(t)
 	h := reconciling(t)
 	path := project(t, "main.go", "package main\n")
 	b := opening(t, path)
@@ -209,7 +249,7 @@ func TestAChangeGoesOutOnlyOnceTheThrottleHasPassed(t *testing.T) {
 // already current — leaving the server's idea of the file stale for as long as
 // it is open.
 func TestTheVersionOnlyEverGoesUpAcrossASaveAndAReread(t *testing.T) {
-	pass := held(t)
+	pass := stopped(t)
 	h := reconciling(t)
 	path := project(t, "main.go", "package main\n")
 	b := opening(t, path)
@@ -242,7 +282,7 @@ func TestTheVersionOnlyEverGoesUpAcrossASaveAndAReread(t *testing.T) {
 }
 
 func TestASaveIsToldOnlyOnceTheTextItBelongsToHasGone(t *testing.T) {
-	pass := held(t)
+	pass := stopped(t)
 	h := reconciling(t)
 	path := project(t, "main.go", "package main\n")
 	b := opening(t, path)
@@ -372,7 +412,7 @@ func TestWhatTheServerPublishesReachesTheEditor(t *testing.T) {
 // A payload that crossed a newer document on the wire is about text that is
 // already gone, and drawing it would put every underline a line out.
 func TestAPublishAboutTextAlreadyGoneIsDropped(t *testing.T) {
-	pass := held(t)
+	pass := stopped(t)
 	h := reconciling(t)
 	path := project(t, "main.go", "package main\n")
 	b := opening(t, path)
