@@ -61,6 +61,11 @@ type Client struct {
 	transport Transport
 	encoding  Encoding
 
+	// What the server said about completion during the handshake: whether it
+	// offers any, and the characters it asked to be woken on.
+	completes bool
+	triggers  string
+
 	in       chan Message
 	out      chan []byte
 	gone     chan error
@@ -130,6 +135,7 @@ func (c *Client) shook(result json.RawMessage, err error) {
 	}
 
 	c.encoding, c.phase = encoding, phaseReady
+	c.triggers, c.completes = triggersFrom(result)
 	c.post(methodInitialized, struct{}{})
 }
 
@@ -178,6 +184,13 @@ func (c *Client) Ready() bool { return c.phase == phaseReady }
 // Encoding is how the server counts columns, which it chose during the
 // handshake out of the two offered.
 func (c *Client) Encoding() Encoding { return c.encoding }
+
+// Completes is a server that offers completion, and Triggers the characters it
+// asked to be woken on. A server that offers none is not asked, which is what
+// keeps a request per keystroke out of a language nobody has a server for.
+func (c *Client) Completes() bool { return c.completes }
+
+func (c *Client) Triggers() string { return c.triggers }
 
 // Err is why there is no server, for the one report a crash is worth.
 func (c *Client) Err() error {

@@ -107,6 +107,60 @@ func Ready(path string) bool {
 	return open
 }
 
+// Completing says whether the server holding this file offers completion, which
+// is asked before a keystroke is allowed to turn into a request.
+func Completing(path string) bool {
+	return Ready(path) && client.Completes()
+}
+
+// TriggerRune is a character the server asked to be woken on — the '.' that
+// starts a selector, and whatever else the language has. It is checked against
+// every rune typed, so it is a scan of a handful of runes rather than anything
+// that allocates.
+func TriggerRune(ch rune) bool {
+	if client == nil {
+		return false
+	}
+
+	for _, trigger := range client.Triggers() {
+		if trigger == ch {
+			return true
+		}
+	}
+
+	return false
+}
+
+// freshen is the document sent now rather than whenever the throttle next lets
+// it: a completion is about the word as it stands this keystroke, and the
+// reconciler is deliberately a fifth of a second behind that. A document that
+// cannot be rendered is closed and refused, which is what reconcile would do
+// with it on its own next pass.
+func freshen(path string, b *buffer.Buffer) bool {
+	doc, open := docs[FileURI(path)]
+	if !open {
+		return false
+	}
+	if doc.revision == b.Revision() {
+		return true
+	}
+
+	body, err := text(b)
+	if err != nil {
+		refused[path] = true
+		delete(docs, doc.uri)
+		client.Notify(methodDidClose, identParams{TextDocument: ident{URI: doc.uri}})
+
+		return false
+	}
+
+	doc.version++
+	doc.revision, doc.sentAt = b.Revision(), now()
+	client.Notify(methodDidChange, doc.changed(body))
+
+	return true
+}
+
 // PositionEncoding is how the running server counts columns, chosen during the
 // handshake. With no server it is UTF-16, the protocol's own default, which is
 // what anything left over would have been counted in anyway.

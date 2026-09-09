@@ -37,6 +37,23 @@ type textDocumentCapability struct {
 	Synchronization    syncCapability               `json:"synchronization"`
 	Definition         linkCapability               `json:"definition"`
 	Hover              hoverCapability              `json:"hover"`
+	Completion         completionCapability         `json:"completion"`
+}
+
+// contextSupport is what carries why a completion was asked for, which is the
+// difference between the whole scope and what may follow a dot.
+type completionCapability struct {
+	ContextSupport bool                     `json:"contextSupport"`
+	CompletionItem completionItemCapability `json:"completionItem"`
+}
+
+// Both are declined rather than left unsaid. A snippet is a template with
+// placeholders and tab stops, and there is nothing here to expand one; an
+// insert-replace edit is two ranges for the caller to choose between, where one
+// is all a candidate settled on ever needs.
+type completionItemCapability struct {
+	SnippetSupport       bool `json:"snippetSupport"`
+	InsertReplaceSupport bool `json:"insertReplaceSupport"`
 }
 
 type publishDiagnosticsCapability struct {
@@ -73,7 +90,16 @@ type initializeResult struct {
 }
 
 type serverCapability struct {
-	PositionEncoding string `json:"positionEncoding"`
+	PositionEncoding   string              `json:"positionEncoding"`
+	CompletionProvider *completionProvider `json:"completionProvider"`
+}
+
+// A server offering completion says so with this, and names the characters it
+// would like to be woken on: '.' for Go, and ':' and '\” besides for Rust. They
+// are the server's own rather than a list here, which is what lets a language
+// added to the tables in sync.go bring its own along with it.
+type completionProvider struct {
+	TriggerCharacters []string `json:"triggerCharacters"`
 }
 
 func handshake(root string) initializeParams {
@@ -93,6 +119,13 @@ func handshake(root string) initializeParams {
 				Synchronization:    syncCapability{DidSave: true},
 				Definition:         linkCapability{LinkSupport: false},
 				Hover:              hoverCapability{ContentFormat: []string{"plaintext", "markdown"}},
+				Completion: completionCapability{
+					ContextSupport: true,
+					CompletionItem: completionItemCapability{
+						SnippetSupport:       false,
+						InsertReplaceSupport: false,
+					},
+				},
 			},
 			Window:    windowCapability{WorkDoneProgress: false},
 			Workspace: workspaceCapability{WorkspaceFolders: true},
@@ -127,4 +160,25 @@ type UnsupportedEncodingError struct{ Name string }
 func (e *UnsupportedEncodingError) Error() string {
 	return "lsp: server chose position encoding " + e.Name + ", which is not one of the offered " +
 		Encodings[0] + " or " + Encodings[1]
+}
+
+// triggersFrom are the characters the server asked to be woken on, folded to
+// the runes they are so that a keystroke is checked against them without
+// decoding anything. The protocol has them single characters; one that is not
+// is dropped rather than half-matched. A server offering no completion at all
+// leaves the second result false, which is what stops it being asked.
+func triggersFrom(result json.RawMessage) (string, bool) {
+	var got initializeResult
+	if err := json.Unmarshal(result, &got); err != nil || got.Capabilities.CompletionProvider == nil {
+		return "", false
+	}
+
+	triggers := make([]rune, 0, len(got.Capabilities.CompletionProvider.TriggerCharacters))
+	for _, ch := range got.Capabilities.CompletionProvider.TriggerCharacters {
+		if runes := []rune(ch); len(runes) == 1 {
+			triggers = append(triggers, runes[0])
+		}
+	}
+
+	return string(triggers), true
 }
