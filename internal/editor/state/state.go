@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ArditZubaku/tex/internal/buffer"
+	"github.com/ArditZubaku/tex/internal/editor/complete"
 	"github.com/ArditZubaku/tex/internal/editor/filetree"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/hover"
@@ -108,6 +109,7 @@ type Editor struct {
 	Prompt       prompt.Line
 	Note         notify.Note
 	Hov          hover.Box
+	Comp         complete.Menu
 	Pick         picker.Picker
 	Exp          filetree.Tree
 	ExplorerOpen bool
