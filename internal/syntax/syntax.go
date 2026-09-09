@@ -296,6 +296,16 @@ func (s *Syntax) HasBlockComments() bool {
 	return s != nil && s.blockStart != ""
 }
 
+// LineComment is the delimiter 'gcc' toggles at the front of a line, or "" for
+// a file with no known syntax.
+func (s *Syntax) LineComment() string {
+	if s == nil {
+		return ""
+	}
+
+	return s.lineComment
+}
+
 // CanChangeBlock says whether a line could leave the block-comment state
 // different from how it found it. Only the opening delimiter opens one and only
 // the closing delimiter closes it, so a line whose raw bytes hold neither the
