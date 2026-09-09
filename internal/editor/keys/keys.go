@@ -319,13 +319,14 @@ func handleSpecialKey(e *state.Editor, keyEvent termbox.Event) {
 
 	switch keyEvent.Key {
 	case termbox.KeyTab:
-		if e.Mode == state.EditMode {
-			insertRuneNTimes(e, keyEvent, 4)
+		if e.Mode != state.EditMode {
+			view.NextBuffer(e)
 			break
 		}
-		view.NextBuffer(e)
+		edit.InsertRune(e, keyEvent)
+	// Space outside Edit mode is the leader, and left above.
 	case termbox.KeySpace:
-		insertRuneNTimes(e, keyEvent, 1)
+		edit.InsertRune(e, keyEvent)
 	case termbox.KeyHome:
 		e.Col = 0
 	case termbox.KeyEnd:
@@ -343,15 +344,6 @@ func handleSpecialKey(e *state.Editor, keyEvent termbox.Event) {
 	}
 
 	e.ClampCol()
-}
-
-func insertRuneNTimes(e *state.Editor, keyEvent termbox.Event, n int) {
-	if e.Mode != state.EditMode {
-		return
-	}
-	for range n {
-		edit.InsertRune(e, keyEvent)
-	}
 }
 
 func esc(e *state.Editor) {

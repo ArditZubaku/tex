@@ -9,7 +9,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/state"
 )
 
-func TestTabStillIndentsWithNoCompletionMenuUp(t *testing.T) {
+func TestTabStillTypesASpaceWithNoCompletionMenuUp(t *testing.T) {
 	e := state.New()
 
 	b := edtest.InReadMode(t, e, "\n", 0, 0)
@@ -17,7 +17,7 @@ func TestTabStillIndentsWithNoCompletionMenuUp(t *testing.T) {
 	edtest.PressKey(t, e, termbox.KeyTab)
 	edtest.Press(t, e, "x")
 
-	edtest.WantLines(t, b, "    x")
+	edtest.WantLines(t, b, " x")
 }
 
 func TestCtrlNWithNoLanguageServerSaysSoRatherThanNothing(t *testing.T) {

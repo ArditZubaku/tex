@@ -65,7 +65,7 @@ func TestTabWalksTheBufferListAndWrapsRound(t *testing.T) {
 	edtest.WantCurrent(t, e, "a.txt")
 }
 
-func TestTabIsStillAnIndentInEditMode(t *testing.T) {
+func TestTabTypesASpaceInEditModeRatherThanSwitchingBuffer(t *testing.T) {
 	e := state.New()
 
 	paths := inBuffers(t, e, "a.txt")
@@ -74,7 +74,7 @@ func TestTabIsStillAnIndentInEditMode(t *testing.T) {
 	edtest.Press(t, e, "i\t")
 
 	edtest.WantCurrent(t, e, "a.txt")
-	edtest.WantLines(t, e.Buf, "    in a.txt")
+	edtest.WantLines(t, e.Buf, " in a.txt")
 }
 
 func TestShiftHAndShiftLTakeTheBufferBeforeAndAfter(t *testing.T) {
