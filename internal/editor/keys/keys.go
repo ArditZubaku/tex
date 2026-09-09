@@ -158,6 +158,7 @@ func chordKeys() map[string]func(*state.Editor) {
 		"gg":  (*state.Editor).GoToTop,
 		"gd":  find.GoToDefinition,
 		"gr":  find.OpenReferences,
+		"gcc": edit.ToggleCommentLine,
 		"dd":  edit.DeleteLine,
 		"dw":  edit.DeleteWord,
 		"de":  edit.DeleteToWordEnd,
@@ -193,6 +194,7 @@ func chordKeys() map[string]func(*state.Editor) {
 var visualChords = map[string]func(*state.Editor){
 	"gg": (*state.Editor).GoToTop,
 	"zz": (*state.Editor).CenterView,
+	"gc": edit.ToggleCommentSelection,
 }
 
 // A chord's own prefixes do nothing on their own; they wait for the keys that
@@ -220,7 +222,7 @@ func prefixesOf(chords map[string]func(*state.Editor)) map[string]bool {
 // simply run that many times.
 var (
 	countAwareKeys   = map[rune]bool{'x': true, 'p': true, 'P': true}
-	countAwareChords = map[string]bool{"dd": true, "yy": true, "zz": true}
+	countAwareChords = map[string]bool{"dd": true, "yy": true, "zz": true, "gcc": true}
 )
 
 func handleReadModeChar(e *state.Editor, keyEvent termbox.Event) {
