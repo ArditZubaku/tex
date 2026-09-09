@@ -7,6 +7,7 @@
 package complete
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 
@@ -30,12 +31,18 @@ const (
 // An Item is one candidate. Text is what goes into the file and From the rune
 // column on the row it starts replacing at, which is the server's own idea of
 // what the typing so far covered rather than this package's.
+//
+// Ask is a candidate whose edits elsewhere are not here yet, because the server
+// held them back until it knew which candidate was being settled on. Data is
+// the bookmark it will want quoting back to find them again.
 type Item struct {
 	Label  string
 	Detail string
 	Text   string
 	From   int
 	Extra  []Edit
+	Ask    bool
+	Data   json.RawMessage
 }
 
 // An Edit is a stretch of the file replaced by some text, in the editor's own

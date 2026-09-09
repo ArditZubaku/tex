@@ -31,10 +31,12 @@ const (
 	// menu would be a list of everything and the request that built it wasted.
 	minPrefix = 3
 
-	// More candidates than this is more than anybody scrolls through, and what
-	// is typed narrows them anyway. They arrive in the server's own order, so
-	// the ones kept are the ones it ranked highest.
-	maxItems = 300
+	// A ceiling rather than a shortlist. The narrowing happens locally, over
+	// everything the server sent, and it has to: typescript-language-server
+	// answers a bare prefix with a thousand candidates and ranks the ones that
+	// need an import *last*, so a list cut to the best few hundred is a list
+	// with every auto-import cut out of it.
+	maxItems = 2000
 
 	// A signature past this is cut long before it is drawn, so the rest of it
 	// is memory held for nothing across every candidate of every word.
@@ -248,6 +250,7 @@ func stillTyping(e *state.Editor) bool {
 // answer for it.
 func candidates(e *state.Editor, found []lsp.Item, start int) []complete.Item {
 	encoding := lsp.PositionEncoding(e.SourceFile)
+	resolves := lsp.Resolves(e.SourceFile)
 	items := make([]complete.Item, 0, len(found))
 
 	for _, one := range found {
@@ -262,6 +265,8 @@ func candidates(e *state.Editor, found []lsp.Item, start int) []complete.Item {
 			Text:   one.Text,
 			From:   from,
 			Extra:  edits(e, encoding, one.Extra),
+			Ask:    len(one.Extra) == 0 && one.Data != nil && resolves,
+			Data:   one.Data,
 		})
 	}
 
@@ -307,6 +312,30 @@ func accept(e *state.Editor) {
 	}
 
 	edit.Accept(e, item)
+	if item.Ask {
+		resolve(e, item)
+	}
+}
+
+// resolve is the second question about a candidate already settled on: what
+// else has to change for it, which a server may hold back until it knows which
+// one it was. The name is already in — a round trip with the keyboard held is a
+// round trip felt — so the import lands a frame or two behind it.
+func resolve(e *state.Editor, item complete.Item) {
+	asked++
+	token, path, lines := asked, e.SourceFile, e.Buf.LineCount()
+
+	lsp.Resolve(path, lsp.Item{Label: item.Label, Data: item.Data},
+		func(extra []lsp.TextEdit, err error) {
+			// Anything that has since added or dropped a line has moved the
+			// rows the server named, and an import written into the wrong one
+			// is worse than no import at all.
+			if err != nil || token != asked ||
+				e.SourceFile != path || e.Buf.LineCount() != lines {
+				return
+			}
+			edit.Elsewhere(e, edits(e, lsp.PositionEncoding(path), extra))
+		})
 }
 
 // wordStart is where the word the cursor is at the end of begins. There may be

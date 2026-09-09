@@ -8,8 +8,8 @@ import (
 // Every keystroke against an open menu narrows the candidates already in hand,
 // which is what keeps a keystroke from being a request. It has to cost nothing.
 func BenchmarkRetype(b *testing.B) {
-	items := make([]Item, 0, 300)
-	for i := range 300 {
+	items := make([]Item, 0, 2000)
+	for i := range 2000 {
 		items = append(items, Item{
 			Label:  "Println" + strconv.Itoa(i),
 			Detail: "func(a ...any) (n int, err error)",

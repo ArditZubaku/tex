@@ -1,6 +1,7 @@
 package find
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -263,5 +264,23 @@ func TestTypingOnNarrowsTheMenuWithoutAskingAgain(t *testing.T) {
 	}
 	if e.Comp.Count() != 1 {
 		t.Errorf("the menu offers %d candidates, want the one the typing left", e.Comp.Count())
+	}
+}
+
+// A candidate whose edits the server held back still goes in when the second
+// question cannot be asked: the name typed is what was wanted, and an import
+// that never arrives is what happens with no server at all.
+func TestACandidateWaitingOnASecondQuestionStillGoesIn(t *testing.T) {
+	e, _ := typing(t, "\tfmt.Prin\n", 9)
+	e.Comp.Show([]complete.Item{{
+		Label: "Println", Text: "Println", From: 5,
+		Ask: true, Data: json.RawMessage(`{"entry":1}`),
+	}}, 0, 5, nil, false)
+
+	if !CompletionKey(e, termbox.Event{Key: termbox.KeyTab}) {
+		t.Fatal("Tab did not settle on the candidate")
+	}
+	if got := string(e.Buf.Line(0)); got != "\tfmt.Println" {
+		t.Errorf("the line reads %q, want the candidate in it", got)
 	}
 }
