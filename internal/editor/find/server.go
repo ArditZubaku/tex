@@ -31,7 +31,10 @@ func stale(e *state.Editor, token int, from state.Jump) bool {
 }
 
 // Reset is one test not being answered out of another one's lookups.
-func Reset() { asked = 0 }
+func Reset() {
+	asked = 0
+	resetCompletion()
+}
 
 // An answer is one row a server sent, waiting on the text of its own file: the
 // column it names is counted in the server's units, and which rune the cursor
