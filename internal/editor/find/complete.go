@@ -277,6 +277,7 @@ func candidates(e *state.Editor, found []lsp.Item, start int) []complete.Item {
 			Detail: detailOf(one),
 			Text:   one.Text,
 			From:   from,
+			Call:   called(one.Kind),
 			Extra:  edits(e, encoding, one.Extra),
 			Ask:    len(one.Extra) == 0 && one.Data != nil && resolves,
 			Data:   one.Data,
@@ -385,6 +386,18 @@ var completionKindNames = [...]string{
 	11: "Unit", 12: "Value", 13: "Enum", 14: "Keyword", 15: "Snippet",
 	16: "Color", 17: "File", 18: "Reference", 19: "Folder", 20: "EnumValue",
 	21: "Constant", 22: "Struct", 23: "Event", 24: "Operator", 25: "TypeParam",
+}
+
+// The three kinds that are invoked rather than named, which is what a
+// candidate carrying its own parentheses in is.
+const (
+	kindMethod      = 2
+	kindFunction    = 3
+	kindConstructor = 4
+)
+
+func called(kind int) bool {
+	return kind == kindMethod || kind == kindFunction || kind == kindConstructor
 }
 
 func completionKind(kind int) string {

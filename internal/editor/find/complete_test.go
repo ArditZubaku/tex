@@ -171,6 +171,17 @@ func TestACandidateWithNothingToSayForItselfIsLabelledWithItsKind(t *testing.T) 
 	}
 }
 
+func TestOnlyTheCandidatesThatAreInvokedAreCalled(t *testing.T) {
+	e, _ := typing(t, "\tra\n", 3)
+
+	for kind, want := range map[int]bool{2: true, 3: true, 4: true, 5: false, 6: false, 14: false} {
+		items := candidates(e, []lsp.Item{{Label: "x", Kind: kind}}, 1)
+		if items[0].Call != want {
+			t.Errorf("kind %d called %v, want %v", kind, items[0].Call, want)
+		}
+	}
+}
+
 func TestTabPutsTheSelectedCandidateIn(t *testing.T) {
 	e, _ := typing(t, "\tfmt.Prin\n", 9)
 	e.Comp.Show([]complete.Item{{Label: "Println", Text: "Println", From: 5}}, 0, 5, nil, false)

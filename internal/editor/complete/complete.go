@@ -32,6 +32,11 @@ const (
 // column on the row it starts replacing at, which is the server's own idea of
 // what the typing so far covered rather than this package's.
 //
+// Call is a candidate that is invoked rather than named — a function, a method,
+// a constructor — which is written in with the parentheses it needs. It is said
+// here as what it means for the text rather than as the kind it came from, so
+// that the menu stays ignorant of whose kinds those are.
+//
 // Ask is a candidate whose edits elsewhere are not here yet, because the server
 // held them back until it knew which candidate was being settled on. Data is
 // the bookmark it will want quoting back to find them again.
@@ -41,6 +46,7 @@ type Item struct {
 	Text   string
 	From   int
 	Extra  []Edit
+	Call   bool
 	Ask    bool
 	Data   json.RawMessage
 }
