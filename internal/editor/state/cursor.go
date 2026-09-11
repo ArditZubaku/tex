@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/ArditZubaku/tex/internal/chars"
 	"github.com/ArditZubaku/tex/internal/motion"
 )
 
@@ -140,6 +141,50 @@ func (e *Editor) EnterEditMode() {
 	e.BeginChange()
 	e.Mode = EditMode
 	SetCursorShape(CursorBlinkingBar)
+}
+
+// MatchBracket is VIM's '%': to the match of the bracket under the cursor, or
+// of the first one after it on the line. A count in front of it means VIM's
+// other '%' entirely — the line that far through the file — which is why the
+// count is read here rather than the command being run that many times.
+func (e *Editor) MatchBracket() {
+	if e.HadCount {
+		e.toPercentOfFile()
+
+		return
+	}
+
+	row, col, ok := motion.MatchFrom(e.Buf, e.Row, e.Col)
+	if !ok {
+		return
+	}
+
+	e.PushJump()
+	e.Row, e.Col = row, col
+}
+
+// A percentage past a hundred is no part of the file, which VIM refuses rather
+// than rounds down to the end of it.
+func (e *Editor) toPercentOfFile() {
+	count := e.Count()
+	if count > 100 {
+		return
+	}
+
+	e.PushJump()
+	lines := e.Buf.LineCount()
+	e.Row = min((count*lines+99)/100, lines) - 1
+	e.Col = firstNonBlank(e.Buf.Line(e.Row))
+}
+
+func firstNonBlank(line []rune) int {
+	for at, ch := range line {
+		if !chars.IsSpace(ch) {
+			return at
+		}
+	}
+
+	return 0
 }
 
 func (e *Editor) NextWord() {
