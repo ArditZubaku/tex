@@ -166,6 +166,18 @@ func TestDollarCommandJumpsToTheLastLine(t *testing.T) {
 	edtest.WantCursor(t, e, 2, 0)
 }
 
+func TestALineAddressIsRememberedByTheJumpList(t *testing.T) {
+	e := state.New()
+
+	edtest.InReadMode(t, e, "a\nb\nc\nd\n", 1, 0)
+
+	edtest.Press(t, e, ":4\n")
+	edtest.WantCursor(t, e, 3, 0)
+
+	find.JumpBack(e)
+	edtest.WantCursor(t, e, 1, 0)
+}
+
 func TestUnknownCommandIsReported(t *testing.T) {
 	e := state.New()
 

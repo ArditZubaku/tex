@@ -30,7 +30,9 @@ func Run(e *state.Editor, line string) {
 		return
 	}
 
+	// A line address is a jump like any other, so Ctrl-O comes back from it.
 	if row, ok := lineAddress(e, line); ok {
+		e.PushJump()
 		e.Row, e.Col = row, 0
 		e.ClampCol()
 		return
