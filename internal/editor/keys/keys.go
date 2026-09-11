@@ -54,6 +54,14 @@ func Dispatch(e *state.Editor, keyEvent termbox.Event) {
 		return
 	}
 
+	// 'r' has the next key whatever it is, before any of them mean what they
+	// otherwise would: the leader, a chord, the completion menu's own.
+	if e.PendingReplace > 0 {
+		edit.Replace(e, keyEvent)
+
+		return
+	}
+
 	// The completion menu takes its own keys before anything else does, since
 	// Tab and the arrows all mean something else in Edit mode; everything it
 	// does not own is typed, and the menu narrows to what that left.
@@ -111,6 +119,7 @@ var readModeActions = map[rune]func(*state.Editor){
 	'x': edit.DeleteRune,
 	'o': edit.OpenLineBelow,
 	'O': edit.OpenLineAbove,
+	'r': edit.StartReplace,
 	'p': edit.PasteAfter,
 	'P': edit.PasteBefore,
 	'u': (*state.Editor).Undo,
@@ -221,7 +230,7 @@ func prefixesOf(chords map[string]func(*state.Editor)) map[string]bool {
 // text it works on rather than how many times it runs; everything else is
 // simply run that many times.
 var (
-	countAwareKeys   = map[rune]bool{'x': true, 'p': true, 'P': true}
+	countAwareKeys   = map[rune]bool{'x': true, 'p': true, 'P': true, 'r': true}
 	countAwareChords = map[string]bool{"dd": true, "yy": true, "zz": true, "gcc": true}
 )
 
