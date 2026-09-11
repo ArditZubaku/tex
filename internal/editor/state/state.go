@@ -92,6 +92,11 @@ type Editor struct {
 	PendingKeys []rune
 	PendingTime time.Time
 
+	// PendingReplace is how many runes 'r' is waiting to put the next key in
+	// place of, and zero when nothing is waiting on one. VIM waits for that key
+	// however long it takes, which is why it is not held with the chord above.
+	PendingReplace int
+
 	// SawCR marks that the key just handled was a bare CR. There is no
 	// bracketed-paste mode telling a paste's bytes apart from typing, so a
 	// pasted CRLF line ending arrives as two key events; SawCR is what lets
