@@ -242,5 +242,5 @@ func (e *Editor) PromptStatus() (string, bool) {
 }
 
 func (e *Editor) PromptCol() int {
-	return e.Prompt.Width()
+	return e.Prompt.CursorWidth()
 }
