@@ -4,6 +4,8 @@
 package prompt
 
 import (
+	"slices"
+
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
 )
@@ -20,6 +22,7 @@ type Line struct {
 	delimiter rune
 	label     string
 	input     []rune
+	cursor    int
 }
 
 func (l *Line) Start(delimiter rune) { l.StartWith(delimiter, "") }
@@ -34,6 +37,7 @@ func (l *Line) StartWith(delimiter rune, input string) { l.StartLabelled(delimit
 func (l *Line) StartLabelled(delimiter rune, label, input string) {
 	l.delimiter, l.label = delimiter, label
 	l.input = append(l.input[:0], []rune(input)...)
+	l.cursor = len(l.input)
 }
 
 func (l *Line) Delimiter() rune { return l.delimiter }
@@ -44,6 +48,11 @@ func (l *Line) Text() string { return l.prefix() + string(l.input) }
 
 func (l *Line) Width() int { return runewidth.StringWidth(l.Text()) }
 
+// CursorWidth is where the cursor sits within Text(), in terminal columns.
+func (l *Line) CursorWidth() int {
+	return runewidth.StringWidth(l.prefix()) + runewidth.StringWidth(string(l.input[:l.cursor]))
+}
+
 func (l *Line) prefix() string {
 	if l.label != "" {
 		return l.label
@@ -52,7 +61,7 @@ func (l *Line) prefix() string {
 	return string(l.delimiter)
 }
 
-func (l *Line) Clear() { l.input = l.input[:0] }
+func (l *Line) Clear() { l.input, l.cursor = l.input[:0], 0 }
 
 func (l *Line) Key(event termbox.Event) Action {
 	switch event.Key {
@@ -65,16 +74,37 @@ func (l *Line) Key(event termbox.Event) Action {
 		if len(l.input) == 0 {
 			return Closed
 		}
-		l.input = l.input[:len(l.input)-1]
+		if l.cursor > 0 {
+			l.input = slices.Delete(l.input, l.cursor-1, l.cursor)
+			l.cursor--
+		}
+	case termbox.KeyArrowLeft:
+		if l.cursor > 0 {
+			l.cursor--
+		}
+	case termbox.KeyArrowRight:
+		if l.cursor < len(l.input) {
+			l.cursor++
+		}
+	case termbox.KeyHome:
+		l.cursor = 0
+	case termbox.KeyEnd:
+		l.cursor = len(l.input)
 	case termbox.KeyCtrlU:
-		l.input = l.input[:0]
+		l.input = slices.Delete(l.input, 0, l.cursor)
+		l.cursor = 0
 	case termbox.KeySpace:
-		l.input = append(l.input, ' ')
+		l.insert(' ')
 	default:
 		if event.Ch != 0 {
-			l.input = append(l.input, event.Ch)
+			l.insert(event.Ch)
 		}
 	}
 
 	return Handled
+}
+
+func (l *Line) insert(r rune) {
+	l.input = slices.Insert(l.input, l.cursor, r)
+	l.cursor++
 }
