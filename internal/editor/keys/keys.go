@@ -114,6 +114,7 @@ var readModeActions = map[rune]func(*state.Editor){
 	'b': (*state.Editor).PrevWord,
 	'e': (*state.Editor).EndOfWord,
 	'$': (*state.Editor).EndOfLine,
+	'%': (*state.Editor).MatchBracket,
 	'q': command.Quit,
 	'i': (*state.Editor).EditBeforeWord,
 	'x': edit.DeleteRune,
@@ -230,7 +231,7 @@ func prefixesOf(chords map[string]func(*state.Editor)) map[string]bool {
 // text it works on rather than how many times it runs; everything else is
 // simply run that many times.
 var (
-	countAwareKeys   = map[rune]bool{'x': true, 'p': true, 'P': true, 'r': true}
+	countAwareKeys   = map[rune]bool{'x': true, 'p': true, 'P': true, 'r': true, '%': true}
 	countAwareChords = map[string]bool{"dd": true, "yy": true, "zz": true, "gcc": true}
 )
 
