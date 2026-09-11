@@ -41,6 +41,49 @@ func TestTheRestOfTheLineIsLeftAloneAroundACandidate(t *testing.T) {
 	edtest.WantLines(t, b, "\tx := fmt.Println(a, b)")
 }
 
+func TestACandidateThatIsCalledBringsItsParenthesesWithIt(t *testing.T) {
+	e := state.New()
+	b := edtest.AtCursor(t, e, "\tfmt.Prin\n", 0, 9)
+	e.Mode = state.EditMode
+
+	edit.Accept(e, complete.Item{Label: "Println", Text: "Println", From: 5, Call: true})
+
+	edtest.WantLines(t, b, "\tfmt.Println()")
+	edtest.WantCursor(t, e, 0, 13)
+}
+
+func TestACandidateThatIsNamedRatherThanCalledDoesNot(t *testing.T) {
+	e := state.New()
+	b := edtest.AtCursor(t, e, "\tx := hand\n", 0, 10)
+	e.Mode = state.EditMode
+
+	edit.Accept(e, complete.Item{Label: "handler", Text: "handler", From: 6})
+
+	edtest.WantLines(t, b, "\tx := handler")
+	edtest.WantCursor(t, e, 0, 13)
+}
+
+func TestACallAlreadyWrittenIsNotGivenASecondPair(t *testing.T) {
+	e := state.New()
+	b := edtest.AtCursor(t, e, "\tx := fmt.Prin(a, b)\n", 0, 14)
+	e.Mode = state.EditMode
+
+	edit.Accept(e, complete.Item{Label: "Println", Text: "Println", From: 10, Call: true})
+
+	edtest.WantLines(t, b, "\tx := fmt.Println(a, b)")
+	edtest.WantCursor(t, e, 0, 17)
+}
+
+func TestAServerThatSentTheParenthesesItselfIsLeftAlone(t *testing.T) {
+	e := state.New()
+	b := edtest.AtCursor(t, e, "\tPrin\n", 0, 5)
+	e.Mode = state.EditMode
+
+	edit.Accept(e, complete.Item{Label: "Println", Text: "Println()", From: 1, Call: true})
+
+	edtest.WantLines(t, b, "\tPrintln()")
+}
+
 // The edits a server sends alongside a candidate are the import the name it
 // just wrote needs; without them the completion is a compile error.
 func TestTheImportACandidateNeedsGoesInWithIt(t *testing.T) {

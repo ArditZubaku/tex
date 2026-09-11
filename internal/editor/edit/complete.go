@@ -13,18 +13,40 @@ import (
 // in with it. Those are what an import is — a server offers a name out of a
 // package the file does not import yet, and without the line it asks for
 // alongside, the name it just wrote is a compile error.
+//
+// A candidate that is called carries its own parentheses in, with the cursor
+// left between them where the arguments go.
 func Accept(e *state.Editor, item complete.Item) {
 	row := e.Row
 	from := min(max(item.From, 0), e.Buf.RuneLen(row))
 	to := min(max(e.Col, from), e.Buf.RuneLen(row))
 
+	line := e.Buf.Line(row)
 	text := []rune(item.Text)
+	call := item.Call && !alreadyCalled(line, to, text)
+	if call {
+		text = append(text, '(', ')')
+	}
+
 	e.TouchLine(row)
-	e.Buf.SetLine(row, slices.Replace(slices.Clone(e.Buf.Line(row)), from, to, text...))
+	e.Buf.SetLine(row, slices.Replace(slices.Clone(line), from, to, text...))
 	e.Row, e.Col = row, from+len(text)
+	if call {
+		e.Col--
+	}
 	e.Modified = true
 
 	Elsewhere(e, item.Extra)
+}
+
+// alreadyCalled is the parentheses being there to write into already: the name
+// in front of a call being changed, or a server that sent them itself.
+func alreadyCalled(line []rune, at int, text []rune) bool {
+	if n := len(text); n > 0 && (text[n-1] == '(' || text[n-1] == ')') {
+		return true
+	}
+
+	return at < len(line) && line[at] == '('
 }
 
 // Elsewhere is the edits a candidate needs away from the word itself. It is its
