@@ -2,6 +2,7 @@ package gutter
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -11,11 +12,11 @@ func TestGutterWidth(t *testing.T) {
 		lines int
 		want  int
 	}{
-		{"empty buffer", 0, minGutterWidth},
-		{"one line", 1, minGutterWidth},
-		{"under the minimum", 999, minGutterWidth},
-		{"four digits", 1000, 5},
-		{"six digits", 202000, 7},
+		{"empty buffer", 0, padLeft + minGutterWidth},
+		{"one line", 1, padLeft + minGutterWidth},
+		{"under the minimum", 999, padLeft + minGutterWidth},
+		{"four digits", 1000, padLeft + 5},
+		{"six digits", 202000, padLeft + 7},
 	}
 
 	for _, tc := range cases {
@@ -34,11 +35,11 @@ func TestLineNumberLabel(t *testing.T) {
 		width          int
 		want           string
 	}{
-		{"the cursor's line is absolute and left-aligned", 41, 41, 4, "42  "},
-		{"a line above counts up", 39, 41, 4, "  2 "},
-		{"a line below counts up too", 44, 41, 4, "  3 "},
-		{"the first line, cursor on it", 0, 0, 4, "1   "},
-		{"a wider gutter pads further", 8, 41, 7, "    33 "},
+		{"the cursor's line is absolute and left-aligned", 41, 41, 5, " 42  "},
+		{"a line above counts up", 39, 41, 5, "   2 "},
+		{"a line below counts up too", 44, 41, 5, "   3 "},
+		{"the first line, cursor on it", 0, 0, 5, " 1   "},
+		{"a wider gutter pads further", 8, 41, 8, "     33 "},
 	}
 
 	for _, tc := range cases {
@@ -66,8 +67,10 @@ func TestLineNumberLabelFillsTheGutter(t *testing.T) {
 }
 
 func referenceLabel(row, cursorRow, width int) string {
+	indent := strings.Repeat(" ", padLeft)
+	width -= padLeft
 	if row == cursorRow {
-		return fmt.Sprintf("%-*d", width, row+1)
+		return indent + fmt.Sprintf("%-*d", width, row+1)
 	}
 
 	distance := row - cursorRow
@@ -75,7 +78,7 @@ func referenceLabel(row, cursorRow, width int) string {
 		distance = -distance
 	}
 
-	return fmt.Sprintf("%*d ", width-1, distance)
+	return indent + fmt.Sprintf("%*d ", width-1, distance)
 }
 
 func TestLabelMatchesTheFormatItReplaced(t *testing.T) {
@@ -99,15 +102,31 @@ func TestLabelMatchesTheFormatItReplaced(t *testing.T) {
 
 func TestWidthMatchesTheDigitCount(t *testing.T) {
 	for lines := range 2000 {
-		want := max(len(fmt.Sprintf("%d", max(lines, 1)))+1, minGutterWidth)
+		want := padLeft + max(len(fmt.Sprintf("%d", max(lines, 1)))+1, minGutterWidth)
 		if got := Width(lines); got != want {
 			t.Fatalf("Width(%d) = %d, want %d", lines, got, want)
 		}
 	}
 	for _, lines := range []int{9999, 10000, 999999, 1000000, 1 << 40} {
-		want := max(len(fmt.Sprintf("%d", lines))+1, minGutterWidth)
+		want := padLeft + max(len(fmt.Sprintf("%d", lines))+1, minGutterWidth)
 		if got := Width(lines); got != want {
 			t.Errorf("Width(%d) = %d, want %d", lines, got, want)
+		}
+	}
+}
+
+func TestEveryLabelIsSetInFromTheLeftEdge(t *testing.T) {
+	indent := strings.Repeat(" ", padLeft)
+
+	for _, lines := range []int{1, 9, 10, 999, 1000, 202000} {
+		width := Width(lines)
+
+		for _, row := range []int{0, lines / 2, lines - 1} {
+			for _, cursorRow := range []int{0, lines / 2, lines - 1} {
+				if got := Label(row, cursorRow, width); !strings.HasPrefix(got, indent) {
+					t.Errorf("Label(%d, %d, %d) = %q, want it set in by %d", row, cursorRow, width, got, padLeft)
+				}
+			}
 		}
 	}
 }
