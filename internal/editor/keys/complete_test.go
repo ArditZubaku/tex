@@ -60,3 +60,31 @@ func TestEnteringEditModeBesideAWordOpensNoMenu(t *testing.T) {
 		t.Error("a menu went up on the key that entered Edit mode")
 	}
 }
+
+func TestCtrlSpaceAsksForCompletionsRatherThanTypingAnything(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "package main\n", 0, 0)
+	edtest.Press(t, e, "i")
+	edtest.PressKey(t, e, termbox.KeyCtrlSpace)
+
+	if e.StatusMsg == "" {
+		t.Error("Ctrl-Space with nothing behind it said nothing at all")
+	}
+	if e.Mode != state.EditMode {
+		t.Error("Ctrl-Space left Edit mode")
+	}
+	edtest.WantLines(t, b, "package main")
+}
+
+func TestCtrlSpaceOutsideEditModeTypesNothing(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "package main\n", 0, 0)
+	edtest.PressKey(t, e, termbox.KeyCtrlSpace)
+
+	if e.Mode != state.ReadMode {
+		t.Error("Ctrl-Space left Read mode")
+	}
+	edtest.WantLines(t, b, "package main")
+}

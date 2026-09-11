@@ -74,10 +74,10 @@ var now = time.Now
 // resetCompletion is one test not being answered out of another one's requests.
 func resetCompletion() { asking = wordAsked{} }
 
-// Suggest is Ctrl-N with no menu up: the candidates for the word under the
-// cursor, asked for outright rather than waited for. Stepping through a menu
-// already showing is the key handler's own, the way VIM's Ctrl-N is once the
-// list is there.
+// Suggest is the candidates for the word under the cursor, asked for outright
+// rather than waited for: Ctrl-Space, and Ctrl-N with no menu up. Stepping
+// through a menu already showing is the key handler's own, the way VIM's Ctrl-N
+// is once the list is there.
 func Suggest(e *state.Editor) {
 	if !lsp.Completing(e.SourceFile) {
 		e.StatusMsg = "no language server for " + filepath.Base(e.SourceFile)
@@ -88,12 +88,23 @@ func Suggest(e *state.Editor) {
 	request(e, lsp.Invoked, "")
 }
 
-// CompletionKey is the keys the menu owns while it is up, and Ctrl-N and Ctrl-P
-// when it is not. Everything else goes on to be typed, which is what the
-// result says.
+// CompletionKey is the keys the menu owns while it is up, and Ctrl-Space,
+// Ctrl-N and Ctrl-P when it is not. Everything else goes on to be typed, which
+// is what the result says.
 func CompletionKey(e *state.Editor, event termbox.Event) bool {
 	if e.Mode != state.EditMode || event.Ch != 0 {
 		return false
+	}
+
+	// Ctrl-Space asks outright whether or not a menu is up, which is what makes
+	// it the key for a place no typing has opened one: inside a literal's
+	// braces, in front of a closing bracket. The zero Key is the key itself
+	// rather than an event with none — a rune arrives with its rune, and was
+	// turned away above.
+	if event.Key == termbox.KeyCtrlSpace {
+		Suggest(e)
+
+		return true
 	}
 
 	if !e.Comp.Open() {
