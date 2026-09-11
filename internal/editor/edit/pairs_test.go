@@ -29,7 +29,12 @@ func TestAutoPairs(t *testing.T) {
 		{"typing a closer with nothing to skip inserts it", "", 0, ")", ")", 1},
 		{"a closer only skips its own kind", "]", 0, ")", ")]", 1},
 		{"text between the pair keeps the closer", "", 0, "(ab", "(ab)", 3},
+		{"a quote closes itself", "", 0, `"`, `""`, 1},
+		{"typing the closing quote steps over it", "", 0, `""`, `""`, 2},
+		{"a quote pairs inside brackets", "", 0, `("`, `("")`, 2},
+		{"text between the quotes keeps the closer", "", 0, `"hi`, `"hi"`, 3},
 		{"backspace between a pair takes both", "", 0, "(\b", "", 0},
+		{"backspace between quotes takes both", "", 0, "\"\b", "", 0},
 		{"backspace deletes one rune when the pair is not adjacent", "", 0, "(x\b", "()", 1},
 	}
 

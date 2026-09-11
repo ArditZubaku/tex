@@ -2,9 +2,11 @@ package edit
 
 import "github.com/ArditZubaku/tex/internal/editor/state"
 
-// closerFor is the bracket typing an opener puts after the cursor, and
-// openerFor is that read the other way.
-var closerFor = map[rune]rune{'(': ')', '[': ']', '{': '}'}
+// closerFor is what typing an opener puts after the cursor, and openerFor is
+// that read the other way. A quote is its own closer, so the same key opens a
+// string and steps over the end of one — stepping over comes first, which is
+// what makes the second press of it finish the string rather than start one.
+var closerFor = map[rune]rune{'(': ')', '[': ']', '{': '}', '"': '"'}
 
 var openerFor = func() map[rune]rune {
 	m := make(map[rune]rune, len(closerFor))
