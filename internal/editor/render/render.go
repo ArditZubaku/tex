@@ -185,6 +185,10 @@ func Status(e *state.Editor) string {
 	var modeStatus string
 
 	switch {
+	// 'r' holds the keyboard between the key that asked and the one that
+	// answers, and a mode nobody can see they are in is a keystroke thrown away.
+	case e.PendingReplace > 0:
+		modeStatus = " REPLACE: "
 	case e.Mode == state.EditMode:
 		modeStatus = " EDIT: "
 	case e.Mode == state.VisualMode && e.VisualLine:

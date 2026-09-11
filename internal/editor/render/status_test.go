@@ -132,3 +132,17 @@ func TestALongDiagnosticIsCutToTheRowsTheNoteBoxHas(t *testing.T) {
 		t.Errorf("status line %q, want it unaffected by the diagnostic and still at %d columns", got, e.ScreenCols)
 	}
 }
+
+func TestTheStatusLineSaysReplaceWhileRIsWaiting(t *testing.T) {
+	e := onLine(t, 0)
+
+	edtest.Press(t, e, "r")
+	if got := render.Status(e); !strings.HasPrefix(got, " REPLACE: ") {
+		t.Errorf("status = %q, want it to open with \" REPLACE: \"", got)
+	}
+
+	edtest.Press(t, e, "x")
+	if got := render.Status(e); !strings.HasPrefix(got, " VIEW: ") {
+		t.Errorf("status = %q, want it back to \" VIEW: \"", got)
+	}
+}
