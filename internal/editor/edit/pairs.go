@@ -44,3 +44,8 @@ func pairAt(e *state.Editor, col int) bool {
 	closed, ok := e.Buf.Rune(e.Row, col+1)
 	return ok && closerFor[open] == closed
 }
+
+func runeAt(e *state.Editor, col int) rune {
+	ch, _ := e.Buf.Rune(e.Row, col)
+	return ch
+}

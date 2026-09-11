@@ -123,6 +123,8 @@ func Enter(e *state.Editor) {
 		return
 	}
 
+	openedPair := e.Col > 0 && pairAt(e, e.Col-1) && isOpener(runeAt(e, e.Col-1))
+
 	e.TouchLine(e.Row)
 	e.TouchInsertLine(e.Row + 1)
 	e.Buf.SplitLine(e.Row, e.Col)
@@ -130,7 +132,14 @@ func Enter(e *state.Editor) {
 	e.Col = 0
 	e.Modified = true
 
-	indentNewLine(e, e.Row-1, true)
+	head := e.Row - 1
+	if openedPair {
+		insertIndent(e, e.Row, indentOf(e, head))
+		e.TouchInsertLine(e.Row)
+		e.Buf.InsertLine(e.Row)
+	}
+
+	indentNewLine(e, head, true)
 }
 
 // Backspace deletes behind the cursor in Edit mode, joining onto the line

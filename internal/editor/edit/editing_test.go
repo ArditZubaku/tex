@@ -321,6 +321,31 @@ func TestNewLineIndentsInTheWhitespaceTheFileUses(t *testing.T) {
 	}
 }
 
+// Enter inside a pair the editor closed itself puts the closer on a line of
+// its own, back at the indent of the line that opened it.
+func TestEnterInsideAPairOpensABlock(t *testing.T) {
+	e := state.New()
+
+	b := edtest.AtCursor(t, e, "  if x {}\n", 0, 8)
+	e.Mode = state.EditMode
+
+	edit.Enter(e)
+	edtest.WantLines(t, b, "  if x {", "   ", "  }")
+	if e.Row != 1 || e.Col != 3 {
+		t.Errorf("cursor at %d,%d, want 1,3", e.Row, e.Col)
+	}
+}
+
+func TestEnterInsideQuotesSplitsLikeAnyOtherLine(t *testing.T) {
+	e := state.New()
+
+	b := edtest.AtCursor(t, e, `  s := ""`+"\n", 0, 8)
+	e.Mode = state.EditMode
+
+	edit.Enter(e)
+	edtest.WantLines(t, b, `  s := "`, `  "`)
+}
+
 func TestDeletingTheLastRunePullsTheCursorBack(t *testing.T) {
 	e := state.New()
 
