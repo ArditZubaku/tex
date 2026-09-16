@@ -49,7 +49,7 @@ func TestThemeCommandTakesASpaceToo(t *testing.T) {
 func TestThemeCommandRejectsWhatIsNotAThemeNumber(t *testing.T) {
 	e := state.New()
 
-	for _, arg := range []string{"0", "4", "x", "-1"} {
+	for _, arg := range []string{"0", "5", "x", "-1"} {
 		edtest.InReadMode(t, e, "package main\n", 0, 0)
 
 		edtest.Press(t, e, ":theme="+arg+"\n")
@@ -70,7 +70,7 @@ func TestBareThemeCommandNamesWhatIsInUse(t *testing.T) {
 
 	edtest.Press(t, e, ":theme\n")
 
-	if want := "theme=3 (1=default, 2=gruvbox, 3=github-dark)"; e.StatusMsg != want {
+	if want := "theme=3 (1=default, 2=gruvbox, 3=github-dark, 4=github-light)"; e.StatusMsg != want {
 		t.Errorf("statusMsg = %q, want %q", e.StatusMsg, want)
 	}
 }
