@@ -66,6 +66,7 @@ internal/
   decl/                 what a declaration looks like: gd, gr and the symbols
   project/              the tree the file sits in, and the files beside it
   lsp/                  a language server: the framing, the handshake, the documents, the lookups
+  ngram/                a buffer's own words, ranked by what usually followed the word before
   layout/               the window tree: splits, closes, the shares they divide and the edges between them
   editor/               the loop: draw a frame, read a key, repeat
     screen/             putting text on the terminal, and taking a key off it
@@ -94,8 +95,8 @@ Nothing below `editor` imports it, and nothing imports `editor` but `main`, so
 the dependencies run one way. Under `internal/`, `chars`, `theme`, `buffer`,
 `gutter`, `project` and `layout` depend on nothing of the editor's, `syntax` on
 `chars` and `theme`, `fuzzy` and `decl` on `chars`, `search` and `lsp` on
-`buffer`, and `motion` on both. Under `editor/`, `screen`, `history`, `register`,
-`picker`, `filetree`, `tabbar`, `prompt` and `hover` are leaves in the same way;
+`buffer`, and `motion` and `ngram` on both. Under `editor/`, `screen`, `history`,
+`register`, `picker`, `filetree`, `tabbar`, `prompt` and `hover` are leaves in the same way;
 `state` holds them and is what every command below takes as its one argument —
 `edit` first, then `view` on top of it, then `rename` and `diag`, with `command`,
 `find` and `explorer` above them and `render` and `keys` reading all of them.
@@ -168,6 +169,8 @@ otherwise close a cycle.
   **A lookup never holds the keyboard.** The request goes out, the editor carries on, and the answer lands a few frames later; nothing is drawn in between, since a warm server answers in tens of milliseconds and a message that appears for that long is a flicker rather than news. An answer to a lookup already given up on — the cursor has moved, or another `gd` has been pressed since — is dropped rather than acted on, because acting on it would move the cursor over whatever was started instead. And a server that finds nothing, refuses, or never answers at all leaves the text to answer: a hung one degrades to the paragraphs above after two seconds rather than to nothing at all.
 
 - **Completion** — a menu of what a language server offers for the word being typed, under the word itself. It opens on its own from the first character of a word, and on the characters the server asked to be woken on (`.` for Go); `Ctrl-Space` asks for it outright, and says so when there is nothing to ask. That is the key for a place typing never opens one by itself — inside a composite literal's braces, where a server lists the fields left to set — and unlike `Ctrl-N` it asks again over a menu already up. `Ctrl-N` with no menu up does the same thing. `Ctrl-N`/`Ctrl-P` and the arrows move through it, `Enter`, `Tab` or `Ctrl-Y` settles on a candidate, `Ctrl-E` or `Esc` takes it down without leaving Insert mode. A pasted line ending is not an accept: with no bracketed-paste mode the only thing telling a paste from typing is that a pasted Unix newline arrives as `Ctrl-J` where the `Enter` key itself arrives as a CR, so `Ctrl-J` goes on splitting the line the way it always has. Candidates are listed in the server's own ranking — which knows that a field of the receiver beats a package of the same first letter — with the signature or type that explains each one to the right of it, cut before the name is when the menu is narrow.
+
+  With no language server running for the file, `Ctrl-Space` and `Ctrl-N` with no menu up fall back to a menu of the buffer's own words rather than finding nothing to offer: `internal/ngram` builds a bigram model of the text fresh on each ask — the same cadence a language server would be asked at, rather than kept in step with every edit — and ranks candidates by what most often followed the word before the cursor, falling back to how often a word appears at all once it has never followed this one. Rebuilding the model costs about 4.8ms over 5,000 lines of plain text and 2.3ms over the same amount of Go source, and ranking against it once built costs about 120µs — all well under a frame. It only ever answers when asked outright: it has no trigger character of its own and no length past which a word becomes worth asking about, so leaving it to answer every keystroke would mean the first `Esc` after almost any word, in almost any file with no server, closed a menu nobody asked for instead of leaving Edit mode.
 
   A candidate that is invoked rather than named — a function, a method, a constructor — is written in with the parentheses it needs and the cursor left between them, where the arguments go; typing the `)` steps over the one already there rather than leaving a second behind. A name in front of a call that is already written keeps the arguments it had, and a server that sent the parentheses itself is not given a second pair.
 
