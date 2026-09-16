@@ -20,15 +20,18 @@ func TestTabStillTypesASpaceWithNoCompletionMenuUp(t *testing.T) {
 	edtest.WantLines(t, b, " x")
 }
 
-func TestCtrlNWithNoLanguageServerSaysSoRatherThanNothing(t *testing.T) {
+// With no language server, Ctrl-N falls back to internal/ngram over the
+// buffer's own text — "main" is offered because "package main" is already in
+// it once.
+func TestCtrlNWithNoLanguageServerOffersTheBuffersOwnWords(t *testing.T) {
 	e := state.New()
 
-	edtest.InReadMode(t, e, "package main\n", 0, 0)
-	edtest.Press(t, e, "i")
+	edtest.InReadMode(t, e, "package main\n", 0, 11)
+	edtest.Press(t, e, "a")
 	edtest.PressKey(t, e, termbox.KeyCtrlN)
 
-	if e.StatusMsg == "" {
-		t.Error("Ctrl-N with nothing behind it said nothing at all")
+	if !e.Comp.Open() {
+		t.Error("Ctrl-N offered nothing from a word already sitting in the buffer")
 	}
 	if e.Mode != state.EditMode {
 		t.Error("Ctrl-N left Edit mode")
@@ -43,7 +46,7 @@ func TestTypingWithNoLanguageServerNeverOpensAMenu(t *testing.T) {
 	edtest.TypeIn(t, e, "Println")
 
 	if e.Comp.Open() {
-		t.Error("a menu went up with no server to have offered anything")
+		t.Error("a menu went up from typing alone, with no server and nothing asked outright")
 	}
 	edtest.WantLines(t, b, "Println")
 }
@@ -64,12 +67,12 @@ func TestEnteringEditModeBesideAWordOpensNoMenu(t *testing.T) {
 func TestCtrlSpaceAsksForCompletionsRatherThanTypingAnything(t *testing.T) {
 	e := state.New()
 
-	b := edtest.InReadMode(t, e, "package main\n", 0, 0)
-	edtest.Press(t, e, "i")
+	b := edtest.InReadMode(t, e, "package main\n", 0, 11)
+	edtest.Press(t, e, "a")
 	edtest.PressKey(t, e, termbox.KeyCtrlSpace)
 
-	if e.StatusMsg == "" {
-		t.Error("Ctrl-Space with nothing behind it said nothing at all")
+	if !e.Comp.Open() {
+		t.Error("Ctrl-Space offered nothing from a word already sitting in the buffer")
 	}
 	if e.Mode != state.EditMode {
 		t.Error("Ctrl-Space left Edit mode")
