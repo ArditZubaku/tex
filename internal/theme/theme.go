@@ -191,38 +191,38 @@ var githubDarkTheme = Palette{
 var githubLightTheme = Palette{
 	Name: "github-light",
 
-	Background: color256(230), // canvas.default #ffffff
-	Plain:      color256(234), // fg.default     #1f2328
+	Background: color256(231), // canvas.default #ffffff
+	Plain:      color256(235), // fg.default     #1f2328
 
-	Keyword:   color256(159), // red    #cf222e
-	Constant:  color256(24),  // blue   #0550ae
-	TypeName:  color256(21),  // green  #116329
-	Escape:    color256(24),  // blue   #0550ae
-	Function:  color256(97),  // purple #8250df
-	Builtin:   color256(97),  // purple #8250df, as GitHub draws the standard library too
-	StringLit: color256(22),  // dark blue #0a3069
-	Number:    color256(24),  // blue   #0550ae
-	Comment:   color256(241), // fg.muted #636c76
+	Keyword:   color256(160), // red    #cf222e
+	Constant:  color256(25),  // blue   #0550ae
+	TypeName:  color256(22),  // green  #116329
+	Escape:    color256(25),  // blue   #0550ae
+	Function:  color256(98),  // purple #8250df
+	Builtin:   color256(98),  // purple #8250df, as GitHub draws the standard library too
+	StringLit: color256(23),  // dark blue #0a3069
+	Number:    color256(25),  // blue   #0550ae
+	Comment:   color256(242), // fg.muted #636c76
 
-	CursorLineBg:     color256(254), // canvas.subtle #f6f8fa
-	LineNumber:       color256(242), // fg.subtle     #6e7781
-	CursorLineNumber: color256(234), // fg.default
-	EndOfBuffer:      color256(242),
-	StatusFg:         color256(234),
-	StatusBg:         color256(252), // border.default #d1d9e0
-	MatchFg:          color256(234),
-	MatchBg:          color256(229), // findMatch #fff8c5
-	VisualBg:         color256(152), // selection #b6e3ff
+	CursorLineBg:     color256(255), // canvas.subtle #f6f8fa
+	LineNumber:       color256(243), // fg.subtle     #6e7781
+	CursorLineNumber: color256(235), // fg.default
+	EndOfBuffer:      color256(243),
+	StatusFg:         color256(235),
+	StatusBg:         color256(253), // border.default #d1d9e0
+	MatchFg:          color256(235),
+	MatchBg:          color256(230), // findMatch #fff8c5
+	VisualBg:         color256(153), // selection #b6e3ff
 
-	TabBarBg:    color256(254), // canvas.subtle #f6f8fa
-	TabFg:       color256(242), // fg.subtle     #6e7781
-	TabActiveFg: color256(234),
-	TabActiveBg: color256(230), // canvas.default, as GitHub draws the open tab
-	TabModified: color256(93),  // attention.fg  #9a6700
-	Separator:   color256(252), // border.default #d1d9e0
-	Error:       color256(159), // danger.fg     #d1242f
+	TabBarBg:    color256(255), // canvas.subtle #f6f8fa
+	TabFg:       color256(243), // fg.subtle     #6e7781
+	TabActiveFg: color256(235),
+	TabActiveBg: color256(231), // canvas.default, as GitHub draws the open tab
+	TabModified: color256(94),  // attention.fg  #9a6700
+	Separator:   color256(253), // border.default #d1d9e0
+	Error:       color256(160), // danger.fg     #d1242f
 
-	DiagError: color256(159), // danger.fg    #d1242f
-	DiagWarn:  color256(93),  // attention.fg #9a6700
-	DiagHint:  color256(25),  // accent.fg    #0969da
+	DiagError: color256(160), // danger.fg    #d1242f
+	DiagWarn:  color256(94),  // attention.fg #9a6700
+	DiagHint:  color256(26),  // accent.fg    #0969da
 }
