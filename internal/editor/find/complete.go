@@ -1,7 +1,6 @@
 package find
 
 import (
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -12,19 +11,22 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/lsp"
+	"github.com/ArditZubaku/tex/internal/ngram"
 )
 
 // Completion is what a language server offers for the word being typed, in a
-// menu under it. There is nothing behind it in the text: the editor's own
-// answer to "what could this be" is 'gd' and the symbol listings, which read
-// declarations rather than guess at half a word, so with no server running
-// Ctrl-N says so and typing goes on unbothered.
+// menu under it. Where no server is running, the buffer's own words stand in
+// for one — internal/ngram's ranking of what has usually followed the word
+// before — since the editor's own answer to "what could this be" is otherwise
+// 'gd' and the symbol listings, which read declarations rather than guess at
+// half a word.
 //
-// What keeps it cheap is that a keystroke is not a request. The server is asked
-// when a word is worth asking about and when the character typed is one it
-// asked to be woken on; everything after that narrows the answer already in
-// hand, and the server is only asked again once it has said its answer was cut
-// short and the throttle has come round.
+// The local fallback only answers when asked outright, never as a side effect
+// of typing: it has no trigger character and no minimum word length to hold it
+// back, so leaving it to fire on every keystroke would mean the first Escape
+// after almost any word closed a menu nobody asked for instead of leaving Edit
+// mode — every plain-text file paying a language server's asking price with
+// none of a language server's restraint about when to ask.
 
 const (
 	// A menu is wanted from the first letter on rather than held back until a
@@ -48,6 +50,11 @@ const (
 	// document before it asks, so asking more often than the editor already
 	// tells the server about typing would be paying for the same send twice.
 	refresh = 200 * time.Millisecond
+
+	// The local model is already ranked by relevance rather than dumped in
+	// server order, so there is no thousand-candidate flood to cut down here —
+	// just enough to fill the menu's own maxRows several times over.
+	maxLocalItems = 50
 )
 
 // asking is the word the newest request was made about. An answer naming
@@ -80,7 +87,7 @@ func resetCompletion() { asking = wordAsked{} }
 // is once the list is there.
 func Suggest(e *state.Editor) {
 	if !lsp.Completing(e.SourceFile) {
-		e.StatusMsg = "no language server for " + filepath.Base(e.SourceFile)
+		suggestLocal(e)
 
 		return
 	}
@@ -159,8 +166,6 @@ func AfterKey(e *state.Editor, event termbox.Event, typing bool) {
 
 		return
 	}
-	// The check for a server comes before the line is read, so that a keystroke
-	// in a language nobody has one for costs a map lookup and nothing else.
 	if !lsp.Completing(e.SourceFile) {
 		return
 	}
@@ -175,6 +180,60 @@ func AfterKey(e *state.Editor, event termbox.Event, typing bool) {
 		request(e, lsp.TriggerChar, string(event.Ch))
 	case e.Col-start >= minPrefix && worthAsking(e, start):
 		request(e, lsp.Invoked, "")
+	}
+}
+
+// suggestLocal is Suggest's own answer for a file with no language server:
+// the buffer's own words, ranked by what has usually followed the word before
+// the one being typed. There is no request in flight to await, so the menu
+// goes up in the same call rather than a callback away.
+func suggestLocal(e *state.Editor) {
+	start, ok := wordStart(e)
+	if !ok {
+		return
+	}
+
+	prefix := string(e.Buf.Line(e.Row)[start:e.Col])
+	words := ngram.Build(e.Buf).Rank(prevWord(e, start), prefix, maxLocalItems)
+	if len(words) == 0 {
+		return
+	}
+
+	items := make([]complete.Item, len(words))
+	for i, word := range words {
+		items[i] = complete.Item{Label: word, Text: word, From: start}
+	}
+
+	e.Comp.Show(items, e.Row, start, []rune(prefix), false)
+}
+
+// prevWord is the word immediately before start on row, which is the bigram
+// context Rank narrows by. A start with nothing word-shaped in front of it on
+// its own line looks up to the line before, the same way Build's own bigrams
+// carry a word across the break rather than stopping at it.
+func prevWord(e *state.Editor, start int) string {
+	line := e.Buf.Line(e.Row)[:start]
+
+	for row := e.Row; ; {
+		end := len(line)
+		for end > 0 && !chars.IsWord(line[end-1]) {
+			end--
+		}
+
+		if end > 0 {
+			begin := end
+			for begin > 0 && chars.IsWord(line[begin-1]) {
+				begin--
+			}
+
+			return string(line[begin:end])
+		}
+
+		row--
+		if row < 0 {
+			return ""
+		}
+		line = e.Buf.Line(row)
 	}
 }
 

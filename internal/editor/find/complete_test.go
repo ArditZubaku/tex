@@ -295,3 +295,85 @@ func TestACandidateWaitingOnASecondQuestionStillGoesIn(t *testing.T) {
 		t.Errorf("the line reads %q, want the candidate in it", got)
 	}
 }
+
+// These answer for a file with no server, the buffer's own words standing in
+// for one — none of them ever cross the "server" answered/typing helpers set
+// up, which is what makes those the right harness for this path too.
+
+func TestSuggestWithNoServerOffersWhatUsuallyFollowedTheWordBefore(t *testing.T) {
+	e, _ := typing(t, "quick fox\nquick brown\nquick brown\nquick \n", 6)
+	e.Row = 3
+
+	Suggest(e)
+
+	if !e.Comp.Open() {
+		t.Fatal("no menu went up with no server and words seen before in the buffer")
+	}
+	if got := e.Comp.Labels(); len(got) == 0 || got[0] != "brown" {
+		t.Errorf("Labels() = %v, want brown first (it followed quick more often than fox did)", got)
+	}
+}
+
+// Typing never asks on its own with no server: nothing here has a trigger
+// character or a minimum length to hold it back, so leaving it to answer
+// every keystroke would mean the first Escape after almost any word closed a
+// menu nobody asked for rather than leaving Edit mode. See suggestLocal.
+func TestAfterKeyWithNoServerNeverAsksOnItsOwn(t *testing.T) {
+	e, _ := typing(t, "quick brown\nb", 1)
+	e.Row = 1
+
+	AfterKey(e, termbox.Event{Ch: 'b'}, true)
+
+	if e.Comp.Open() {
+		t.Error("a menu went up from typing alone, with no server and nothing asked outright")
+	}
+}
+
+func TestSuggestLocalShowsCandidatesAnchoredAtTheWordsStart(t *testing.T) {
+	e, _ := typing(t, "quick brown\nquick \n", 6)
+	e.Row = 1
+
+	suggestLocal(e)
+
+	if !e.Comp.Open() {
+		t.Fatal("suggestLocal found a candidate but did not show it")
+	}
+	if e.Comp.Row() != 1 || e.Comp.Start() != 6 {
+		t.Errorf("menu anchored at row %d col %d, want row 1 col 6", e.Comp.Row(), e.Comp.Start())
+	}
+
+	item, ok := e.Comp.Selected()
+	if !ok || item.Label != "brown" || item.Text != "brown" || item.From != 6 {
+		t.Errorf("top candidate = %+v, want brown with From at the word's start", item)
+	}
+}
+
+func TestSuggestLocalOpensNoMenuOverAnEmptyBuffer(t *testing.T) {
+	e, _ := typing(t, "", 0)
+
+	suggestLocal(e)
+
+	if e.Comp.Open() {
+		t.Error("a menu went up over a buffer with no words in it at all")
+	}
+}
+
+func TestPrevWordFindsTheWordOnItsOwnLineFirst(t *testing.T) {
+	e, _ := typing(t, "zero\nalpha bravo\n", 11)
+	e.Row = 1
+
+	if got := prevWord(e, 6); got != "alpha" {
+		t.Errorf("prevWord() = %q, want alpha, without reaching back to zero on the line before", got)
+	}
+}
+
+// The same lookup Build's own bigrams use: a word wrapped by the buffer rather
+// than the author still carries into what follows it.
+func TestPrevWordCrossesALineBreakToFindTheWordBefore(t *testing.T) {
+	e, _ := typing(t, "zero alpha\nbravo\n", 0)
+	e.Row = 1
+
+	if got := prevWord(e, 0); got != "alpha" {
+		t.Errorf("prevWord() = %q, want alpha (nothing word-shaped precedes it on its own line)", got)
+	}
+}
