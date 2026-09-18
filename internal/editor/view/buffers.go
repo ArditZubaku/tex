@@ -231,6 +231,29 @@ func Drop(e *state.Editor, path string) bool {
 	return true
 }
 
+// Rename is what the explorer's 'r' does to a buffer already open on the file
+// it just renamed on disk: the entry follows it to the new path, and the
+// language it re-detects in case the extension changed too. It checks
+// e.SourceFile directly rather than the buffer list's current index, because
+// the list is only seeded lazily and may hold nothing yet the first time this
+// runs; SyncBuffer would otherwise copy the stale e.SourceFile back over a
+// freshly renamed entry on the next frame.
+func Rename(e *state.Editor, oldPath, newPath string) bool {
+	lang := syntax.Detect(newPath)
+	found := false
+
+	if at := BufferIndex(oldPath); at >= 0 {
+		buffers[at].Path, buffers[at].Lang = newPath, lang
+		found = true
+	}
+	if absPath(e.SourceFile) == absPath(oldPath) {
+		e.SourceFile, e.Lang = newPath, lang
+		found = true
+	}
+
+	return found
+}
+
 // CloseCurrentBuffer is '<leader>d', which is ':bd' without the colon: dropping
 // unsaved changes needs the command, since a chord has no '!' to add.
 func CloseCurrentBuffer(e *state.Editor) { CloseBuffer(e, false) }
