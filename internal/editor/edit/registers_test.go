@@ -66,6 +66,24 @@ func TestCharwiseYankAndPaste(t *testing.T) {
 	}
 }
 
+// Like Visual mode's yank, yiw leaves the buffer untouched and moves the
+// cursor to the start of what it copied.
+func TestYankInnerWordLeavesTheCursorAtTheStart(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "foo bar\n", 0, 5)
+
+	edtest.Press(t, e, "yiw")
+
+	edtest.WantLines(t, b, "foo bar")
+	if e.Col != 4 {
+		t.Errorf("currentCol = %d, want 4", e.Col)
+	}
+	if got := string(e.Clip.Content()[0]); got != "bar" {
+		t.Errorf("register = %q, want %q", got, "bar")
+	}
+}
+
 func TestDeleteLineFillsTheRegister(t *testing.T) {
 	e := state.New()
 

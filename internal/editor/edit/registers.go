@@ -62,6 +62,18 @@ func YankToPrevWord(e *state.Editor) {
 	e.Col = col
 }
 
+// YankInnerWord is 'yiw': the same text object DeleteInnerWord removes, left
+// in place in the buffer.
+func YankInnerWord(e *state.Editor) {
+	start, end := motion.InnerWordFrom(e.Buf, e.Row, e.Col)
+	if start > end {
+		return
+	}
+
+	yankChars(e, e.Row, start, end+1)
+	e.Col = start
+}
+
 func PasteAfter(e *state.Editor)  { paste(e, true) }
 func PasteBefore(e *state.Editor) { paste(e, false) }
 
