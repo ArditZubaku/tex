@@ -166,6 +166,32 @@ func TestCountedOperatorDeletesTheSelectionOnce(t *testing.T) {
 	edtest.WantLines(t, b, "cdef")
 }
 
+func TestVisualInnerWordSelectsTheWordUnderTheCursor(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "foo bar baz\n", 0, 5)
+
+	edtest.Press(t, e, "viwd")
+
+	edtest.WantLines(t, b, "foo  baz")
+}
+
+// 'iw' names the word under the cursor outright rather than growing whatever
+// was already selected, the same way starting a fresh motion would.
+func TestVisualInnerWordReplacesTheExistingSelection(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "foo bar baz\n", 0, 0)
+
+	edtest.Press(t, e, "vllll")
+	edtest.Press(t, e, "iwy")
+
+	edtest.WantLines(t, b, "foo bar baz")
+	if got := string(e.Clip.Content()[0]); got != "bar" {
+		t.Errorf("register = %q, want %q", got, "bar")
+	}
+}
+
 func TestVisualKeysSwitchAndLeaveTheMode(t *testing.T) {
 	e := state.New()
 

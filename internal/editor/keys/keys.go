@@ -208,6 +208,7 @@ var visualChords = map[string]func(*state.Editor){
 	"gg": (*state.Editor).GoToTop,
 	"zz": (*state.Editor).CenterView,
 	"gc": edit.ToggleCommentSelection,
+	"iw": edit.SelectInnerWord,
 }
 
 // A chord's own prefixes do nothing on their own; they wait for the keys that

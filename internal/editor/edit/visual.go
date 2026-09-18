@@ -5,6 +5,7 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/editor/register"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/motion"
 )
 
 // Visual mode marks a run of text for the operator that follows it: 'v' marks
@@ -63,6 +64,24 @@ func SwapVisualEnds(e *state.Editor) {
 	}
 	e.AnchorRow, e.AnchorCol, e.Row, e.Col = e.Row, e.Col, e.AnchorRow, e.AnchorCol
 	e.ClampCol()
+}
+
+// SelectInnerWord is Visual mode's 'iw': it grows the selection to exactly
+// the run of word, punct or space characters the cursor sits in — the same
+// text object DeleteInnerWord and YankInnerWord act on — replacing whatever
+// the selection covered before.
+func SelectInnerWord(e *state.Editor) {
+	if e.Mode != state.VisualMode {
+		return
+	}
+
+	start, end := motion.InnerWordFrom(e.Buf, e.Row, e.Col)
+	if start > end {
+		return
+	}
+
+	e.AnchorRow, e.AnchorCol = e.Row, start
+	e.Col = end
 }
 
 // Selection puts the two ends in buffer order. Outside Visual mode it
