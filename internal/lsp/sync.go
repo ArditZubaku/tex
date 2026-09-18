@@ -158,6 +158,15 @@ func Completing(path string) bool {
 	return doc != nil && doc.srv.client.Ready() && doc.srv.client.Completes()
 }
 
+// CodeActing says whether the server holding this file offers code actions,
+// which is what a feature asks before using one instead of leaving '<leader>ca'
+// to be refused a frame later by a server that never answers it.
+func CodeActing(path string) bool {
+	doc := held(path)
+
+	return doc != nil && doc.srv.client.Ready() && doc.srv.client.CodeActs()
+}
+
 // TriggerRune is a character the server holding this file asked to be woken on
 // — the '.' that starts a selector, and whatever else the language has. It is
 // checked against every rune typed, so it is a scan of a handful of runes

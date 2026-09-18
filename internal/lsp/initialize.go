@@ -38,6 +38,32 @@ type textDocumentCapability struct {
 	Definition         linkCapability               `json:"definition"`
 	Hover              hoverCapability              `json:"hover"`
 	Completion         completionCapability         `json:"completion"`
+	CodeAction         codeActionCapability         `json:"codeAction"`
+}
+
+// Every standard kind is named because the code action menu does not treat any
+// of them differently — it shows whatever title the server sent and applies
+// whatever edit came with it, so there is no kind this would only handle some
+// of properly.
+//
+// resolveSupport is declared for the same reason it is for completion:
+// without it, gopls does not fall back to sending its fixes as an eager Edit —
+// it sends them as a Command instead, "declare the missing method" among them.
+// Declaring it is what turns that into a resolvable data instead, which
+// codeAction/resolve then turns into the Edit there was never any other way to
+// get.
+type codeActionCapability struct {
+	CodeActionLiteralSupport codeActionLiteralCapability `json:"codeActionLiteralSupport"`
+	DataSupport              bool                        `json:"dataSupport"`
+	ResolveSupport           resolveSupportCapability    `json:"resolveSupport"`
+}
+
+type codeActionLiteralCapability struct {
+	CodeActionKind codeActionKindCapability `json:"codeActionKind"`
+}
+
+type codeActionKindCapability struct {
+	ValueSet []CodeActionKind `json:"valueSet"`
 }
 
 // contextSupport is what carries why a completion was asked for, which is the
@@ -109,6 +135,11 @@ type initializeResult struct {
 type serverCapability struct {
 	PositionEncoding   string              `json:"positionEncoding"`
 	CompletionProvider *completionProvider `json:"completionProvider"`
+
+	// The protocol lets a server say this with a bare true as readily as with
+	// an object of its own options, neither of which is asked anything further
+	// about, so it is read as raw JSON rather than decoded into one shape.
+	CodeActionProvider json.RawMessage `json:"codeActionProvider"`
 }
 
 // A server offering completion says so with this, and names the characters it
@@ -144,6 +175,13 @@ func handshake(root string) initializeParams {
 						InsertReplaceSupport: false,
 						ResolveSupport:       resolveSupportCapability{Properties: resolvable},
 					},
+				},
+				CodeAction: codeActionCapability{
+					CodeActionLiteralSupport: codeActionLiteralCapability{
+						CodeActionKind: codeActionKindCapability{ValueSet: codeActionKinds},
+					},
+					DataSupport:    true,
+					ResolveSupport: resolveSupportCapability{Properties: []string{"edit"}},
 				},
 			},
 			Window:    windowCapability{WorkDoneProgress: false},
@@ -203,4 +241,28 @@ func triggersFrom(result json.RawMessage) (string, bool, bool) {
 	}
 
 	return string(triggers), offered.ResolveProvider, true
+}
+
+// offersCodeActions is a server saying it will answer textDocument/codeAction
+// at all, which the protocol lets it say either as a bare true or as an object
+// of its own options. resolveProvider is read out of that same object where
+// there is one: a server naming it is a server that answers codeAction/resolve
+// for an action it sent back with data instead of an edit.
+func offersCodeActions(result json.RawMessage) (offers, resolves bool) {
+	var got initializeResult
+	if err := json.Unmarshal(result, &got); err != nil {
+		return false, false
+	}
+
+	offered := got.Capabilities.CodeActionProvider
+	if empty(offered) || string(offered) == "false" {
+		return false, false
+	}
+
+	var opts struct {
+		ResolveProvider bool `json:"resolveProvider"`
+	}
+	_ = json.Unmarshal(offered, &opts) // a bare true/false fails here and leaves it false, correctly
+
+	return true, opts.ResolveProvider
 }

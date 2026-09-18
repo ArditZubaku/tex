@@ -68,6 +68,12 @@ type Client struct {
 	resolves  bool
 	triggers  string
 
+	// codeActs is a server having said it answers textDocument/codeAction at
+	// all, in the same handshake. codeActionResolves is it further saying it
+	// will fill in the edit of an action sent back with data instead.
+	codeActs           bool
+	codeActionResolves bool
+
 	in       chan Message
 	out      chan []byte
 	gone     chan error
@@ -138,6 +144,7 @@ func (c *Client) shook(result json.RawMessage, err error) {
 
 	c.encoding, c.phase = encoding, phaseReady
 	c.triggers, c.resolves, c.completes = triggersFrom(result)
+	c.codeActs, c.codeActionResolves = offersCodeActions(result)
 	c.post(methodInitialized, struct{}{})
 }
 
@@ -197,6 +204,15 @@ func (c *Client) Triggers() string { return c.triggers }
 // Resolves is a server that fills the rest of a candidate in when asked about
 // that one candidate — the import line it needs, most of all.
 func (c *Client) Resolves() bool { return c.resolves }
+
+// CodeActs is a server that answers textDocument/codeAction, which is what
+// stops '<leader>ca' asking one that never will.
+func (c *Client) CodeActs() bool { return c.codeActs }
+
+// CodeActionResolves is a server that fills in the edit of a code action sent
+// back with data instead — gopls's "declare the missing method" chief among
+// them.
+func (c *Client) CodeActionResolves() bool { return c.codeActionResolves }
 
 // Err is why there is no server, for the one report a crash is worth.
 func (c *Client) Err() error {
