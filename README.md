@@ -229,15 +229,18 @@ otherwise close a cycle.
 | `dw` | Normal | delete to the start of the next word (stops at end of line) |
 | `de` | Normal | delete to the end of the current word (stops at end of line) |
 | `db` | Normal | delete back to the start of the previous word (stops at the start of the line) |
+| `diw` | Normal | delete the word, punctuation run or space run under the cursor |
 | `dd` | Normal | delete the current line |
 | `gcc` | Normal | toggle the line comment on the current line, or `[count]gcc` for the lines below it too |
 | `yy` | Normal | yank the current line |
 | `yw` `ye` `yb` | Normal | yank over the matching word motion (stops at the ends of the line) |
+| `yiw` | Normal | yank the word, punctuation run or space run under the cursor |
 | `p` | Normal | put the register after the cursor, or on the line below if it holds whole lines |
 | `P` | Normal | put the register before the cursor, or on the line above |
 | `v` | Normal | start a selection of runes; `Esc` drops it |
 | `V` | Normal | start a selection of whole lines |
 | `o` | Visual | swap the end of the selection the cursor is on |
+| `iw` | Visual | select the word, punctuation run or space run under the cursor |
 | `d` `x` | Visual | delete the selection |
 | `y` | Visual | yank the selection |
 | `c` | Visual | delete the selection and start typing where it was |
