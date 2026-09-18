@@ -188,6 +188,7 @@ func chordKeys() map[string]func(*state.Editor) {
 		" bo": view.CloseOtherBuffers,
 		" bl": view.CloseBuffersLeft,
 		" br": view.CloseBuffersRight,
+		" ca": find.OpenCodeActions,
 		" cr": rename.Start,
 		" sh": view.SplitRight,
 		" sv": view.SplitBelow,
