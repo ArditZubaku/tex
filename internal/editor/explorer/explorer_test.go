@@ -821,3 +821,138 @@ func TestDeletingAFileNothingHasOpenedLeavesTheBufferListAlone(t *testing.T) {
 	edtest.WantBuffers(t, "start.txt", "notes.md")
 	edtest.WantCurrent(t, e, "notes.md")
 }
+
+func TestROpensOnTheEntrysOwnName(t *testing.T) {
+	e := state.New()
+
+	inExplorer(t, e, "notes.md", "other.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jr")
+
+	if txt, ok := e.PromptStatus(); !ok || txt != "rename to: notes.md" {
+		t.Errorf("prompt = %q, want %q", txt, "rename to: notes.md")
+	}
+}
+
+func TestRRenamesTheSelectedEntry(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "notes.md", "other.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jr\x15final.md\n")
+
+	if _, err := os.Stat(filepath.Join(dir, "final.md")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "notes.md")); !os.IsNotExist(err) {
+		t.Error("notes.md is still there")
+	}
+	wantEntries(t, e, "../", "final.md", "other.md")
+	if got := e.Exp.SelectedName(); got != "final.md" {
+		t.Errorf("selected %q, want final.md", got)
+	}
+}
+
+func TestRRefusesANameWithAPathSeparator(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jr\x15sub/final.md\n")
+
+	if _, err := os.Stat(filepath.Join(dir, "notes.md")); err != nil {
+		t.Error("notes.md was moved by a name containing '/'")
+	}
+	if e.StatusMsg == "" {
+		t.Error("nothing reported for a name containing '/'")
+	}
+}
+
+func TestRRefusesAnExistingName(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "notes.md", "other.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jr\x15other.md\n")
+
+	content, err := os.ReadFile(filepath.Join(dir, "other.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "in other.md\n" {
+		t.Errorf("other.md = %q, want it untouched", content)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "notes.md")); err != nil {
+		t.Error("notes.md was renamed despite the collision")
+	}
+}
+
+func TestEscOnTheRenamePromptLeavesTheFileUntouched(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "jr\x15final.md")
+	edtest.Press(t, e, string(rune(27)))
+
+	if e.Mode != state.ExplorerMode {
+		t.Fatalf("mode = %v, want ExplorerMode", e.Mode)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "notes.md")); err != nil {
+		t.Error("notes.md was renamed by a cancelled prompt")
+	}
+	wantEntries(t, e, "../", "notes.md")
+}
+
+func TestTheParentEntryCannotBeRenamed(t *testing.T) {
+	e := state.New()
+
+	inExplorer(t, e, "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "r")
+
+	if _, ok := e.PromptStatus(); ok {
+		t.Error("the parent entry opened a rename prompt")
+	}
+}
+
+func TestRenamingTheCurrentBufferUpdatesItsSourceFile(t *testing.T) {
+	e := state.New()
+
+	dir := inExplorer(t, e, "start.txt")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "r\x15final.txt\n")
+
+	if want := filepath.Join(dir, "final.txt"); e.SourceFile != want {
+		t.Errorf("sourceFile = %q, want %q", e.SourceFile, want)
+	}
+}
+
+func TestRenamingAFileOpenInAnotherBufferUpdatesItsEntry(t *testing.T) {
+	e := state.New()
+
+	inExplorer(t, e, "start.txt", "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "/notes\n")
+	edtest.Press(t, e, "\n")
+	edtest.WantBuffers(t, "start.txt", "notes.md")
+	edtest.WantCurrent(t, e, "notes.md")
+
+	edtest.Press(t, e, " e")
+	edtest.Press(t, e, "/start\n")
+	edtest.Press(t, e, "r\x15final.md\n")
+
+	edtest.WantBuffers(t, "final.md", "notes.md")
+
+	edtest.Press(t, e, "q")
+	edtest.Press(t, e, "\t")
+	edtest.WantCurrent(t, e, "final.md")
+}
