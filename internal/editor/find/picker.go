@@ -45,6 +45,13 @@ func openPicked(e *state.Editor) {
 	}
 
 	closePicker(e)
+	if e.PickAction != nil {
+		action := e.PickAction
+		e.PickAction = nil
+		action(entry)
+
+		return
+	}
 	view.Goto(e, entry.Path, entry.Row, entry.Col)
 }
 

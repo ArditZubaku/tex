@@ -22,11 +22,16 @@ import (
 // An Entry is a row of the popup: what is drawn and matched, and where Enter
 // goes. A negative row means the file itself, wherever the cursor was last left
 // in it.
+//
+// Index is for a popup that is not a place to jump to at all — the code action
+// menu chooses among its own list rather than Path/Row/Col, and reads which of
+// that list this was back off the Entry Enter settled on.
 type Entry struct {
 	Label string
 	Path  string
 	Row   int
 	Col   int
+	Index int
 }
 
 type match struct {

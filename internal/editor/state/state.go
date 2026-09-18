@@ -119,6 +119,12 @@ type Editor struct {
 	Exp          filetree.Tree
 	ExplorerOpen bool
 
+	// PickAction is what Enter does with the picker's choice instead of going
+	// to it, for the popup up over a list of code actions rather than places.
+	// Cleared once read, since the picker not being a place to jump to is what
+	// asked for it in the first place.
+	PickAction func(picker.Entry)
+
 	Jumps []Jump
 
 	// SearchPat is the pattern n and N repeat, SearchBack the direction it was
