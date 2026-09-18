@@ -63,6 +63,7 @@ const (
 	createPrompt = 'a'
 	pastePrompt  = 'p'
 	deletePrompt = 'd'
+	renamePrompt = 'r'
 )
 
 // startSearch is '/', which hands the status line to the same prompt
@@ -90,6 +91,8 @@ func Submit(e *state.Editor, delimiter rune, input string) {
 		paste(e, input)
 	case deletePrompt:
 		confirmDelete(e, input)
+	case renamePrompt:
+		rename(e, input)
 	default:
 		Filter(e, input)
 	}
@@ -296,6 +299,53 @@ func confirmDelete(e *state.Editor, input string) {
 	}
 }
 
+// startRename is 'r', which asks for a new name, opening on the one the entry
+// already has.
+func startRename(e *state.Editor) {
+	_, name, ok := selected(e)
+	if !ok {
+		return
+	}
+
+	e.StartLabelledPrompt(renamePrompt, "rename to: ", name)
+}
+
+// rename is what 'r' does with the name it was given: the entry stays in the
+// directory being listed, so a name that would move it elsewhere or one
+// already taken is refused rather than acted on.
+func rename(e *state.Editor, input string) {
+	path, oldName, ok := selected(e)
+	if !ok {
+		return
+	}
+
+	name := strings.TrimSpace(input)
+	if name == "" {
+		return
+	}
+	if strings.ContainsRune(name, '/') {
+		e.StatusMsg = "rename can't move the entry"
+		return
+	}
+
+	newPath := e.Exp.Path(name)
+	if newPath != path {
+		if _, err := os.Lstat(newPath); err == nil {
+			e.StatusMsg = "E13: File exists: " + newPath
+			return
+		}
+	}
+	if err := os.Rename(path, newPath); err != nil {
+		e.StatusMsg = "E484: Can't rename " + path
+		return
+	}
+
+	view.Rename(e, path, newPath)
+	if goTo(e, e.Exp.Dir(), name) {
+		e.StatusMsg = fmt.Sprintf("%q renamed to %q", oldName, name)
+	}
+}
+
 // after is the entry the selection lands on once the one it is on is gone: the
 // one below it, or the one above when it was the last.
 func after(e *state.Editor) string {
@@ -385,6 +435,7 @@ var actions = map[rune]func(*state.Editor){
 	'y': startYank,
 	'p': startPaste,
 	'd': startDelete,
+	'r': startRename,
 	'/': startSearch,
 	'q': Close,
 }
