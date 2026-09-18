@@ -30,6 +30,8 @@ func TestOperators(t *testing.T) {
 		{"de from a word start", 4, edit.DeleteToWordEnd, "foo  baz"},
 		{"de mid-word", 5, edit.DeleteToWordEnd, "foo b baz"},
 		{"de on the last word stops at end of line", 8, edit.DeleteToWordEnd, "foo bar "},
+		{"diw mid-word takes the whole word", 5, edit.DeleteInnerWord, "foo  baz"},
+		{"diw on a space takes the run between words", 3, edit.DeleteInnerWord, "foobar baz"},
 	}
 
 	for _, tc := range cases {
@@ -84,6 +86,35 @@ func TestDeleteToPrevWordStopsAtTheLineStart(t *testing.T) {
 	edtest.WantLines(t, b, "foo", "bar")
 	if e.Modified {
 		t.Error("db at the start of a line reported a modification")
+	}
+}
+
+// diw never touches text outside the run under the cursor, so an empty line
+// leaves nothing to delete.
+func TestDeleteInnerWordOnEmptyLineDoesNothing(t *testing.T) {
+	e := state.New()
+
+	b := edtest.AtCursor(t, e, "\nbar\n", 0, 0)
+
+	edit.DeleteInnerWord(e)
+	edtest.WantLines(t, b, "", "bar")
+	if e.Modified {
+		t.Error("diw on an empty line reported a modification")
+	}
+}
+
+// This drives 'diw' through the real dispatcher rather than calling
+// DeleteInnerWord directly, so the three-key chord itself is covered too.
+func TestDeleteInnerWordChord(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "foo bar baz\n", 0, 5)
+
+	edtest.Press(t, e, "diw")
+
+	edtest.WantLines(t, b, "foo  baz")
+	if e.Col != 4 {
+		t.Errorf("currentCol = %d, want 4", e.Col)
 	}
 }
 

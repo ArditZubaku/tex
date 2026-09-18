@@ -74,6 +74,22 @@ func DeleteToPrevWord(e *state.Editor) {
 	e.Modified = true
 }
 
+// DeleteInnerWord is 'diw': a text object rather than a motion, so it acts on
+// whatever run of word, punct or space characters the cursor already sits
+// inside instead of reaching for the next or previous one.
+func DeleteInnerWord(e *state.Editor) {
+	start, end := motion.InnerWordFrom(e.Buf, e.Row, e.Col)
+	if start > end {
+		return
+	}
+
+	yankChars(e, e.Row, start, end+1)
+	e.TouchLine(e.Row)
+	e.Buf.DeleteRunes(e.Row, start, end+1)
+	e.Col = start
+	e.Modified = true
+}
+
 func deleteTo(e *state.Editor, row, col int) {
 	if row != e.Row {
 		col = e.Buf.RuneLen(e.Row)

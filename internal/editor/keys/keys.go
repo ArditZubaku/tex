@@ -173,6 +173,7 @@ func chordKeys() map[string]func(*state.Editor) {
 		"dw":  edit.DeleteWord,
 		"de":  edit.DeleteToWordEnd,
 		"db":  edit.DeleteToPrevWord,
+		"diw": edit.DeleteInnerWord,
 		"yy":  edit.YankLine,
 		"yw":  edit.YankWord,
 		"ye":  edit.YankToWordEnd,
