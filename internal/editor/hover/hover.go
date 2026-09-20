@@ -14,8 +14,8 @@ import (
 )
 
 // The box is drawn this wide and this tall at most, and shrinks to whatever the
-// screen has. A doc comment longer than the rows is cut rather than scrolled:
-// the file it belongs to is a 'gd' away, and that is where it is read properly.
+// screen has. A doc comment longer than the rows scrolls rather than losing the
+// rest of it: the wheel over the box moves the window, same as over the buffer.
 // Under minCols there is no room for a frame with anything inside it.
 const (
 	maxCols = 72
@@ -26,9 +26,11 @@ const (
 // A Box is what the server said, or nothing: the editor holds one, and asking
 // about another identifier replaces what it held. Nothing expires it — unlike
 // the error box in the corner, this one was asked for, so it stays until it is
-// dismissed or another one takes its place.
+// dismissed or another one takes its place. offset is the wheel's own doing:
+// how far the window onto lines has scrolled.
 type Box struct {
-	lines []string
+	lines  []string
+	offset int
 }
 
 // Show is what the server said, as the lines it is drawn on: the markup is
@@ -36,17 +38,44 @@ type Box struct {
 // it was wrapped to.
 func (b *Box) Show(markup string, within layout.Rect) {
 	b.lines = Lines(markup, min(maxCols, within.Cols)-4)
-	if len(b.lines) > maxRows-2 {
-		b.lines = b.lines[:maxRows-2]
-	}
+	b.offset = 0
 }
 
-func (b *Box) Clear() { b.lines = nil }
+func (b *Box) Clear() { b.lines, b.offset = nil, 0 }
 
 func (b *Box) Showing() bool { return len(b.lines) > 0 }
 
+// visible is the window the box is drawn with: at most maxRows-2 lines,
+// starting wherever the wheel has scrolled it to.
+func (b *Box) visible() []string {
+	return b.lines[b.offset:min(b.offset+maxRows-2, len(b.lines))]
+}
+
+// Scroll is the wheel over the box: delta lines down, or up for a negative one,
+// clamped so the window never runs past either end of what the box holds.
+func (b *Box) Scroll(delta int) {
+	b.offset = max(0, min(b.offset+delta, max(0, len(b.lines)-(maxRows-2))))
+}
+
+// Contains is whether a screen cell falls inside the box as it is actually
+// drawn, which is what tells the wheel over it from the wheel anywhere else —
+// the frame it is compared against is the same one Draw would put it in, since
+// nothing can move the cursor while the box is up without dismissing it first.
+func (b *Box) Contains(within layout.Rect, cursorRow, cursorCol, row, col int) bool {
+	if !b.Showing() {
+		return false
+	}
+
+	frame := b.frame(within, cursorRow, cursorCol)
+	if frame.Cols < minCols {
+		return false
+	}
+
+	return row >= frame.Row && row < frame.Row+frame.Rows && col >= frame.Col && col < frame.Col+frame.Cols
+}
+
 // Text is what the box is showing, which is what a test reads it by.
-func (b *Box) Text() string { return strings.Join(b.lines, "\n") }
+func (b *Box) Text() string { return strings.Join(b.visible(), "\n") }
 
 // Draw puts the box under the cursor's own line, or above it when there is no
 // room below: a box over the line being asked about hides the answer's subject.
@@ -63,7 +92,7 @@ func (b *Box) Draw(within layout.Rect, cursorRow, cursorCol int, palette *theme.
 	inner := frame.Cols - 2
 	screen.Print(frame.Col, frame.Row, palette.Separator, palette.Background,
 		"┌"+strings.Repeat("─", inner)+"┐")
-	for i, line := range b.lines {
+	for i, line := range b.visible() {
 		screen.Print(frame.Col, frame.Row+1+i, palette.Separator, palette.Background, "│")
 		screen.Print(frame.Col+1, frame.Row+1+i, palette.Plain, palette.Background,
 			screen.Pad(" "+line, inner))
@@ -79,7 +108,7 @@ func (b *Box) frame(within layout.Rect, cursorRow, cursorCol int) layout.Rect {
 		widest = max(widest, runewidth.StringWidth(line))
 	}
 
-	rows := len(b.lines) + 2
+	rows := min(len(b.lines), maxRows-2) + 2
 	cols := min(widest+4, within.Cols)
 	row := cursorRow + 1
 	if row+rows > within.Row+within.Rows {
