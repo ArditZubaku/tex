@@ -30,7 +30,7 @@ func Read(e *state.Editor) {
 // outlive the interrupt that answer wakes the loop with.
 func Handle(e *state.Editor, keyEvent termbox.Event, isKey bool) {
 	if keyEvent.Type == termbox.EventMouse {
-		if scrollHover(e, keyEvent) {
+		if hoverMouse(e, keyEvent) {
 			return
 		}
 		e.Hov.Clear()
@@ -52,23 +52,26 @@ func Handle(e *state.Editor, keyEvent termbox.Event, isKey bool) {
 // hoverScroll is how many lines the wheel moves the box per notch.
 const hoverScroll = 3
 
-// scrollHover is the wheel over the box asking about the identifier under the
-// cursor: the one mouse event it survives, since every other one — even a
-// click on the box itself — dismisses it same as a key would.
-func scrollHover(e *state.Editor, event termbox.Event) bool {
-	delta := hoverScroll
-	switch event.Key {
-	case termbox.MouseWheelUp:
-		delta = -hoverScroll
-	case termbox.MouseWheelDown:
-	default:
-		return false
-	}
+// hoverMouse is the box surviving a mouse event landing on it, unless that
+// event is a left click: a trackpad's two-finger scroll strays into a
+// horizontal notch as often as not, which xterm's protocol has no code of its
+// own for and reports as a right click or a release — treated as a dismissal,
+// that stray notch would drop the box mid-scroll, so anything short of a
+// left click over it is absorbed rather than read as one.
+func hoverMouse(e *state.Editor, event termbox.Event) bool {
 	if !e.Hov.Contains(e.ScreenArea(), e.CursorScreenRow(), e.CursorScreenCol(), event.MouseY, event.MouseX) {
 		return false
 	}
+	if event.Key == termbox.MouseLeft {
+		return false
+	}
 
-	e.Hov.Scroll(delta)
+	switch event.Key {
+	case termbox.MouseWheelUp:
+		e.Hov.Scroll(-hoverScroll)
+	case termbox.MouseWheelDown:
+		e.Hov.Scroll(hoverScroll)
+	}
 
 	return true
 }
