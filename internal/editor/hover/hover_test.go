@@ -1,6 +1,8 @@
 package hover
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -50,12 +52,104 @@ func TestALineTooLongForTheBoxIsWrappedRatherThanLost(t *testing.T) {
 	}
 }
 
-func TestAnAnswerLongerThanTheBoxIsCutRatherThanPushedOffTheScreen(t *testing.T) {
-	var box Box
-	box.Show(strings.Repeat("word ", 400), layout.Rect{Rows: 24, Cols: screenful})
+// numberedLines is a fenced block, so paragraphs() keeps one line per number
+// rather than joining them into prose — what a scroll test needs to tell which
+// window it is looking at.
+const numberedLineCount = 40
 
-	if got := len(strings.Split(box.Text(), "\n")); got != maxRows-2 {
-		t.Errorf("the box holds %d lines, want %d", got, maxRows-2)
+func numberedLines() string {
+	var b strings.Builder
+	b.WriteString("```\n")
+	for i := range numberedLineCount {
+		fmt.Fprintf(&b, "line%d\n", i)
+	}
+	b.WriteString("```\n")
+
+	return b.String()
+}
+
+func TestAnAnswerLongerThanTheBoxShowsOnlyAWindowOfIt(t *testing.T) {
+	var box Box
+	box.Show(numberedLines(), layout.Rect{Rows: 24, Cols: screenful})
+
+	got := strings.Split(box.Text(), "\n")
+	if len(got) != maxRows-2 {
+		t.Fatalf("the box holds %d lines, want %d", len(got), maxRows-2)
+	}
+	if got[0] != "line0" {
+		t.Errorf("the box starts on %q, want %q", got[0], "line0")
+	}
+}
+
+func TestScrollingMovesTheWindowDown(t *testing.T) {
+	var box Box
+	box.Show(numberedLines(), layout.Rect{Rows: 24, Cols: screenful})
+
+	box.Scroll(3)
+
+	got := strings.Split(box.Text(), "\n")
+	if got[0] != "line3" {
+		t.Errorf("the box starts on %q, want %q", got[0], "line3")
+	}
+}
+
+func TestScrollingPastTheEndClampsOnTheLastLine(t *testing.T) {
+	var box Box
+	box.Show(numberedLines(), layout.Rect{Rows: 24, Cols: screenful})
+
+	box.Scroll(1000)
+
+	got := strings.Split(box.Text(), "\n")
+	if want := "line" + strconv.Itoa(numberedLineCount-1); got[len(got)-1] != want {
+		t.Errorf("the box ends on %q, want %q", got[len(got)-1], want)
+	}
+	if len(got) != maxRows-2 {
+		t.Errorf("the box holds %d lines, want %d", len(got), maxRows-2)
+	}
+}
+
+func TestScrollingUpPastTheTopClampsAtZero(t *testing.T) {
+	var box Box
+	box.Show(numberedLines(), layout.Rect{Rows: 24, Cols: screenful})
+
+	box.Scroll(-1000)
+
+	if got := strings.Split(box.Text(), "\n")[0]; got != "line0" {
+		t.Errorf("the box starts on %q, want %q", got, "line0")
+	}
+}
+
+func TestShowingANewAnswerResetsAnyScrollFromTheLastOne(t *testing.T) {
+	var box Box
+	box.Show(numberedLines(), layout.Rect{Rows: 24, Cols: screenful})
+	box.Scroll(10)
+
+	box.Show(numberedLines(), layout.Rect{Rows: 24, Cols: screenful})
+
+	if got := strings.Split(box.Text(), "\n")[0]; got != "line0" {
+		t.Errorf("the box starts on %q, want %q", got, "line0")
+	}
+}
+
+func TestContainsIsTrueOverTheBoxAndFalseOutsideIt(t *testing.T) {
+	var box Box
+	within := layout.Rect{Row: 1, Rows: 24, Cols: screenful}
+	box.Show("Run is the editor.", within)
+
+	if !box.Contains(within, 5, 12, 6, 12) {
+		t.Error("the box's own top-left corner reads as outside it")
+	}
+	if box.Contains(within, 5, 12, 0, 0) {
+		t.Error("the top-left of the screen reads as inside the box")
+	}
+}
+
+func TestContainsIsFalseWhenNothingIsShowing(t *testing.T) {
+	var box Box
+	within := layout.Rect{Row: 1, Rows: 24, Cols: screenful}
+
+	if box.Contains(within, 5, 12, 6, 12) {
+		t.Error("an empty box has somewhere the wheel can scroll it")
 	}
 }
 
