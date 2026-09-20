@@ -30,6 +30,9 @@ func Read(e *state.Editor) {
 // outlive the interrupt that answer wakes the loop with.
 func Handle(e *state.Editor, keyEvent termbox.Event, isKey bool) {
 	if keyEvent.Type == termbox.EventMouse {
+		if scrollHover(e, keyEvent) {
+			return
+		}
 		e.Hov.Clear()
 		e.Comp.Close()
 		view.Mouse(e, keyEvent)
@@ -44,6 +47,30 @@ func Handle(e *state.Editor, keyEvent termbox.Event, isKey bool) {
 	e.Hov.Clear()
 
 	Dispatch(e, keyEvent)
+}
+
+// hoverScroll is how many lines the wheel moves the box per notch.
+const hoverScroll = 3
+
+// scrollHover is the wheel over the box asking about the identifier under the
+// cursor: the one mouse event it survives, since every other one — even a
+// click on the box itself — dismisses it same as a key would.
+func scrollHover(e *state.Editor, event termbox.Event) bool {
+	delta := hoverScroll
+	switch event.Key {
+	case termbox.MouseWheelUp:
+		delta = -hoverScroll
+	case termbox.MouseWheelDown:
+	default:
+		return false
+	}
+	if !e.Hov.Contains(e.ScreenArea(), e.CursorScreenRow(), e.CursorScreenCol(), event.MouseY, event.MouseX) {
+		return false
+	}
+
+	e.Hov.Scroll(delta)
+
+	return true
 }
 
 func Dispatch(e *state.Editor, keyEvent termbox.Event) {
