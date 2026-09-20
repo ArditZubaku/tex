@@ -61,6 +61,25 @@ func TestWheelAwayFromTheHoverBoxStillClosesIt(t *testing.T) {
 	}
 }
 
+func TestStrayTiltNoiseOverTheHoverBoxDoesNotCloseIt(t *testing.T) {
+	for _, key := range []termbox.Key{termbox.MouseRight, termbox.MouseMiddle, termbox.MouseRelease} {
+		e := state.New()
+		edtest.AtCursor(t, e, "package main\n", 0, 0)
+		edtest.SingleWindow(e, 24, 80)
+		showHover(t, e)
+		before := e.Hov.Text()
+
+		mouse(e, key, e.CursorScreenRow()+1, e.CursorScreenCol())
+
+		if !e.Hov.Showing() {
+			t.Errorf("key %v over the box closed it", key)
+		}
+		if after := e.Hov.Text(); after != before {
+			t.Errorf("key %v over the box scrolled it: %q", key, after)
+		}
+	}
+}
+
 func TestAClickOnTheHoverBoxStillClosesIt(t *testing.T) {
 	e := state.New()
 	edtest.AtCursor(t, e, "package main\n", 0, 0)
