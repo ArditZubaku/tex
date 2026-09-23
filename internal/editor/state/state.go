@@ -70,10 +70,13 @@ type Editor struct {
 
 	// Rows and Cols are the window being drawn; ScreenRows and ScreenCols the
 	// area every window shares, and WinRow and WinCol where this one starts in
-	// it.
+	// it. ScreenCols is floored at 80 for layout's sake; RealScreenCols is what
+	// the terminal actually reported, for the one thing that must never claim
+	// more room than that.
 	Rows, Cols             int
 	WinRow, WinCol         int
 	ScreenRows, ScreenCols int
+	RealScreenCols         int
 
 	Mode      Mode
 	StatusMsg string
@@ -200,6 +203,13 @@ func (e *Editor) WindowArea() layout.Rect {
 
 func (e *Editor) ScreenArea() layout.Rect {
 	return layout.Rect{Row: TabBarRows, Rows: e.ScreenRows, Cols: e.ScreenCols}
+}
+
+// NotifyArea is where the error box is confined: the terminal's real width,
+// never floored the way ScreenArea's is, so a narrow terminal clips the box at
+// its own true edge instead of a corner it doesn't have the room for.
+func (e *Editor) NotifyArea() layout.Rect {
+	return layout.Rect{Row: TabBarRows, Rows: e.ScreenRows, Cols: e.RealScreenCols}
 }
 
 func (e *Editor) StartPrompt(delimiter rune) { e.StartPromptWith(delimiter, "") }
