@@ -144,6 +144,16 @@ func TestVisualDollarSelectsToEndOfLine(t *testing.T) {
 	edtest.WantLines(t, b, "a")
 }
 
+func TestVisualPercentSelectsToTheMatchingBracket(t *testing.T) {
+	e := state.New()
+
+	b := edtest.InReadMode(t, e, "a(bcd)e\n", 0, 1)
+
+	edtest.Press(t, e, "v%d")
+
+	edtest.WantLines(t, b, "ae")
+}
+
 func TestCountedMotionExtendsTheSelection(t *testing.T) {
 	e := state.New()
 

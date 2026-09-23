@@ -181,7 +181,7 @@ func visualKeys() map[rune]func(*state.Editor) {
 		'y': edit.YankSelection,
 		'p': edit.PasteSelection,
 	}
-	for _, ch := range "hjklwbeG$" {
+	for _, ch := range "hjklwbeG$%" {
 		actions[ch] = readModeActions[ch]
 	}
 
