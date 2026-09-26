@@ -100,6 +100,8 @@ func Dispatch(e *state.Editor, keyEvent termbox.Event) {
 	}
 
 	switch {
+	case e.Mode == state.TerminalMode:
+		view.TerminalKey(e, keyEvent)
 	case e.Mode == state.PromptMode:
 		handlePromptKey(e, keyEvent)
 	case e.Mode == state.ExplorerMode:
@@ -228,6 +230,7 @@ func chordKeys() map[string]func(*state.Editor) {
 		" sS": find.OpenWorkspaceSymbols,
 		" wd": view.CloseWindow,
 		" mp": view.TogglePreview,
+		" ft": view.OpenOrFocusTerminal,
 		"  ":  find.OpenFiles,
 		" /":  find.OpenGrep,
 	}
