@@ -227,6 +227,7 @@ func chordKeys() map[string]func(*state.Editor) {
 		" ss": find.OpenSymbols,
 		" sS": find.OpenWorkspaceSymbols,
 		" wd": view.CloseWindow,
+		" mp": view.TogglePreview,
 		"  ":  find.OpenFiles,
 		" /":  find.OpenGrep,
 	}

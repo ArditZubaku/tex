@@ -68,6 +68,7 @@ func Run(args []string) {
 			ed.ScreenCols = 80
 		}
 		view.Layout(ed)
+		view.MaybeOpenPreview(ed)
 		lsp.Poll()
 		tellServer(ed)
 

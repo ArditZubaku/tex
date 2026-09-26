@@ -138,6 +138,7 @@ func Write(e *state.Editor, path string) bool {
 	e.Note.Clear()
 
 	note := reformat(e, path)
+	view.RefreshPreview(e)
 	e.StatusMsg = fmt.Sprintf("%q %dL written%s", path, e.Buf.LineCount(), note)
 
 	return true
@@ -264,6 +265,7 @@ func Edit(e *state.Editor, path string, force bool) bool {
 		e.Modified = false
 		e.Hist = history.History{}
 		view.SyncBuffer(e)
+		view.MaybeOpenPreview(e)
 	} else {
 		view.Open(e, path)
 	}
@@ -323,7 +325,7 @@ func splitInto(e *state.Editor, path string, vertical, force bool) {
 // quitWindow is ':q': it closes the window it was typed in, and quits the
 // editor when that was the last one, the way VIM does.
 func quitWindow(e *state.Editor, force bool) {
-	if len(view.List(e)) > 1 {
+	if view.RealWindowCount(e) > 1 {
 		view.CloseWindow(e)
 		return
 	}
