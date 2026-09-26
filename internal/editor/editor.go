@@ -14,6 +14,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/render"
 	"github.com/ArditZubaku/tex/internal/editor/screen"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/terminal"
 	"github.com/ArditZubaku/tex/internal/editor/view"
 	"github.com/ArditZubaku/tex/internal/lsp"
 	"github.com/ArditZubaku/tex/internal/syntax"
@@ -48,6 +49,7 @@ func Run(args []string) {
 
 	ed.Lang = syntax.Detect(ed.SourceFile)
 	lsp.Wake(screen.StartWaker())
+	terminal.Wake(screen.StartWaker())
 	// Nothing below state may reach back up to what holds the diagnostics, and
 	// nothing in the language server may reach the editor at all, so the loop
 	// is what joins them.
@@ -70,6 +72,7 @@ func Run(args []string) {
 		view.Layout(ed)
 		view.MaybeOpenPreview(ed)
 		lsp.Poll()
+		view.PollTerminal(ed)
 		tellServer(ed)
 
 		if err := termbox.Clear(ed.Palette.Plain, ed.Palette.Background); err != nil {
@@ -93,6 +96,13 @@ func Run(args []string) {
 			termbox.SetCursor(ed.Pick.CursorCol(ed.ScreenArea()), ed.Pick.CursorRow(ed.ScreenArea()))
 		case state.ExplorerMode:
 			termbox.SetCursor(ed.ScreenCol(0), explorer.CursorRow(ed))
+		case state.TerminalMode:
+			w := view.Focused()
+			if col, row, visible := w.Entry.Terminal.Cursor(); visible {
+				termbox.SetCursor(w.Rect.Col+col, w.Rect.Row+row)
+			} else {
+				termbox.HideCursor()
+			}
 		default:
 			termbox.SetCursor(ed.CursorScreenCol(), ed.CursorScreenRow())
 		}
