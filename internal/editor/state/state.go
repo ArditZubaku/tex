@@ -31,6 +31,7 @@ const (
 	VisualMode
 	ExplorerMode
 	PickerMode
+	TerminalMode
 )
 
 // DefaultFileName is what an unnamed buffer writes to, the editor's own stand-in
