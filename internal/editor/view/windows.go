@@ -31,13 +31,19 @@ var (
 func Focused() *Window { return current }
 
 // Reset drops the buffer list and the window tree, so that a test starts from
-// the editor as it is before any file has been opened.
+// the editor as it is before any file has been opened. A live terminal is
+// killed rather than just forgotten, or every test after the one that opened
+// it would leak its shell.
 func Reset() {
 	buffers, currentBuffer, altPath = nil, 0, ""
 	root, current, separators = nil, nil, nil
 	dragging.on = false
 	previewWin, previewSource, previewWidth = nil, nil, 0
 	clear(dismissed)
+	if terminalWin != nil {
+		terminalWin.Entry.Terminal.Kill()
+	}
+	terminalWin = nil
 }
 
 func Separators() []layout.Separator { return separators }
@@ -67,9 +73,14 @@ func CurrentWindow(e *state.Editor) *Window {
 }
 
 // SyncWindow copies the editor's own state back onto the window it belongs to,
-// so that leaving a window and coming back to it finds it as it was left.
+// so that leaving a window and coming back to it finds it as it was left. A
+// terminal has no buffer state to save, and CurrentEntry belongs to whatever
+// real file was current before it, not the shell — so it is left alone.
 func SyncWindow(e *state.Editor) {
 	w := CurrentWindow(e)
+	if w.Entry.Terminal != nil {
+		return
+	}
 	w.Entry = CurrentEntry(e)
 	w.CursorRow, w.CursorCol = e.Row, e.Col
 	w.OffsetRow, w.OffsetCol = e.OffsetRow, e.OffsetCol
@@ -95,14 +106,27 @@ func applyRect(e *state.Editor, w *Window) {
 
 // applyWindow makes a window the one being worked in: it takes the buffer's
 // history with it, and drops a selection, which belonged to the window left.
+// Every focus change runs through here, which is what lets Terminal mode
+// follow the focused window itself rather than needing to be set and cleared
+// at every place focus can move.
 func applyWindow(e *state.Editor, w *Window) {
 	if e.Mode == state.VisualMode {
 		edit.ExitVisual(e)
 	}
-	current, currentBuffer = w, max(slices.Index(buffers, w.Entry), 0)
-	applyEntry(e, w.Entry)
+	current = w
+	if w.Entry.Terminal == nil {
+		currentBuffer = max(slices.Index(buffers, w.Entry), 0)
+		applyEntry(e, w.Entry)
+	}
 	ShowWindow(e, w)
 	e.ClampCol()
+
+	switch {
+	case w.Entry.Terminal != nil:
+		e.Mode = state.TerminalMode
+	case e.Mode == state.TerminalMode:
+		e.Mode = state.ReadMode
+	}
 }
 
 func focusWindow(e *state.Editor, w *Window) {
@@ -165,6 +189,10 @@ func CloseWindow(e *state.Editor) {
 		root = root.Prune(previewWin)
 		previewWin, previewSource = nil, nil
 	}
+	if terminalWin == current {
+		terminalWin.Entry.Terminal.Kill()
+		terminalWin = nil
+	}
 	Layout(e)
 
 	list = List(e)
@@ -177,6 +205,10 @@ func CloseWindow(e *state.Editor) {
 // with the rest.
 func OnlyWindow(e *state.Editor) {
 	SyncWindow(e)
+	if terminalWin != nil && terminalWin != current {
+		terminalWin.Entry.Terminal.Kill()
+		terminalWin = nil
+	}
 	root = layout.Leaf(current)
 	previewWin, previewSource = nil, nil
 	Layout(e)

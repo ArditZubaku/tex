@@ -17,6 +17,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/preview"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
+	"github.com/ArditZubaku/tex/internal/editor/terminal"
 	"github.com/ArditZubaku/tex/internal/project"
 	"github.com/ArditZubaku/tex/internal/syntax"
 )
@@ -41,6 +42,10 @@ type Entry struct {
 	// anything but focus.
 	ReadOnly     bool
 	PreviewCells [][]preview.Cell
+
+	// Terminal marks the pane a shell runs in: unlike the preview above, this
+	// one is a window a key can reach, and so must never set ReadOnly.
+	Terminal *terminal.Session
 }
 
 var (
@@ -65,8 +70,15 @@ func CurrentEntry(e *state.Editor) *Entry {
 }
 
 // SyncBuffer copies the editor's own state back onto the entry it belongs to,
-// so that the list is what the buffer line and ':ls' read.
+// so that the list is what the buffer line and ':ls' read. A no-op while a
+// terminal is focused: e.Buf is then the shell's own placeholder, and it runs
+// unconditionally every frame from the main loop, so this must not let that
+// placeholder overwrite whatever real file the list last held as current.
 func SyncBuffer(e *state.Editor) {
+	if current != nil && current.Entry.Terminal != nil {
+		return
+	}
+
 	entry := CurrentEntry(e)
 	entry.Buf, entry.Path, entry.Lang = e.Buf, e.SourceFile, e.Lang
 	entry.Row, entry.Col = e.Row, e.Col
@@ -373,6 +385,9 @@ func CloseAll(e *state.Editor) {
 	SyncWindow(e)
 	for _, entry := range buffers {
 		entry.Buf.Close()
+	}
+	if terminalWin != nil {
+		terminalWin.Entry.Terminal.Kill()
 	}
 }
 
