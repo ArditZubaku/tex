@@ -164,12 +164,13 @@ func BenchmarkFrameSplit(b *testing.B) {
 // left out, so that a change to the drawing loop is not hidden by them.
 func BenchmarkText(b *testing.B) {
 	e := benchEditor(b, fixture.GoSource(b, fileLines))
+	entry := view.CurrentEntry(e)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for b.Loop() {
-		Text(e)
+		Text(e, entry)
 		e.Row, e.OffsetRow = e.Row+1, e.OffsetRow+1
 		if e.OffsetRow > fileLines-benchRows-2 {
 			e.Row, e.OffsetRow = 0, 0

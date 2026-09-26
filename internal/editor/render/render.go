@@ -24,7 +24,12 @@ import (
 // frame: a redraw reads every visible line and keeps none of them.
 var textScratch []rune
 
-func Text(e *state.Editor) {
+func Text(e *state.Editor, entry *view.Entry) {
+	if entry.ReadOnly {
+		previewText(e, entry)
+		return
+	}
+
 	bufLen := e.Buf.LineCount()
 	gutterCols := gutter.Width(bufLen)
 	textCols := e.Cols - gutterCols
@@ -86,6 +91,26 @@ func Text(e *state.Editor) {
 		}
 
 		drawRunes(e, paint)
+	}
+}
+
+// previewText draws glow's own rendering of a markdown buffer cell for cell,
+// already coloured, rather than running it back through the syntax and
+// diagnostic colouring the buffer it sits beside is drawn with.
+func previewText(e *state.Editor, entry *view.Entry) {
+	rows := entry.PreviewCells
+	for row := range e.Rows {
+		srcRow := row + e.OffsetRow
+		if srcRow < 0 || srcRow >= len(rows) {
+			continue
+		}
+
+		screenRow := e.ScreenRow(row)
+		cells := rows[srcRow]
+		for col := 0; col < e.Cols && col < len(cells); col++ {
+			c := cells[col]
+			termbox.SetCell(e.ScreenCol(col), screenRow, c.Ch, c.Fg, c.Bg)
+		}
 	}
 }
 
@@ -354,8 +379,12 @@ func Windows(e *state.Editor) {
 			explorer.Draw(e)
 			continue
 		}
-		Scroll(e)
-		Text(e)
+		if w.Entry.ReadOnly {
+			e.OffsetRow = view.PreviewScrollOffset(w)
+		} else {
+			Scroll(e)
+		}
+		Text(e, w.Entry)
 		w.OffsetRow, w.OffsetCol = e.OffsetRow, e.OffsetCol
 	}
 
