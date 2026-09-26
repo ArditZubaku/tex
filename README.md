@@ -78,6 +78,7 @@ internal/
     hover/              the box K's answer goes in, and its markup as plain text
     complete/           the menu of candidates under the word being typed
     preview/            glow's rendering of a markdown file, and whether it is installed
+    terminal/           a shell on a pty, and the VT100 emulation reading what it writes
     state/              the editor being run: cursor, mode, buffer, room
     edit/               typing, deleting, yank and put, the Visual selection
     rename/             <leader>cr: a name, and how far it reaches
@@ -155,6 +156,8 @@ otherwise close a cycle.
 - **Markdown preview** — a markdown file (`.md`, `.markdown`, `.mdown`, `.mkd`) opens a window beside it, to the right, rendered by [glow](https://github.com/charmbracelet/glow), the moment it becomes the buffer being edited — provided glow is found on the `PATH`; with none installed nothing about the editor changes. The pane is drawn in glow's own colours (`glow -s dark`, wrapped to the pane's own width) rather than the file's syntax highlighting run a second time, and it is not a window like any other: nothing can focus it, `Ctrl-H`/`Ctrl-J`/`Ctrl-K`/`Ctrl-L` skip over it, it never joins the buffer list, and no key reaches it at all — `<leader>mp` is what opens or closes it by hand. Closing it that way is remembered against the file it was showing, so leaving the buffer and coming back leaves it closed rather than reopening on its own; a different markdown file still opens one fresh, and there is only ever one preview open at a time, moved to whichever markdown buffer is current rather than kept one per file.
 
   Saving the file re-renders the pane (`:w`, `:wq`, `Ctrl-S`), and dragging the line between the two panes re-renders it once the drag lets go rather than on every column it crosses while it is still moving, since spawning glow is not free enough to pay for on every step of a drag. It cannot be scrolled on its own — no key reaches it, as above — so it follows the cursor instead: its viewport tracks the fraction of the way down the file the cursor already is. Glow failing, hanging (five seconds, the same as a formatter is given) or not being installed at all leaves the pane showing whatever it last held rather than going blank.
+
+- **Terminal** — `<leader>ft` opens a real shell in a vertical pane beside the window it was pressed in: a full VT100/xterm emulation ([hinshun/vt10x](https://github.com/hinshun/vt10x)) reading whatever `$SHELL` (or `/bin/sh` with none set) writes to a pty ([creack/pty](https://github.com/creack/pty)). There is only ever one, the way there is only one markdown preview — pressing `<leader>ft` again finds it wherever it already is rather than opening a second shell — and it is never a toggle: the one key that reaches it cannot also be the one that kills it. Typing goes to the shell exactly as a real terminal would send it, `Ctrl-hjkl` included, which is what tells it apart from every other window; leaving it needs its own chord instead, `Ctrl-\` then `Ctrl-N` — the same two-key escape tmux and ssh use, for the same reason — which moves focus off the window without touching the shell running in it. Closing the window kills the shell; the shell exiting on its own (`exit`, `Ctrl-D` at an empty prompt) closes the window the same way, unless it is the last one left, which `E444` refuses same as it would any other. A pane resized — a new split, a dragged separator, the terminal itself growing — keeps the pty's own size caught up every frame.
 
 - **File picker** — `<leader><leader>` opens a popup over the middle of the screen listing every file under the project root — the repository the file being edited sits in, or its own directory when it is in none — with hidden directories left out, since `.git` alone holds more files than the tree being worked on. What is typed narrows the listing as a fuzzy match rather than a prefix, so `bfg` finds `buffers.go`, and what matched is ranked the way a picker is usually meant: the letters together, at the start of a word, and in the name rather than the directories leading to it. `Ctrl-N`/`Ctrl-P` (or the arrow keys) walk the listing, `Enter` opens the file settled on as a buffer, and `Esc` — or a backspace with nothing left to delete — closes the popup, leaving the buffer underneath untouched.
 
@@ -280,6 +283,8 @@ otherwise close a cycle.
 | `:vs` `:sp` | Normal | split the window (`:vs name` opens that file in it) |
 | `:clo` `:on` | Normal | close the window / every other window |
 | `<leader>mp` | Normal | open or close glow's rendering of the current markdown file, beside it |
+| `<leader>ft` | Normal | open a terminal beside the window, or focus it if already open |
+| `Ctrl-\` `Ctrl-N` | Terminal | detach focus from the terminal without killing the shell |
 | `gd` | Normal | jump to where the identifier under the cursor is declared, asking a language server first |
 | `gr` | Normal | list every mention of the identifier under the cursor, asking a language server first |
 | `<leader>cr` | Normal | rename the identifier under the cursor as far as it reaches |
