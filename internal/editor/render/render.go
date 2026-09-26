@@ -29,6 +29,10 @@ func Text(e *state.Editor, entry *view.Entry) {
 		previewText(e, entry)
 		return
 	}
+	if entry.Terminal != nil {
+		terminalText(e, entry)
+		return
+	}
 
 	bufLen := e.Buf.LineCount()
 	gutterCols := gutter.Width(bufLen)
@@ -107,6 +111,26 @@ func previewText(e *state.Editor, entry *view.Entry) {
 
 		screenRow := e.ScreenRow(row)
 		cells := rows[srcRow]
+		for col := 0; col < e.Cols && col < len(cells); col++ {
+			c := cells[col]
+			termbox.SetCell(e.ScreenCol(col), screenRow, c.Ch, c.Fg, c.Bg)
+		}
+	}
+}
+
+// terminalText draws the shell's own screen cell for cell: whatever the pty
+// last produced, already coloured by the emulator reading it. There is no
+// independent scroll to apply — the pty is kept sized to the window, so its
+// rows map straight onto the ones drawn.
+func terminalText(e *state.Editor, entry *view.Entry) {
+	rows := entry.Terminal.Snapshot()
+	for row := range e.Rows {
+		if row >= len(rows) {
+			continue
+		}
+
+		screenRow := e.ScreenRow(row)
+		cells := rows[row]
 		for col := 0; col < e.Cols && col < len(cells); col++ {
 			c := cells[col]
 			termbox.SetCell(e.ScreenCol(col), screenRow, c.Ch, c.Fg, c.Bg)
@@ -216,6 +240,8 @@ func Status(e *state.Editor) string {
 		modeStatus = " REPLACE: "
 	case e.Mode == state.EditMode:
 		modeStatus = " EDIT: "
+	case e.Mode == state.TerminalMode:
+		modeStatus = " TERMINAL: "
 	case e.Mode == state.VisualMode && e.VisualLine:
 		modeStatus = " V-LINE: "
 	case e.Mode == state.VisualMode:
