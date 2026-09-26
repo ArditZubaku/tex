@@ -14,6 +14,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/history"
+	"github.com/ArditZubaku/tex/internal/editor/preview"
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
 	"github.com/ArditZubaku/tex/internal/project"
@@ -34,6 +35,12 @@ type Entry struct {
 	OffsetRow, OffsetCol int
 	Modified             bool
 	Hist                 history.History
+
+	// ReadOnly marks the pane glow renders a markdown buffer into: never a
+	// window a key can reach, so nothing above this checks it against
+	// anything but focus.
+	ReadOnly     bool
+	PreviewCells [][]preview.Cell
 }
 
 var (
@@ -88,6 +95,7 @@ func loadBuffer(e *state.Editor, index int) {
 	e.OffsetRow, e.OffsetCol = entry.OffsetRow, entry.OffsetCol
 	CurrentWindow(e).Entry = entry
 	e.ClampCol()
+	MaybeOpenPreview(e)
 }
 
 // applyEntry makes a buffer the one being worked on, history and all; where the
@@ -223,6 +231,9 @@ func Drop(e *state.Editor, path string) bool {
 
 	SyncBuffer(e)
 	gone, live := buffers[at], buffers[currentBuffer]
+	if previewSource == gone {
+		closePreview(e)
+	}
 	gone.Buf.Close()
 	buffers = slices.Delete(buffers, at, at+1)
 	currentBuffer = slices.Index(buffers, live)
@@ -268,6 +279,9 @@ func CloseBuffer(e *state.Editor, force bool) {
 
 	SyncWindow(e)
 	gone := buffers[currentBuffer]
+	if previewSource == gone {
+		closePreview(e)
+	}
 	e.Buf.Close()
 	buffers = slices.Delete(buffers, currentBuffer, currentBuffer+1)
 	if len(buffers) == 0 {
@@ -327,6 +341,9 @@ func closeBuffersWhere(e *state.Editor, what string, drop func(int) bool) {
 	kept := make([]*Entry, 0, len(buffers)-len(doomed))
 	for _, entry := range buffers {
 		if slices.Contains(doomed, entry) {
+			if previewSource == entry {
+				closePreview(e)
+			}
 			entry.Buf.Close()
 			continue
 		}

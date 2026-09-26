@@ -36,6 +36,8 @@ func Reset() {
 	buffers, currentBuffer, altPath = nil, 0, ""
 	root, current, separators = nil, nil, nil
 	dragging.on = false
+	previewWin, previewSource, previewWidth = nil, nil, 0
+	clear(dismissed)
 }
 
 func Separators() []layout.Separator { return separators }
@@ -151,7 +153,7 @@ func Split(e *state.Editor, vertical bool) bool {
 // the buffer list, unsaved changes and all, so closing a window loses nothing.
 func CloseWindow(e *state.Editor) {
 	list := List(e)
-	if len(list) < 2 {
+	if realCount(list) < 2 {
 		e.StatusMsg = "E444: Cannot close last window"
 		return
 	}
@@ -159,6 +161,10 @@ func CloseWindow(e *state.Editor) {
 	SyncWindow(e)
 	next := slices.Index(list, current)
 	root = root.Prune(current)
+	if previewSource == current.Entry {
+		root = root.Prune(previewWin)
+		previewWin, previewSource = nil, nil
+	}
 	Layout(e)
 
 	list = List(e)
@@ -166,10 +172,13 @@ func CloseWindow(e *state.Editor) {
 }
 
 // OnlyWindow is ':only' and 'Ctrl-W o': every other window is closed, leaving
-// the one being worked in with the whole area to itself.
+// the one being worked in with the whole area to itself. The preview is never
+// that window — it can never be the one being worked in — so it always goes
+// with the rest.
 func OnlyWindow(e *state.Editor) {
 	SyncWindow(e)
 	root = layout.Leaf(current)
+	previewWin, previewSource = nil, nil
 	Layout(e)
 	applyWindow(e, current)
 }
@@ -191,6 +200,9 @@ var dragging struct {
 func Mouse(e *state.Editor, event termbox.Event) {
 	switch {
 	case event.Key != termbox.MouseLeft:
+		if dragging.on {
+			SettlePreviewResize(e)
+		}
 		dragging.on = false
 	case event.Mod&termbox.ModMotion == 0:
 		takeEdge(e, event.MouseY, event.MouseX)
@@ -254,7 +266,7 @@ func focusDirection(e *state.Editor, dRow, dCol int) {
 	var best *Window
 	bestGap := 0
 	for _, other := range List(e) {
-		if other == w {
+		if other == w || other.Entry.ReadOnly {
 			continue
 		}
 
