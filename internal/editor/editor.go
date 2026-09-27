@@ -86,7 +86,7 @@ func Run(args []string) {
 		ed.Hov.Draw(ed.ScreenArea(), ed.CursorScreenRow(), ed.CursorScreenCol(), &ed.Palette)
 		ed.Comp.Draw(ed.ScreenArea(), ed.CursorScreenRow(), ed.CursorScreenCol(), &ed.Palette)
 		render.NoteDiagnostic(ed)
-		ed.Note.Draw(ed.NotifyArea(), &ed.Palette)
+		ed.Note.Draw(ed.NotifyArea(), ed.CursorScreenRow(), &ed.Palette)
 		render.StatusBar(ed)
 
 		switch ed.Mode {
