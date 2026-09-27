@@ -20,7 +20,7 @@ func TestTheBoxSitsInTheTopRightCorner(t *testing.T) {
 	n.Show("gofmt", "expected declaration")
 
 	within := layout.Rect{Row: 1, Col: 0, Rows: 24, Cols: 80}
-	_, frame := n.frame(within)
+	_, frame := n.frame(within, within.Row+10) // cursor well clear of the box
 
 	if frame.Row != within.Row {
 		t.Errorf("row = %d, want the top row of the area", frame.Row)
@@ -30,11 +30,24 @@ func TestTheBoxSitsInTheTopRightCorner(t *testing.T) {
 	}
 }
 
+func TestTheBoxDropsToTheBottomRightWhenTheCursorIsUnderIt(t *testing.T) {
+	var n Note
+	n.Show("gofmt", "expected declaration")
+
+	within := layout.Rect{Row: 1, Col: 0, Rows: 24, Cols: 80}
+	_, frame := n.frame(within, within.Row)
+
+	if bottom := frame.Row + frame.Rows; bottom != within.Row+within.Rows {
+		t.Errorf("bottom = %d, want the area's own bottom %d", bottom, within.Row+within.Rows)
+	}
+}
+
 func TestTheBoxIsSizedToTheMessage(t *testing.T) {
 	var n Note
 	n.Show("gofmt", "short")
 
-	_, frame := n.frame(layout.Rect{Row: 1, Rows: 24, Cols: 200})
+	within := layout.Rect{Row: 1, Rows: 24, Cols: 200}
+	_, frame := n.frame(within, within.Row+10)
 
 	if frame.Cols > maxCols || frame.Rows != 3 {
 		t.Errorf("frame = %dx%d, want one line inside a frame no wider than %d", frame.Cols, frame.Rows, maxCols)
@@ -45,7 +58,8 @@ func TestALongMessageIsCutToTheRowsTheBoxHas(t *testing.T) {
 	var n Note
 	n.Show("gofmt", strings.Repeat("word ", 200))
 
-	lines, frame := n.frame(layout.Rect{Row: 1, Rows: 24, Cols: 80})
+	within := layout.Rect{Row: 1, Rows: 24, Cols: 80}
+	lines, frame := n.frame(within, within.Row+10)
 
 	if len(lines) != maxRows-2 || frame.Rows != maxRows {
 		t.Errorf("frame = %d rows over %d lines, want %d", frame.Rows, len(lines), maxRows)

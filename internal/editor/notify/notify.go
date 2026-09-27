@@ -75,13 +75,13 @@ func (n *Note) Showing() bool {
 	return n.text != "" && now().Sub(n.raised) < ttl
 }
 
-func (n *Note) Draw(within layout.Rect, palette *theme.Palette) {
+func (n *Note) Draw(within layout.Rect, cursorRow int, palette *theme.Palette) {
 	if !n.Showing() {
 		n.Clear() // one whose time has run out is dropped rather than asked again
 		return
 	}
 
-	lines, frame := n.frame(within)
+	lines, frame := n.frame(within, cursorRow)
 	if frame.Cols < minCols || len(lines) == 0 {
 		return
 	}
@@ -101,8 +101,11 @@ func (n *Note) Draw(within layout.Rect, palette *theme.Palette) {
 
 // frame is where the box goes and what it holds: the top-right corner of the
 // area, sized to the message rather than to the screen, since an error of a few
-// words has no business covering a corner's worth of the file.
-func (n *Note) frame(within layout.Rect) ([]string, layout.Rect) {
+// words has no business covering a corner's worth of the file. But a short file
+// or a narrow window leaves no corner that isn't also the line being edited, so
+// a box that would land on the cursor's own row drops to the bottom-right
+// instead.
+func (n *Note) frame(within layout.Rect, cursorRow int) ([]string, layout.Rect) {
 	lines := screen.Wrap(n.text, min(maxCols, within.Cols)-4) // the frame's edges and a space either side
 	if len(lines) > maxRows-2 {
 		lines = lines[:maxRows-2]
@@ -113,11 +116,17 @@ func (n *Note) frame(within layout.Rect) ([]string, layout.Rect) {
 		widest = max(widest, runewidth.StringWidth(line))
 	}
 	cols := min(widest+4, within.Cols)
+	rows := len(lines) + 2
+
+	row := within.Row
+	if cursorRow >= row && cursorRow < row+rows {
+		row = max(within.Row, within.Row+within.Rows-rows)
+	}
 
 	return lines, layout.Rect{
-		Row:  within.Row,
+		Row:  row,
 		Col:  within.Col + within.Cols - cols,
-		Rows: len(lines) + 2,
+		Rows: rows,
 		Cols: cols,
 	}
 }
