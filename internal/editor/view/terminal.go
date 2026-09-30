@@ -120,6 +120,14 @@ func TerminalKey(e *state.Editor, keyEvent termbox.Event) {
 	sess.Write(terminal.Encode(keyEvent, sess.AppCursor()))
 }
 
+// TerminalPaste is a paste landing on a focused terminal: one write of the
+// text itself, the way a real terminal hands a paste to the program running
+// in it, rather than the many writes Encode-ing it a character at a time
+// would take.
+func TerminalPaste(text string) {
+	current.Entry.Terminal.Write([]byte(text))
+}
+
 func detach(e *state.Editor) {
 	for _, w := range List(e) {
 		if w != current {
