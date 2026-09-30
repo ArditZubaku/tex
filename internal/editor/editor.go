@@ -36,6 +36,7 @@ func Run(args []string) {
 	// which is what Shift held down goes on doing in every terminal worth the
 	// name.
 	termbox.SetInputMode(termbox.InputEsc | termbox.InputMouse)
+	setBracketedPaste(true)
 
 	ed := state.New()
 
@@ -117,7 +118,23 @@ func Run(args []string) {
 
 	lsp.Stop()
 	view.CloseAll(ed)
+	setBracketedPaste(false)
 	termbox.Close()
+}
+
+// setBracketedPaste asks the terminal to wrap a paste in the markers screen.Next
+// looks for, or to stop. It goes straight to stdout rather than through
+// termbox, which has no idea what DECSET 2004 is and so has nothing to hand
+// it through; written only either side of termbox's own output, this can
+// never land mid-frame. A second, independent open of /dev/tty — rather than
+// the terminal's already-open stdout — is what termbox's own reader was once
+// found not to survive, so this must never do that again.
+func setBracketedPaste(on bool) {
+	seq := "\x1b[?2004h"
+	if !on {
+		seq = "\x1b[?2004l"
+	}
+	_, _ = os.Stdout.WriteString(seq)
 }
 
 // open is the list handed to the reconciler, kept between frames so that saying
