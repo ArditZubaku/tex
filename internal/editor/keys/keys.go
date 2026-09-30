@@ -19,9 +19,36 @@ import (
 )
 
 func Read(e *state.Editor) {
-	keyEvent, isKey := screen.Key()
+	event, isKey, pasted, isPaste := screen.Next()
+	if isPaste {
+		Paste(e, pasted)
+		return
+	}
 
-	Handle(e, keyEvent, isKey)
+	Handle(e, event, isKey)
+}
+
+// Paste is text the terminal marked out as pasted, landing whole rather than
+// as the keys that typed it: Edit mode splices it into the buffer verbatim, a
+// focused terminal forwards it in one write the way a real terminal would,
+// and everywhere else reads it back through Dispatch one character at a time,
+// exactly as if it had been typed — a paste there is rare enough that giving
+// it its own handling isn't worth the risk of new bugs in the meantime.
+func Paste(e *state.Editor, text string) {
+	switch e.Mode {
+	case state.TerminalMode:
+		view.TerminalPaste(text)
+	case state.EditMode:
+		edit.InsertText(e, text)
+	default:
+		for _, ch := range text {
+			if ch == '\n' {
+				Dispatch(e, termbox.Event{Key: termbox.KeyEnter})
+				continue
+			}
+			Dispatch(e, termbox.Event{Ch: ch})
+		}
+	}
 }
 
 // Handle is one event off the terminal. Anything that was not a key is a frame
