@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 	"unicode/utf8"
 )
 
@@ -20,6 +21,7 @@ import (
 type Buffer struct {
 	file  *os.File
 	size  int64
+	mtime time.Time
 	count int
 
 	starts          []int64 // byte offset of each line's first byte
@@ -47,6 +49,12 @@ type Buffer struct {
 // permanently stale. A change reached through another counts twice, which
 // nothing minds: the number is compared, never subtracted.
 func (b *Buffer) Revision() int { return b.revision }
+
+// DiskStat is what the buffer last read or wrote the file as: the size and
+// modification time a watcher compares a fresh stat against to tell a change
+// that landed from outside tex apart from the buffer's own last save coming
+// back around as an event. Zero for a buffer with nothing real behind it.
+func (b *Buffer) DiskStat() (size int64, mtime time.Time) { return b.size, b.mtime }
 
 // An edit is one line the overlay holds, together with the row it is on. They
 // are kept in row order rather than in a map so that inserting or deleting a
@@ -160,6 +168,7 @@ func Open(name string) *Buffer {
 	return &Buffer{
 		file:            file,
 		size:            info.Size(),
+		mtime:           info.ModTime(),
 		count:           len(starts),
 		starts:          starts,
 		endsWithNewline: last[0] == '\n',
@@ -325,6 +334,15 @@ func (b *Buffer) reopen(path string, starts []int64, size int64) {
 		return
 	}
 
+	// Stat rather than time.Now(): a watcher compares this against a later stat
+	// of the same file, and the two must agree on whose clock measured it.
+	mtime := time.Now()
+	if info, err := file.Stat(); err != nil {
+		slog.Error("Failed to stat the reopened file", "path", path, "error", err)
+	} else {
+		mtime = info.ModTime()
+	}
+
 	// The count has to survive being pointed at another file, and go up: what
 	// holds a copy of the text compares the two, and a count that started again
 	// from nothing would read as a copy that is already current — leaving it
@@ -335,6 +353,7 @@ func (b *Buffer) reopen(path string, starts []int64, size int64) {
 	*b = Buffer{
 		file:            file,
 		size:            size,
+		mtime:           mtime,
 		count:           len(starts),
 		starts:          starts,
 		endsWithNewline: endsWithNewline,
@@ -354,6 +373,50 @@ func (b *Buffer) Reload(path string) {
 	b.Close()
 	*b = *Open(path)
 	b.revision = revision
+}
+
+// Resync re-reads path's size, index and window from disk without touching the
+// overlay. A conflict that keeps unsaved edits rather than reloading still
+// leaves every *unedited* line read through the old index and the old handle;
+// against a file that has since changed size underneath them, that index
+// hands back whatever bytes now sit at its old offsets, not the lines they
+// used to be. Resync is what a conflict needs instead of Reload: the file
+// behind the buffer catches up, the edits the overlay holds do not move.
+func (b *Buffer) Resync(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	info, err := file.Stat()
+	if err != nil {
+		closeFile(file)
+		return err
+	}
+
+	endsWithNewline := false
+	if info.Size() > 0 {
+		last := make([]byte, 1)
+		if _, err := file.ReadAt(last, info.Size()-1); err != nil {
+			closeFile(file)
+			return err
+		}
+		endsWithNewline = last[0] == '\n'
+	}
+
+	starts := buildIndex(file, info.Size())
+	if len(starts) == 0 {
+		starts = []int64{0} // an empty file is still one (empty) line, as NewEmpty has it
+	}
+
+	b.Close()
+	b.file, b.size, b.mtime = file, info.Size(), info.ModTime()
+	b.count, b.starts, b.endsWithNewline = len(starts), starts, endsWithNewline
+	b.win, b.winFrom, b.winTo = b.win[:0], -1, -1
+	b.cacheOK = false
+	b.revision++
+
+	return nil
 }
 
 func (b *Buffer) Close() {
