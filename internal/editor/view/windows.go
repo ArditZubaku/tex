@@ -7,6 +7,7 @@ import (
 
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/state"
+	"github.com/ArditZubaku/tex/internal/editor/watch"
 	"github.com/ArditZubaku/tex/internal/layout"
 )
 
@@ -44,6 +45,7 @@ func Reset() {
 		terminalWin.Entry.Terminal.Kill()
 	}
 	terminalWin = nil
+	watch.Reset()
 }
 
 func Separators() []layout.Separator { return separators }

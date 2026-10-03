@@ -16,6 +16,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/terminal"
 	"github.com/ArditZubaku/tex/internal/editor/view"
+	"github.com/ArditZubaku/tex/internal/editor/watch"
 	"github.com/ArditZubaku/tex/internal/lsp"
 	"github.com/ArditZubaku/tex/internal/syntax"
 )
@@ -51,6 +52,7 @@ func Run(args []string) {
 	ed.Lang = syntax.Detect(ed.SourceFile)
 	lsp.Wake(screen.StartWaker())
 	terminal.Wake(screen.StartWaker())
+	watch.Wake(screen.StartWaker())
 	// Nothing below state may reach back up to what holds the diagnostics, and
 	// nothing in the language server may reach the editor at all, so the loop
 	// is what joins them.
@@ -74,6 +76,7 @@ func Run(args []string) {
 		view.MaybeOpenPreview(ed)
 		lsp.Poll()
 		view.PollTerminal(ed)
+		view.PollWatch(ed)
 		tellServer(ed)
 
 		if err := termbox.Clear(ed.Palette.Plain, ed.Palette.Background); err != nil {
