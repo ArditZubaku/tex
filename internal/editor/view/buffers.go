@@ -18,6 +18,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/editor/state"
 	"github.com/ArditZubaku/tex/internal/editor/tabbar"
 	"github.com/ArditZubaku/tex/internal/editor/terminal"
+	"github.com/ArditZubaku/tex/internal/editor/watch"
 	"github.com/ArditZubaku/tex/internal/project"
 	"github.com/ArditZubaku/tex/internal/syntax"
 )
@@ -56,6 +57,16 @@ var (
 
 func Buffers() []*Entry { return buffers }
 
+// watchEntry starts watching an entry's file for changes from outside tex,
+// unless it has nothing real behind it: a brand new, never-saved buffer has a
+// zero DiskStat, and watching its path would just as likely catch some
+// unrelated file that happens to already sit there.
+func watchEntry(entry *Entry) {
+	if _, mtime := entry.Buf.DiskStat(); !mtime.IsZero() {
+		watch.Add(entry.Path)
+	}
+}
+
 func Index() int { return currentBuffer }
 
 // CurrentEntry adopts the buffer the editor started with when the list is still
@@ -64,6 +75,7 @@ func Index() int { return currentBuffer }
 func CurrentEntry(e *state.Editor) *Entry {
 	if len(buffers) == 0 {
 		buffers, currentBuffer = []*Entry{{Buf: e.Buf, Path: e.SourceFile, Lang: e.Lang}}, 0
+		watchEntry(buffers[0])
 	}
 
 	return buffers[currentBuffer]
@@ -160,7 +172,9 @@ func Open(e *state.Editor, path string) {
 	if e.Mode == state.VisualMode {
 		edit.ExitVisual(e)
 	}
-	buffers = append(buffers, &Entry{Buf: buffer.Open(path), Path: path, Lang: syntax.Detect(path)})
+	entry := &Entry{Buf: buffer.Open(path), Path: path, Lang: syntax.Detect(path)}
+	buffers = append(buffers, entry)
+	watchEntry(entry)
 	loadBuffer(e, len(buffers)-1)
 }
 
@@ -224,6 +238,7 @@ func Adopt(e *state.Editor, path string, b *buffer.Buffer, hist history.History)
 
 	entry := &Entry{Buf: b, Path: path, Lang: syntax.Detect(path), Modified: true, Hist: hist}
 	buffers = append(buffers, entry)
+	watchEntry(entry)
 
 	return entry
 }
@@ -246,6 +261,7 @@ func Drop(e *state.Editor, path string) bool {
 	if previewSource == gone {
 		closePreview(e)
 	}
+	watch.Remove(gone.Path)
 	gone.Buf.Close()
 	buffers = slices.Delete(buffers, at, at+1)
 	currentBuffer = slices.Index(buffers, live)
@@ -266,7 +282,9 @@ func Rename(e *state.Editor, oldPath, newPath string) bool {
 	found := false
 
 	if at := BufferIndex(oldPath); at >= 0 {
+		watch.Remove(oldPath)
 		buffers[at].Path, buffers[at].Lang = newPath, lang
+		watchEntry(buffers[at])
 		found = true
 	}
 	if absPath(e.SourceFile) == absPath(oldPath) {
@@ -294,6 +312,7 @@ func CloseBuffer(e *state.Editor, force bool) {
 	if previewSource == gone {
 		closePreview(e)
 	}
+	watch.Remove(gone.Path)
 	e.Buf.Close()
 	buffers = slices.Delete(buffers, currentBuffer, currentBuffer+1)
 	if len(buffers) == 0 {
@@ -356,6 +375,7 @@ func closeBuffersWhere(e *state.Editor, what string, drop func(int) bool) {
 			if previewSource == entry {
 				closePreview(e)
 			}
+			watch.Remove(entry.Path)
 			entry.Buf.Close()
 			continue
 		}
@@ -410,6 +430,14 @@ func UnsavedBuffers(e *state.Editor) []*Entry {
 
 func Unwritten(entry *Entry) string {
 	return fmt.Sprintf("E162: No write since last change for buffer %q", entry.Path)
+}
+
+// ChangedOnDisk is PollWatch's own W11, VIM's real warning for a file that
+// changed since editing started: the buffer holds changes of its own, so the
+// reload that would otherwise be silent is left undone instead, and this is
+// the only sign of it.
+func ChangedOnDisk(entry *Entry) string {
+	return fmt.Sprintf("W11: Warning: File %q has changed since editing started", entry.Path)
 }
 
 func BufferIndex(path string) int {
