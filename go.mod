@@ -6,6 +6,9 @@ require github.com/nsf/termbox-go v1.1.1
 
 require (
 	github.com/creack/pty v1.1.24
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/hinshun/vt10x v0.0.0-20220301184237-5011da428d02
 	github.com/mattn/go-runewidth v0.0.9
 )
+
+require golang.org/x/sys v0.13.0 // indirect
