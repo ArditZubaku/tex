@@ -43,6 +43,13 @@ func Start(cols, rows int) (*Session, error) {
 	return start(exec.Command(shell), cols, rows)
 }
 
+// StartCommand is one command rather than a shell, sized to cols by rows —
+// 'git show' piped through whatever pager it finds configured, the same way
+// running it by hand in a real terminal would be.
+func StartCommand(name string, args []string, cols, rows int) (*Session, error) {
+	return start(exec.Command(name, args...), cols, rows)
+}
+
 func start(cmd *exec.Cmd, cols, rows int) (*Session, error) {
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
 
