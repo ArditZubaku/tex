@@ -45,6 +45,10 @@ func Reset() {
 		terminalWin.Entry.Terminal.Kill()
 	}
 	terminalWin = nil
+	if gitShowWin != nil {
+		gitShowWin.Entry.Terminal.Kill()
+	}
+	gitShowWin = nil
 	watch.Reset()
 }
 
@@ -195,6 +199,10 @@ func CloseWindow(e *state.Editor) {
 		terminalWin.Entry.Terminal.Kill()
 		terminalWin = nil
 	}
+	if gitShowWin == current {
+		gitShowWin.Entry.Terminal.Kill()
+		gitShowWin = nil
+	}
 	Layout(e)
 
 	list = List(e)
@@ -210,6 +218,10 @@ func OnlyWindow(e *state.Editor) {
 	if terminalWin != nil && terminalWin != current {
 		terminalWin.Entry.Terminal.Kill()
 		terminalWin = nil
+	}
+	if gitShowWin != nil && gitShowWin != current {
+		gitShowWin.Entry.Terminal.Kill()
+		gitShowWin = nil
 	}
 	root = layout.Leaf(current)
 	previewWin, previewSource = nil, nil
@@ -236,6 +248,7 @@ func Mouse(e *state.Editor, event termbox.Event) {
 	case event.Key != termbox.MouseLeft:
 		if dragging.on {
 			SettlePreviewResize(e)
+			SettleGitShowResize(e)
 		}
 		dragging.on = false
 	case event.Mod&termbox.ModMotion == 0:

@@ -409,6 +409,9 @@ func CloseAll(e *state.Editor) {
 	if terminalWin != nil {
 		terminalWin.Entry.Terminal.Kill()
 	}
+	if gitShowWin != nil {
+		gitShowWin.Entry.Terminal.Kill()
+	}
 }
 
 // UnsavedBuffers is every buffer holding changes that are not on disk, the one

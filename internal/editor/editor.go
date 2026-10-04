@@ -76,6 +76,7 @@ func Run(args []string) {
 		view.MaybeOpenPreview(ed)
 		lsp.Poll()
 		view.PollTerminal(ed)
+		view.PollGitShow(ed)
 		view.PollWatch(ed)
 		tellServer(ed)
 
