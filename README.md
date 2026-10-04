@@ -65,6 +65,7 @@ internal/
   search/               a literal pattern matched over a buffer
   decl/                 what a declaration looks like: gd, gr and the symbols
   project/              the tree the file sits in, and the files beside it
+  git/                  the subprocess calls made of git itself — so far, just blame
   lsp/                  a language server: the framing, the handshake, the documents, the lookups
   layout/               the window tree: splits, closes, the shares they divide and the edges between them
   editor/               the loop: draw a frame, read a key, repeat
@@ -82,6 +83,7 @@ internal/
     state/              the editor being run: cursor, mode, buffer, room
     edit/               typing, deleting, yank and put, the Visual selection
     rename/             <leader>cr: a name, and how far it reaches
+    blame/              <leader>gb/<leader>gs: who touched the current line and when, or the patch itself
     view/               the buffer list and the window tree
     diag/               what a language server said about a line, and where it moved to
     command/            the ':' commands, and the file writing they share
@@ -94,12 +96,12 @@ internal/
 
 Nothing below `editor` imports it, and nothing imports `editor` but `main`, so
 the dependencies run one way. Under `internal/`, `chars`, `theme`, `buffer`,
-`gutter`, `project` and `layout` depend on nothing of the editor's, `syntax` on
+`gutter`, `project`, `git` and `layout` depend on nothing of the editor's, `syntax` on
 `chars` and `theme`, `fuzzy` and `decl` on `chars`, `search` and `lsp` on
 `buffer`, and `motion` on both. Under `editor/`, `screen`, `history`, `register`,
 `picker`, `filetree`, `tabbar`, `prompt` and `hover` are leaves in the same way;
 `state` holds them and is what every command below takes as its one argument —
-`edit` first, then `view` on top of it, then `rename` and `diag`, with `command`,
+`edit` first, then `view` on top of it, then `rename`, `diag` and `blame`, with `command`,
 `find` and `explorer` above them and `render` and `keys` reading all of them.
 
 What is left in `editor` itself is the loop: it makes the one `state.Editor`,
@@ -189,6 +191,12 @@ otherwise close a cycle.
 - **Hover** — `K` on an identifier is what a language server knows about it, in a box beside the cursor: the signature, the type, and the doc comment above the declaration. It is VIM's own `K` with the server where the man page used to be, and there is nothing behind it in the text — a doc comment read off the file is what `gd` is for, and `gd` goes to the file rather than quoting it back at you, so with no server running `K` says so and leaves it there.
 
   The box goes *under* the cursor's line, since one drawn over it would hide the thing being asked about, and above it when there is no room below; it is sized to the answer and pulled left to stay on the screen. What the server sends is markup, and a terminal has no bold and no headings to draw it with, so the fences come off and what is left is the text: a fenced signature keeps the line breaks it was written with — it is code, and rewrapping it across a comma reads worse than cutting it — while the prose is joined into a paragraph and wrapped to the box's own width. An answer longer than the box scrolls under the mouse wheel rather than being cut, three lines at a time and clamped at both ends. The wheel only scrolls it while the cursor sits over the box; anywhere else on the screen it comes down the same as a key press would, and any key at all — the wheel included, off the box — brings it down the way the status line's own message does; nothing about it is waited for, so the box appears a frame or two after `K` and the keyboard is never held.
+
+- **Git blame** — `<leader>gb` on a line asks git who last touched it, in the same box `K`'s answer goes in: the short hash, the author, how long ago (`3d ago`, `2mo ago`, …) and the commit's own summary. It runs `git blame -L n,n --line-porcelain` over the file as last saved — the same one-shot subprocess the file picker's `git ls-files` already is, under the same five-second timeout — so an edit not yet written to disk can leave it answering for the wrong line until the file is saved, and a line never committed at all comes back as git's own `Not Committed Yet` rather than an error. Outside a repository, or with no `git` on the `PATH`, git's own complaint goes on the status line instead of opening the box.
+
+  `<leader>gs` goes one step further: `git show <hash> -- file` — scoped away from anything else the commit touched — run inside a real pty in a split to the right, the same primitive the terminal (`<leader>ft`) is built on. Git sees an actual terminal on the other end of it, so it pages and colours the diff through whatever it finds configured — [delta](https://github.com/dandavison/delta), if that is set up as `core.pager`, plain `less` otherwise — exactly as it would running by hand rather than through a pipe. The pane is Terminal mode like the shell is: the pager's own keys scroll and search it, and `q` ending `less` ends `git show` with it, which closes the window the same way the shell exiting does. Asking about a different line replaces what is running rather than opening a second pane — there is only ever one, the same rule the terminal itself and the markdown preview both keep to. A line with nothing committed yet has no commit to show, so `<leader>gs` says that on the status line instead of opening anything.
+
+  Dragging the line beside it runs `git show` again at the new width rather than leaving it be: git and delta each measure the pane once and format to that, the way glow does for the markdown preview, so the pty quietly being resized underneath them is not enough — nothing short of asking again picks up a width they have already finished with. Like the preview's own re-render, this waits for the drag to let go rather than running on every column it crosses.
 
 - **Rename** — `<leader>cr` on an identifier is LazyVim's rename with the same text behind it rather than a language server: the `:` line opens on `:rename target` with the name already typed, so it is edited into the new one rather than retyped, and `Enter` renames it as far as it reaches. What a rename has to get right is *which* mentions are the same thing rather than the same spelling, and that is read off the declaration:
 
@@ -294,6 +302,8 @@ otherwise close a cycle.
 | `:wa` | Normal | write and format every buffer with unsaved changes |
 | `K` | Normal | show what a language server knows about the identifier under the cursor |
 | wheel over the hover box | Normal | scroll it, three lines at a time |
+| `<leader>gb` | Normal | show who last touched the current line, and when, read off disk |
+| `<leader>gs` | Normal | open that commit's patch in a pty to the right, paged and coloured by git's own pager |
 | `Ctrl-Space` | Insert | ask for completions where the cursor is, menu up or not |
 | `Ctrl-N` | Insert | open the completion menu on the word being typed, and step down it once it is up |
 | `Ctrl-P` | Insert | step up the completion menu |
