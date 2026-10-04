@@ -8,6 +8,7 @@ import (
 
 	"github.com/nsf/termbox-go"
 
+	"github.com/ArditZubaku/tex/internal/editor/blame"
 	"github.com/ArditZubaku/tex/internal/editor/command"
 	"github.com/ArditZubaku/tex/internal/editor/edit"
 	"github.com/ArditZubaku/tex/internal/editor/explorer"
@@ -251,6 +252,8 @@ func chordKeys() map[string]func(*state.Editor) {
 		" br": view.CloseBuffersRight,
 		" ca": find.OpenCodeActions,
 		" cr": rename.Start,
+		" gb": blame.ShowLine,
+		" gs": blame.ShowDiff,
 		" sh": view.SplitRight,
 		" sv": view.SplitBelow,
 		" ss": find.OpenSymbols,
