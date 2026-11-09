@@ -91,6 +91,7 @@ func InReadMode(t *testing.T, e *state.Editor, content string, row, col int) *bu
 	e.Comp.Close()
 	e.Quitting, e.Palette = false, theme.Default()
 	e.ExplorerOpen, e.Exp = false, filetree.Tree{}
+	e.Form.Close()
 	view.Reset()
 	render.Reset()
 	diag.Reset()

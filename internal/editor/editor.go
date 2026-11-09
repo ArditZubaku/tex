@@ -88,6 +88,7 @@ func Run(args []string) {
 		render.BufferLine(ed)
 		render.Windows(ed)
 		find.DrawPicker(ed)
+		find.DrawReplace(ed)
 		ed.Hov.Draw(ed.ScreenArea(), ed.CursorScreenRow(), ed.CursorScreenCol(), &ed.Palette)
 		ed.Comp.Draw(ed.ScreenArea(), ed.CursorScreenRow(), ed.CursorScreenCol(), &ed.Palette)
 		render.NoteDiagnostic(ed)
@@ -99,6 +100,8 @@ func Run(args []string) {
 			termbox.SetCursor(ed.PromptCol(), ed.StatusRow())
 		case state.PickerMode:
 			termbox.SetCursor(ed.Pick.CursorCol(ed.ScreenArea()), ed.Pick.CursorRow(ed.ScreenArea()))
+		case state.FormMode:
+			termbox.SetCursor(ed.Form.CursorCol(ed.ScreenArea()), ed.Form.CursorRow(ed.ScreenArea()))
 		case state.ExplorerMode:
 			termbox.SetCursor(ed.ScreenCol(0), explorer.CursorRow(ed))
 		case state.TerminalMode:

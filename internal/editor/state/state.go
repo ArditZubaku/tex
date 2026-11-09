@@ -9,6 +9,7 @@ import (
 	"github.com/ArditZubaku/tex/internal/buffer"
 	"github.com/ArditZubaku/tex/internal/editor/complete"
 	"github.com/ArditZubaku/tex/internal/editor/filetree"
+	"github.com/ArditZubaku/tex/internal/editor/form"
 	"github.com/ArditZubaku/tex/internal/editor/history"
 	"github.com/ArditZubaku/tex/internal/editor/hover"
 	"github.com/ArditZubaku/tex/internal/editor/notify"
@@ -32,6 +33,7 @@ const (
 	ExplorerMode
 	PickerMode
 	TerminalMode
+	FormMode
 )
 
 // DefaultFileName is what an unnamed buffer writes to, the editor's own stand-in
@@ -120,6 +122,7 @@ type Editor struct {
 	Hov          hover.Box
 	Comp         complete.Menu
 	Pick         picker.Picker
+	Form         form.Form
 	Exp          filetree.Tree
 	ExplorerOpen bool
 

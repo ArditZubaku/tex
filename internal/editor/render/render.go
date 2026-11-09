@@ -242,6 +242,8 @@ func Status(e *state.Editor) string {
 		modeStatus = " EDIT: "
 	case e.Mode == state.TerminalMode:
 		modeStatus = " TERMINAL: "
+	case e.Mode == state.FormMode:
+		modeStatus = " FIND/REPLACE: "
 	case e.Mode == state.VisualMode && e.VisualLine:
 		modeStatus = " V-LINE: "
 	case e.Mode == state.VisualMode:

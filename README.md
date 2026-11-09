@@ -76,6 +76,7 @@ internal/
     filetree/           the directory listing <leader>e draws
     tabbar/             the buffer line along the top
     prompt/             the line of input / ? and : are typed on
+    form/               the boxes <leader>fr is typed into: a pattern, and what replaces it
     hover/              the box K's answer goes in, and its markup as plain text
     complete/           the menu of candidates under the word being typed
     preview/            glow's rendering of a markdown file, and whether it is installed
@@ -99,7 +100,7 @@ the dependencies run one way. Under `internal/`, `chars`, `theme`, `buffer`,
 `gutter`, `project`, `git` and `layout` depend on nothing of the editor's, `syntax` on
 `chars` and `theme`, `fuzzy` and `decl` on `chars`, `search` and `lsp` on
 `buffer`, and `motion` on both. Under `editor/`, `screen`, `history`, `register`,
-`picker`, `filetree`, `tabbar`, `prompt` and `hover` are leaves in the same way;
+`picker`, `filetree`, `tabbar`, `prompt`, `form` and `hover` are leaves in the same way;
 `state` holds them and is what every command below takes as its one argument —
 `edit` first, then `view` on top of it, then `rename`, `diag` and `blame`, with `command`,
 `find` and `explorer` above them and `render` and `keys` reading all of them.
@@ -165,6 +166,21 @@ otherwise close a cycle.
 - **File picker** — `<leader><leader>` opens a popup over the middle of the screen listing every file under the project root — the repository the file being edited sits in, or its own directory when it is in none — with hidden directories left out, since `.git` alone holds more files than the tree being worked on. What is typed narrows the listing as a fuzzy match rather than a prefix, so `bfg` finds `buffers.go`, and what matched is ranked the way a picker is usually meant: the letters together, at the start of a word, and in the name rather than the directories leading to it. `Ctrl-N`/`Ctrl-P` (or the arrow keys) walk the listing, `Enter` opens the file settled on as a buffer, and `Esc` — or a backspace with nothing left to delete — closes the popup, leaving the buffer underneath untouched.
 
 - **Project search** — `<leader>/` asks for a pattern on the status line and runs [ripgrep](https://github.com/BurntSushi/ripgrep) over the project root for it, listing every match in the same popup the file picker and `gr` use: `file:line: the line itself`, narrowed further by what is typed and opened with `Enter`. The pattern is ripgrep's own regex rather than the buffer's own literal `/`, case-insensitive unless it carries a capital itself, and `.gitignore` and hidden files stay out of it the same as the file picker leaves them out by hand. **There is no fallback yet**: a machine with no `rg` on its `PATH`, or a pattern ripgrep refuses, is told so on the status line rather than left waiting or answered some slower way.
+
+- **Find and replace** — `<leader>fr` opens two boxes over the middle of the screen, one above the other: the pattern to look for, and what to put in its place. The first of them opens on the word under the cursor — or on the last thing searched for, when the cursor is not on a word — since either is more often what is being replaced than an empty box is. What is typed into it *is* the `/` search's own pattern, so every match of it lights up on screen as it is typed, the same highlight `n` and `N` walk, and a pattern left behind by a replacement that was cancelled goes on being the one they walk. `Tab` (or the arrows, or `Ctrl-N`/`Ctrl-P`) moves between the boxes, `Enter` replaces every match, and `Esc` leaves the file as it was. Backspacing a box empty edits it rather than taking the whole thing down, which is what tells it apart from the prompt's single line and the picker's query.
+
+```md
+┌ Find and replace ──────────────────────────────────────┐
+│  ┌ Search ─────────────────────────────────────────┐   │
+│  │ needle                                          │   │
+│  └─────────────────────────────────────────────────┘   │
+│  ┌ Replace ────────────────────────────────────────┐   │
+│  │ pin                                             │   │
+│  └─────────────────────────────────────────────────┘   │
+│  Tab: next box · Enter: replace · Esc: cancel          │
+└────────────────────────────────────────────────────────┘
+```
+  It reaches the file being edited and nothing beyond it: a replacement that reached the files beside it would be a rename, which `<leader>cr` already is and knows far more about which mentions it ought to touch. The pattern is literal text rather than a regex, matched the way `/` matches it, and a pattern that overlaps itself is replaced left to right the way `:s` does — `aa` over `aaa` is one replacement and a leftover `a`, since the second match reaches back into what the first one already took. The whole of it is one change in the history, so a single `u` puts every line of it back, and the status line reports what it did (`3 substitutions on 2 lines`), what it could not find (`Pattern not found: ...`), or that the first box was left empty (`E471`).
 
 - **Language server** — optional, and nothing about the editor needs one. A server found on the `PATH` — `gopls` for a Go file with a `go.mod` above it, `rust-analyzer` under a `Cargo.toml`, `typescript-language-server` under a `tsconfig.json`, `jsconfig.json` or `package.json` — is started once for the project the file sits in, spoken to over JSON-RPC on its own standard input, handed the documents that are open, and shut down with the editor. There is one server per language rather than one in all, so a Go backend and the TypeScript frontend beside it both have theirs; each is pinned to the root it was started in, which is what stops a `gd` into the standard library spinning up a second copy of the same language server on it. What it answers is what `gd` and `gr`, `<leader>ss` and `<leader>sS`, `K`, the completion menu, `<leader>ca` and the diagnostics use, each described below. With no server installed every one of them falls back to reading the text, which is what they all did before there was a server at all, and a server that dies is reported once and not started again.
 
@@ -312,6 +328,10 @@ otherwise close a cycle.
 | `Ctrl-O` | Normal | go back to where the last jump left from |
 | `<leader><leader>` | Normal | open the file picker on the project root |
 | `<leader>/` | Normal | search the project with ripgrep, listing matches in the same popup |
+| `<leader>fr` | Normal | find and replace in this file, in two boxes, with the matches lit as they are typed |
+| `Tab` `Ctrl-N` `Ctrl-P` | Find/Replace | move between the two boxes |
+| `Enter` | Find/Replace | replace every match in the file |
+| `Esc` | Find/Replace | close the boxes, leaving the file as it was |
 | `<leader>ss` | Normal | list the declarations of the file being edited |
 | `<leader>sS` | Normal | list the declarations of the whole project, or of every file of the same kind beside it |
 | `]d` `[d` | Normal | jump to the next / previous diagnostic in the file, wrapping at the ends |

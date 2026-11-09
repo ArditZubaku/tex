@@ -136,6 +136,8 @@ func Dispatch(e *state.Editor, keyEvent termbox.Event) {
 		explorer.Key(e, keyEvent)
 	case e.Mode == state.PickerMode:
 		find.PickerKey(e, keyEvent)
+	case e.Mode == state.FormMode:
+		find.ReplaceKey(e, keyEvent)
 	case keyEvent.Key == termbox.KeyEsc:
 		esc(e)
 	case keyEvent.Ch != 0:
@@ -261,6 +263,7 @@ func chordKeys() map[string]func(*state.Editor) {
 		" wd": view.CloseWindow,
 		" mp": view.TogglePreview,
 		" ft": view.OpenOrFocusTerminal,
+		" fr": find.OpenReplace,
 		"  ":  find.OpenFiles,
 		" /":  find.OpenGrep,
 	}
